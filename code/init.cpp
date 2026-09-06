@@ -1119,6 +1119,8 @@ restart:
 
 		while (process) {
 
+			Shell_Display_Mode();
+
 			/*
 			**	Display menu and fetch selection from player.
 			*/
@@ -1370,6 +1372,8 @@ restart:
 		*/
 		//Scen.Set_Scenario_Name("SCG01EA.INI");
 	}
+
+	Play_Display_Mode();
 
 	/*
 	**	Don't carry stray keystrokes into game.

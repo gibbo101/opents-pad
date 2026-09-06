@@ -310,6 +310,46 @@ bool Change_Display_Mode(int width, int height)
 }
 
 
+enum {
+	SHELL_WIDTH = 640,
+	SHELL_HEIGHT = 400,
+};
+
+
+static bool Set_Display_Mode_If_Needed(int width, int height)
+{
+	if (VideoModeWidth == width && VideoModeHeight == height) {
+		return(true);
+	}
+	return(Change_Display_Mode(width, height));
+}
+
+
+/// <summary>
+/// Renders the shell menus at the size their artwork was drawn for, so they fill the
+/// screen on any panel. The controller scheme renders the shell at 640x400; the keyboard
+/// scheme keeps the shell at the play resolution.
+/// </summary>
+/// <returns>bool; Is the shell rendering at its resolution?</returns>
+bool Shell_Display_Mode(void)
+{
+	if (Options.ControlScheme != CONTROL_CONTROLLER) {
+		return(Play_Display_Mode());
+	}
+	return(Set_Display_Mode_If_Needed(SHELL_WIDTH, SHELL_HEIGHT));
+}
+
+
+/// <summary>
+/// Returns the render resolution to the configured play size before a scenario starts.
+/// </summary>
+/// <returns>bool; Is the game rendering at the play resolution?</returns>
+bool Play_Display_Mode(void)
+{
+	return(Set_Display_Mode_If_Needed(Options.ScreenWidth, Options.ScreenHeight));
+}
+
+
 /// <summary>
 /// Tries a display mode out and asks the player to confirm it.
 /// This routine switches to the requested mode and puts up a confirmation dialog. If the

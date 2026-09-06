@@ -30,6 +30,7 @@ target.
 | Native pad reader | `code/gamepad.cpp` | XInput, loaded at first use. D-pad or left stick, A accept, B back, LB/RB fast step. Under Steam the pad must be on the Gamepad template, not Keyboard & Mouse. |
 | Skirmish setup | `code/consoleskirmish.cpp` | Console screen: name (read only), side with faction icon, colour swatch strip, numbered map list with preview, then the numeric rows and toggles. Writes the same session fields as the dialog. |
 | Shell menu pages | `code/grphmenu.cpp`, `code/grphmimg.cpp` | Original artwork kept. Spatial d-pad navigation over the buttons, Tiberian Sun selected on entry, unselected discs darkened 70 percent. |
+| Shell render size | `code/mainopt.cpp`, `code/init.cpp` | Under the controller scheme the shell renders at 640x400, the size its artwork was drawn for, so the presenter fits it to the panel height with pillars on wide screens. The play resolution returns when a scenario starts. The keyboard scheme keeps the shell at the play resolution. |
 
 ## Findings that shape the work
 
@@ -50,11 +51,11 @@ target.
 
 ## Next
 
-1. Render the shell menus at 640x400 and switch to the play resolution when
-   a game starts, so menus fill any screen: a height-fitted box with pillars
-   on wide displays.
-2. Options as a console screen, so the control scheme can be flipped from the
+1. Options as a console screen, so the control scheme can be flipped from the
    pad.
+2. A zoom setting for play: the render frame takes the panel's aspect and a
+   zoom value picks its height, so no screen shows bars and each device tunes
+   its own sprite size. A 32:9 panel at 2x felt right in testing.
 3. Glyph sets for prompts and a `PromptStyle` option (Auto, Xbox,
    PlayStation, Deck) with pad type detection.
 4. An on-screen keyboard for the player name.

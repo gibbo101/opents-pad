@@ -10,4 +10,6 @@
 #pragma once
 
 bool Change_Display_Mode(int width, int height);
+bool Shell_Display_Mode(void);
+bool Play_Display_Mode(void);
 void Main_Options_Dialog(void);
