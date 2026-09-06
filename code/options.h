@@ -36,6 +36,11 @@
 
 #include "diff.hh"
 
+enum ControlSchemeType {
+	CONTROL_KEYBOARD_MOUSE,
+	CONTROL_CONTROLLER,
+};
+
 class OptionsClass {
 	public:
 		enum {
@@ -90,6 +95,12 @@ class OptionsClass {
 		int ScrollMethod;
 		int ScrollRate;					// Distance to scroll.
 		bool AutoScroll;				// Does map autoscroll?
+
+		/*
+		 * Which control scheme the player has chosen. The controller scheme swaps in the
+		 * console-style screens; the keyboard and mouse scheme keeps the original dialogs.
+		 */
+		int ControlScheme;
 
 		/*
 		 * This is how much detail the renderer is allowed to draw (0 - 2). Animations, particle

@@ -11,6 +11,7 @@
 
 class Surface;
 class ConvertClass;
+class RGBClass;
 class ShapeSet;
 template<class T> class TRect;
 typedef TRect<int> Rect;
@@ -34,6 +35,11 @@ class MSFont
 		bool Init(char const * file_name, char const * palette_name);
 
 		void Get_String_Rect(char const * string, Rect & rect);
+
+		/// <summary>
+		/// Recolors the glyphs to the given color, keeping each palette entry's brightness.
+		/// </summary>
+		void Set_Color(RGBClass const & color);
 
 		virtual int Get_Character_Width(unsigned char character);
 		virtual int Get_String_Width(char const * string);
@@ -78,6 +84,9 @@ class MSFont
 		 * visible surface is running in.
 		 */
 		ConvertClass * Drawer;
+
+		// The glyph palette as loaded, six bits per channel, so the font can be recolored later.
+		unsigned char PaletteData[768];
 
 		/*
 		 * If the glyph shapes had to be loaded from disk rather than found already resident

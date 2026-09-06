@@ -1669,6 +1669,52 @@ fixed_controls:
   _provenance:
     source: code/mainloop.cpp
     guard: null
+- id: fixed:console-menu-navigate
+  route_id: fixed-console-menu-navigate
+  kind: fixed
+  title: Console menu navigation
+  description: Moves the focus up and down a console-style menu and steps the focused row's value with
+    left and right; a held key repeats, and Shift steps five at a time.
+  audience: player
+  availability: *id001
+  bindings:
+  - Up
+  - Down
+  - Left
+  - Right
+  - Shift with Left or Right
+  context: Console-style menus under the controller control scheme
+  _provenance:
+    source: code/consolemenu.cpp
+    guard: null
+- id: fixed:console-menu-accept
+  route_id: fixed-console-menu-accept
+  kind: fixed
+  title: Console menu accept
+  description: Accepts a console-style menu, or activates the focused row when it has an action of its
+    own.
+  audience: player
+  availability: *id001
+  bindings:
+  - Enter
+  - Space
+  context: Console-style menus under the controller control scheme
+  _provenance:
+    source: code/consolemenu.cpp
+    guard: null
+- id: fixed:console-menu-back
+  route_id: fixed-console-menu-back
+  kind: fixed
+  title: Console menu back
+  description: Leaves a console-style menu without accepting it.
+  audience: player
+  availability: *id001
+  bindings:
+  - Escape
+  context: Console-style menus under the controller control scheme
+  _provenance:
+    source: code/consolemenu.cpp
+    guard: null
 - id: fixed:multiplayer-message
   route_id: fixed-multiplayer-message
   kind: fixed

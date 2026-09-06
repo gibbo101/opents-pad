@@ -226,7 +226,12 @@ bool Skirmish_Mode_Dialog(void)
 	Draw_Menu_Background();
 	Show_Mouse();
 
-	HWND dialog = OwnerDraw::Begin_Dialog(IDD_SKIRMISH, Skirmish_Dialog_Proc);
+	HWND dialog = NULL;
+	if (Options.ControlScheme == CONTROL_CONTROLLER) {
+		rc = Console_Skirmish_Screen() ? IDOK : IDCANCEL;
+	} else {
+		dialog = OwnerDraw::Begin_Dialog(IDD_SKIRMISH, Skirmish_Dialog_Proc);
+	}
 	if (dialog) {
 		SetWindowLong(dialog, DWL_USER, (LONG)&rc);
 		OwnerDraw::Display_Dialog(dialog);

@@ -111,6 +111,7 @@ OptionsClass::OptionsClass(void) :
 	Difficulty(DIFF_NORMAL),
 	GameSpeed(3),
 	ScrollRate(3),
+	ControlScheme(CONTROL_KEYBOARD_MOUSE),
 	SoundVolume(.7f),
 	VoiceVolume(1.0f),
 	ScoreVolume(.5f),
@@ -299,6 +300,36 @@ void OptionsClass::Set_Voice_Volume(float volume, bool feedback)
 
 
 /// <summary>
+/// Turns the name of a control scheme into the scheme itself.
+/// </summary>
+/// <param name="name">The name as it appears in the settings file.</param>
+/// <param name="fallback">What to return when the name is not one of them.</param>
+/// <returns>int; One of the ControlSchemeType values.</returns>
+static int Control_Scheme_From_Name(char const * name, int fallback)
+{
+	if (stricmp(name, "KeyboardMouse") == 0) return(CONTROL_KEYBOARD_MOUSE);
+	if (stricmp(name, "Controller") == 0) return(CONTROL_CONTROLLER);
+	return(fallback);
+}
+
+
+/// <summary>
+/// Names the control scheme setting for writing back.
+/// </summary>
+/// <param name="scheme">One of the ControlSchemeType values.</param>
+/// <returns>The name the settings file uses for that scheme.</returns>
+static char const * Control_Scheme_Name(int scheme)
+{
+	switch (scheme) {
+		case CONTROL_CONTROLLER:
+			return("Controller");
+		default:
+			return("KeyboardMouse");
+	}
+}
+
+
+/// <summary>
 /// Turns the name of a frame filter into the filter itself.
 /// </summary>
 /// <param name="name">The name as it appears in the settings file.</param>
@@ -395,6 +426,11 @@ void OptionsClass::Load_Settings(void)
 	ToolTips = ConfigINI.Get_Bool("Options", "ToolTips", ToolTips);
 	DebugString("ToolTips are %s\n", ToolTips == true ? "ON" : "OFF");
 
+	char schemename[32];
+	ConfigINI.Get_String("Options", "ControlScheme", (char *)Control_Scheme_Name(ControlScheme), schemename, sizeof(schemename));
+	ControlScheme = Control_Scheme_From_Name(schemename, ControlScheme);
+	DebugString("ControlScheme is %s\n", Control_Scheme_Name(ControlScheme));
+
 	TextBackgroundColor = ConfigINI.Get_Int("Options", "TextBackgroundColor", TextBackgroundColor);
 	DebugString("TextBackgroundColor = %d\n", TextBackgroundColor);
 
@@ -470,6 +506,7 @@ void OptionsClass::Save_Settings (void)
 	ConfigINI.Put_Bool("Options", "SidebarSorting", SidebarSorting);
 	ConfigINI.Put_Bool("Options", "UnitActionLines", ActionLines);
 	ConfigINI.Put_Bool("Options", "ToolTips", ToolTips);
+	ConfigINI.Put_String("Options", "ControlScheme", (char *)Control_Scheme_Name(ControlScheme));
 	ConfigINI.Put_Int("Options", "TextBackgroundColor", TextBackgroundColor);
 	ConfigINI.Put_Int("Options", "AutoSaveInterval", AutoSaveInterval);
 	ConfigINI.Put_Int("Video", "ScreenWidth", ScreenWidth);

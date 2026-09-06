@@ -10,3 +10,4 @@
 #pragma once
 
 bool Skirmish_Mode_Dialog(void);
+bool Console_Skirmish_Screen(void);

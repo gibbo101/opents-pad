@@ -27,6 +27,7 @@
 #include "palette.h"
 #include "shapeset.h"
 
+#include <algorithm>
 #include <cstring>
 
 
@@ -160,6 +161,7 @@ bool MSFont::Init(char const * file_name, char const * palette_name)
 		return(false);
 	}
 
+	memcpy(PaletteData, (unsigned char *)*palette, sizeof(PaletteData));
 	for (int gindex = 0; gindex < 256; gindex++) {
 		CCPalette[gindex] = RGBClass(
 			((unsigned char *)*palette)[gindex*3]<<2,
@@ -221,6 +223,25 @@ bool MSFont::Init(char const * file_name, char const * palette_name)
 	}
 
 	return(true);
+}
+
+
+void MSFont::Set_Color(RGBClass const & color)
+{
+	PaletteClass tinted;
+	for (int index = 0; index < PaletteClass::COLOR_COUNT; index++) {
+		int red = PaletteData[index*3]<<2;
+		int green = PaletteData[index*3+1]<<2;
+		int blue = PaletteData[index*3+2]<<2;
+		int level = std::max({red, green, blue});
+		tinted[index] = RGBClass(color.Get_Red() * level / 255, color.Get_Green() * level / 255, color.Get_Blue() * level / 255);
+	}
+	Red = color.Get_Red();
+	Green = color.Get_Green();
+	Blue = color.Get_Blue();
+	Color = DSurface::Build_Hicolor_Pixel(Red, Green, Blue);
+	delete Drawer;
+	Drawer = new ConvertClass(tinted, tinted, *VisibleSurface);
 }
 
 

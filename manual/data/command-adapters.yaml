@@ -17,6 +17,38 @@ fixed_controls:
     availability: *all
     sites:
       - { file: code/mainloop.cpp, function: Keyboard_Process, expression: KN_TAB }
+  - id: fixed:console-menu-navigate
+    title: Console menu navigation
+    description: Moves the focus up and down a console-style menu and steps the focused row's value with left and right; a held key repeats, and Shift steps five at a time.
+    audience: player
+    bindings: [Up, Down, Left, Right, Shift with Left or Right]
+    context: Console-style menus under the controller control scheme
+    availability: *all
+    sites:
+      - { file: code/consolemenu.cpp, function: ConsoleMenuClass::Poll_Input, expression: KN_UP }
+      - { file: code/consolemenu.cpp, function: ConsoleMenuClass::Poll_Input, expression: KN_DOWN }
+      - { file: code/consolemenu.cpp, function: ConsoleMenuClass::Poll_Input, expression: KN_LEFT }
+      - { file: code/consolemenu.cpp, function: ConsoleMenuClass::Poll_Input, expression: KN_RIGHT }
+      - { file: code/consolemenu.cpp, function: ConsoleMenuClass::Poll_Input, expression: KN_LSHIFT }
+  - id: fixed:console-menu-accept
+    title: Console menu accept
+    description: Accepts a console-style menu, or activates the focused row when it has an action of its own.
+    audience: player
+    bindings: [Enter, Space]
+    context: Console-style menus under the controller control scheme
+    availability: *all
+    sites:
+      - { file: code/consolemenu.cpp, function: ConsoleMenuClass::Poll_Input, expression: KN_RETURN }
+      - { file: code/consolemenu.cpp, function: ConsoleMenuClass::Poll_Input, expression: KN_SPACE }
+  - id: fixed:console-menu-back
+    title: Console menu back
+    description: Leaves a console-style menu without accepting it.
+    audience: player
+    bindings: [Escape]
+    context: Console-style menus under the controller control scheme
+    availability: *all
+    sites:
+      - { file: code/consolemenu.cpp, function: ConsoleMenuClass::Poll_Input, expression: KN_ESC }
   - id: fixed:multiplayer-message
     title: Multiplayer message recipient
     description: Starts a private message to one connection, or a message to everyone.
@@ -291,6 +323,8 @@ fixed_exclusions:
   - site: { file: code/debug.cpp, function: Debug_Key, expression: KN_GRAVE, guard: _DEBUG }
     reason: The active case has no behavior; its former explosion code is commented out.
   - site: { file: code/mainloop.cpp, function: Keyboard_Process, expression: KN_NONE }
+    reason: Input sentinel, not a player control.
+  - site: { file: code/consolemenu.cpp, function: ConsoleMenuClass::Poll_Input, expression: KN_NONE }
     reason: Input sentinel, not a player control.
   - site: { file: code/mainloop.cpp, function: Keyboard_Process, expression: KN_ESC }
     reason: Escape is represented by the forced Options command binding.
