@@ -13,6 +13,11 @@
 
 #include "always.h"
 
+#include "data.h"
+#include "gamepad.h"
+#include "goptions.h"
+#include "options.h"
+
 #include "_keyboar.h"
 #include "_palette.h"
 #include "_rules.h"
@@ -200,6 +205,11 @@ class RestateMission : public MSEngine {
 		ConvertClass * Drawer;
 		GadgetClass * ButtonList;
 		DynamicVectorClass<MyButton *> Buttons;
+		// Under the controller scheme the buttons give way to console prompts along the bottom.
+		bool Padded;
+		MSFont * PromptFont;
+		enum PromptType { PROMPT_NONE, PROMPT_MORE, PROMPT_FINAL } Prompt;
+		void Draw_Prompts(Surface * surface);
 };
 
 enum {
@@ -272,7 +282,10 @@ RestateMission::RestateMission(void) :
 	String(NULL),
 	Font(NULL),
 	Drawer(NULL),
-	ButtonList(NULL)
+	ButtonList(NULL),
+	Padded(false),
+	PromptFont(NULL),
+	Prompt(PROMPT_NONE)
 {
 	Buttons.Clear();
 	BriefingText[0] = '\0';
@@ -354,9 +367,12 @@ bool RestateMission::Presentation(ScenarioClass * scen)
 				}
 			}
 
+			Prompt = PROMPT_FINAL;
+			Add_Update_Rect(HiddenSurface->Get_Rect());
 			Show_Mouse();
 			result = User_Input();
 			Hide_Mouse();
+			Prompt = PROMPT_NONE;
 
 			HiddenSurface->Fill(0);
 			Add_Update_Rect(HiddenSurface->Get_Rect());
@@ -447,6 +463,10 @@ bool RestateMission::Init(ScenarioClass * scen)
 		DebugString("Restate: Unable to create font!\n");
 		return(false);
 	}
+	Padded = Options.ControlScheme == CONTROL_CONTROLLER;
+	if (Padded) {
+		PromptFont = new MSFont(false);
+	}
 
 	Drawer = Create_Drawer("MAPSEL.PAL");
 	if (Drawer == NULL) {
@@ -488,6 +508,9 @@ bool RestateMission::Init(ScenarioClass * scen)
 	for (i = 1; i < Buttons.Count(); i++) {
 		Buttons[i]->Add(*ButtonList);
 	}
+	if (Padded) {
+		ButtonList = NULL;
+	}
 
 	MyButton *resume = Get_Button(BUTTON_RESUME);
 	MyButton *video = Get_Button(BUTTON_VIDEO);
@@ -527,6 +550,11 @@ void RestateMission::Cleanup(void)
 		delete Font;
 		Font = NULL;
 	}
+	if (PromptFont != NULL) {
+		delete PromptFont;
+		PromptFont = NULL;
+	}
+	Prompt = PROMPT_NONE;
 	if (Drawer != NULL) {
 		delete Drawer;
 		Drawer = NULL;
@@ -555,6 +583,21 @@ void RestateMission::Do_Custom_Draw(Surface *surface)
 	if (ButtonList != NULL) {
 		ButtonList->Draw_All();
 	}
+	Draw_Prompts(surface);
+}
+
+
+void RestateMission::Draw_Prompts(Surface * surface)
+{
+	if (!Padded || PromptFont == NULL || Prompt == PROMPT_NONE) {
+		return;
+	}
+	int y = CenterY + 368;
+	char const * accept = Prompt == PROMPT_MORE ? Fetch_String(TXT_MORE) : Fetch_String(TXT_RESUME_MISSION);
+	PromptFont->Draw_String(surface, (unsigned char const *)accept, CenterX + 640 - 24 - PromptFont->Get_String_Width(accept), y, 2);
+	if (Prompt == PROMPT_FINAL && Scenario != NULL && Scenario->BriefMovie != VQ_NONE) {
+		PromptFont->Draw_String(surface, (unsigned char const *)Fetch_String(TXT_VIDEO), CenterX + 24, y, 2);
+	}
 }
 
 
@@ -572,6 +615,14 @@ bool RestateMission::User_Input(void)
 	if (ButtonList != NULL) {
 		ButtonList->Draw_All();
 	}
+	if (Padded) {
+		Draw_Prompts(HiddenSurface);
+		Rect line(CenterX, CenterY + 360, 640, 40);
+		Add_Update_Rect(line);
+		Blit_All(HiddenSurface);
+	}
+	// A button still held from the movie or the screen before must not count as a press here.
+	GamepadStateType previous = Gamepad_Read();
 	do {
 		Wait_For_Focus();
 		if (ButtonList != NULL) {
@@ -581,6 +632,16 @@ bool RestateMission::User_Input(void)
 				input = Keyboard->Get();
 			}
 		}
+		// The pad's accept carries on, as Space does; its back plays the video when there is
+		// one to play at this point, and otherwise carries on too.
+		GamepadStateType pad = Gamepad_Read();
+		if (pad.Accept && !previous.Accept) {
+			input = KN_SPACE;
+		} else if (pad.Back && !previous.Back) {
+			bool video = Prompt == PROMPT_FINAL && Scenario != NULL && Scenario->BriefMovie != VQ_NONE;
+			input = video ? (BUTTON_VIDEO|KN_BUTTON) : KN_SPACE;
+		}
+		previous = pad;
 		switch (input) {
 			case (BUTTON_RESUME|KN_BUTTON):
 			case (BUTTON_VIDEO|KN_BUTTON):
@@ -589,6 +650,7 @@ bool RestateMission::User_Input(void)
 
 			case (BUTTON_MORE|KN_BUTTON):
 			case (KN_SPACE):
+			case (KN_RETURN):
 			case (KN_ESC):
 				running = false;
 				break;
@@ -616,8 +678,13 @@ void RestateMission::More_Button(int x, int y)
 		btn->X = x - (btn->Width / 2);
 		btn->Y = y;
 		btn->Enable();
+		Prompt = PROMPT_MORE;
+		Add_Update_Rect(HiddenSurface->Get_Rect());
 		User_Input();
-		btn->Draw();
+		Prompt = PROMPT_NONE;
+		if (!Padded) {
+			btn->Draw();
+		}
 		btn->Disable();
 	}
 }
