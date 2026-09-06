@@ -88,6 +88,7 @@ enum {
 	DIM_MIN_SIZE = 100,			// Smaller buttons carry their own highlight in their artwork.
 	DIM_PERCENT = 70,
 	DIM_DARK = 24,
+	DIM_FILL_NEIGHBOURS = 5,		// A straight edge has three masked neighbours, a hole in lettering more.
 };
 
 
@@ -115,6 +116,7 @@ class MSDimAnim : public MSAnim
 
 	private:
 		void Build_Mask(void);
+		void Fill_Holes(std::vector<unsigned char> const & bright);
 		void Darken(Surface * surface, Rect const & rect);
 
 		Surface const & Lit;
@@ -137,14 +139,48 @@ void MSDimAnim::Build_Mask(void)
 {
 	Mask.assign(Area.Width * Area.Height, 0);
 	Written.assign(Area.Width * Area.Height, -1);
+	std::vector<unsigned char> bright(Area.Width * Area.Height, 0);
 	for (int y = 0; y < Area.Height; y++) {
 		for (int x = 0; x < Area.Width; x++) {
 			int pixel = Lit.Get_Pixel(Point2D(x, y));
 			int red, green, blue;
 			Split_Pixel(pixel, red, green, blue);
 			bool dark = red < DIM_DARK && green < DIM_DARK && blue < DIM_DARK;
-			if (!dark && pixel != AlternateSurface->Get_Pixel(Point2D(Area.X + x, Area.Y + y))) {
+			if (dark) continue;
+			bright[y * Area.Width + x] = 1;
+			if (pixel != AlternateSurface->Get_Pixel(Point2D(Area.X + x, Area.Y + y))) {
 				Mask[y * Area.Width + x] = 1;
+			}
+		}
+	}
+	Fill_Holes(bright);
+}
+
+
+// Lettering that is the same colour lit and unlit leaves gaps in the traced shape; a bright
+// pixel with most of its neighbours in the mask is inside the artwork, not on its edge.
+void MSDimAnim::Fill_Holes(std::vector<unsigned char> const & bright)
+{
+	bool changed = true;
+	while (changed) {
+		changed = false;
+		for (int y = 0; y < Area.Height; y++) {
+			for (int x = 0; x < Area.Width; x++) {
+				int index = y * Area.Width + x;
+				if (Mask[index] || !bright[index]) continue;
+				int masked = 0;
+				for (int dy = -1; dy <= 1; dy++) {
+					for (int dx = -1; dx <= 1; dx++) {
+						int nx = x + dx;
+						int ny = y + dy;
+						if ((dx == 0 && dy == 0) || nx < 0 || ny < 0 || nx >= Area.Width || ny >= Area.Height) continue;
+						masked += Mask[ny * Area.Width + nx];
+					}
+				}
+				if (masked >= DIM_FILL_NEIGHBOURS) {
+					Mask[index] = 1;
+					changed = true;
+				}
 			}
 		}
 	}

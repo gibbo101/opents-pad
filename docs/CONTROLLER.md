@@ -58,8 +58,7 @@ target.
 3. Glyph sets for prompts and a `PromptStyle` option (Auto, Xbox,
    PlayStation, Deck) with pad type detection.
 4. An on-screen keyboard for the player name.
-5. Small: B on the shell pages, and the dimmer misses a few pixels in the
-   Firestorm disc's "COMMAND" lettering.
+5. Small: B on the shell pages.
 6. Later: the in-game control scheme, the sidebar, and the display work in
    the direction notes.
 
