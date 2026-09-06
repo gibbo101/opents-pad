@@ -12,4 +12,5 @@
 bool Change_Display_Mode(int width, int height);
 bool Shell_Display_Mode(void);
 bool Play_Display_Mode(void);
+bool Console_Options_Screen(void);
 void Main_Options_Dialog(void);

@@ -358,6 +358,8 @@ BEGIN
                     BS_CENTER,37,54,126,18
     CONTROL         "Game Settings",IDC_OPTMAIN_GAME_SETTINGS,"Button",
                     BS_OWNERDRAW | BS_CENTER,37,10,126,18
+    CONTROL         "Switch To Controller",IDC_OPTMAIN_CONTROLLER,"Button",
+                    BS_OWNERDRAW | BS_CENTER,37,98,126,18
 END
 
 IDD_MAIN_MENU DIALOG DISCARDABLE  0, 0, 204, 147

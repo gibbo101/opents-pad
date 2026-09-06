@@ -21,6 +21,7 @@
 #include "dsaudio.h"
 #include "dsurface.h"
 #include "gamedlg.h"
+#include "gamepad.h"
 #include "globals.h"
 #include "init.h"
 #include "language/language.h"
@@ -57,6 +58,12 @@ GameOptionsClass TempOptions;
 /// <remarks>Game logic is suspended for the duration of this routine.</remarks>
 void Main_Options_Dialog(void)
 {
+	// The console screen leaves when the game goes inactive, so it runs before that flag drops.
+	if (Options.ControlScheme == CONTROL_CONTROLLER) {
+		Console_Options_Screen();
+		return;
+	}
+
 	bool old_game_active = GameActive;
 	GameActive = false;
 
@@ -129,6 +136,14 @@ void Main_Options_Dialog(void)
 			}
 			break;
 
+			// The shell takes the other set of screens as soon as the driver returns.
+			case IDC_OPTMAIN_CONTROLLER:
+				Options.ControlScheme = CONTROL_CONTROLLER;
+				Options.ControlSchemeAuto = false;
+				Options.Save_Settings();
+				GameActive = old_game_active;
+				return;
+
 			case IDC_OPTMAIN_KEYBOARD:
 				Options.Hotkey_Dialog();
 				break;
@@ -170,6 +185,10 @@ BOOL CALLBACK Main_Options_Dialog_Proc(HWND window, UINT message, WPARAM wparam,
 				handle = GetDlgItem(window, IDC_OPTMAIN_SOUND);
 				if (handle) {
 					EnableWindow(handle, Audio_Available());
+				}
+				handle = GetDlgItem(window, IDC_OPTMAIN_CONTROLLER);
+				if (handle) {
+					EnableWindow(handle, Gamepad_Read().Connected);
 				}
 				break;
 

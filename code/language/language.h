@@ -1159,6 +1159,7 @@
 #define IDC_DESYNC_LOAD                 1711
 #define IDC_DESYNC_CONTINUE             1712
 #define IDC_DESYNC_QUIT                 1713
+#define IDC_OPTMAIN_CONTROLLER          1714
 
 // Next default values for new objects
 //
