@@ -147,18 +147,6 @@ GraphicMenu::~GraphicMenu(void)
 /// </summary>
 /// <param name="id">The identifier of the items to change.</param>
 /// <param name="enabled">Should the items be enabled?</param>
-int GraphicMenu::Item_Count(void) const
-{
-	return(Items.Count());
-}
-
-
-GraphicMenuItem * GraphicMenu::Get_Item(int index) const
-{
-	return(Items[index]);
-}
-
-
 void GraphicMenu::Set_Item_Enabled(int id, bool enabled)
 {
 	for (GraphicMenuItem * item : Items) {

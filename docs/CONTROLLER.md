@@ -1,0 +1,71 @@
+# Controller support
+
+This fork adds a controller control scheme to OpenTS. The guiding reference is
+Command & Conquer: Red Alert Retaliation on the PlayStation: list-style menus,
+one focused row, left and right to change a value, one button to accept and
+one to go back. The Steam Deck is the primary test device, but nothing is
+Deck-specific; every screen size from a 7-inch panel to a 32:9 ultrawide is a
+target.
+
+## Rules
+
+- `ControlScheme` in `SUN.INI` selects `KeyboardMouse` or `Controller`.
+  Under `KeyboardMouse` the game is unchanged. Under `Controller` some
+  screens are replaced or extended. Everything added is reversible by
+  flipping the setting; no original screen is edited away.
+- Controller controls are a scheme of their own, not a mapping of pad buttons
+  onto keyboard hotkeys. In game they will be a separate binding table.
+- Console-style screens are focus based. Moving a mouse pointer with a stick
+  is not acceptable anywhere in menus. A pointer stays right for the tactical
+  map, with snapping to units.
+- Button prompts must show the connected pad's glyphs: Xbox, PlayStation, or
+  Steam Deck styles, with plain text as the fallback.
+
+## What exists
+
+| Piece | Where | State |
+| --- | --- | --- |
+| `ControlScheme` option | `code/options.cpp`, manual key page | Done. No in-game control changes it yet; edit the file. |
+| Console menu framework | `code/consolemenu.cpp` | Rows of label, value, step, activate, optional icon and swatch strip. Big menu font, teal focus row, dark panel over the backdrop, held-key repeat, Shift or a shoulder button steps by five. |
+| Native pad reader | `code/gamepad.cpp` | XInput, loaded at first use. D-pad or left stick, A accept, B back, LB/RB fast step. Under Steam the pad must be on the Gamepad template, not Keyboard & Mouse. |
+| Skirmish setup | `code/consoleskirmish.cpp` | Console screen: name (read only), side with faction icon, colour swatch strip, numbered map list with preview, then the numeric rows and toggles. Writes the same session fields as the dialog. |
+| Shell menu pages | `code/grphmenu.cpp`, `code/grphmimg.cpp` | Original artwork kept. Spatial d-pad navigation over the buttons, Tiberian Sun selected on entry, unselected discs darkened 70 percent. |
+
+## Findings that shape the work
+
+- The engine drops the system's key repeat on purpose, so held keys must be
+  polled, not received as events.
+- The menu font `FULLFNT3` has three frames per glyph. Frame 2 is the
+  readable text; frames 0 and 1 are fade-in bloom layers. Its side palette
+  only exists in the campaign side mixes, so it cannot be loaded at the main
+  menu; `MSFont::Set_Color` recolours the font from its own palette instead.
+- The map preview loader uses `AlternateSurface` as scratch space. Anything
+  that caches a backdrop there gets corrupted when the map changes.
+- The game select page's backdrop is a movie. Anything painted over it must
+  be repainted after every movie frame and must not compound.
+- The discs on the game select page have no unlit image; their unlit look is
+  part of the backdrop. Only the lit image is separate.
+- The shell menus are 640x400 layouts. They fill the screen only when the
+  render resolution is 640x400, which on a 16:10 panel is an exact fit.
+
+## Next
+
+1. Render the shell menus at 640x400 and switch to the play resolution when
+   a game starts, so menus fill any screen: a height-fitted box with pillars
+   on wide displays.
+2. Options as a console screen, so the control scheme can be flipped from the
+   pad.
+3. Glyph sets for prompts and a `PromptStyle` option (Auto, Xbox,
+   PlayStation, Deck) with pad type detection.
+4. An on-screen keyboard for the player name.
+5. Small: B on the shell pages, and the dimmer misses a few pixels in the
+   Firestorm disc's "COMMAND" lettering.
+6. Later: the in-game control scheme, the sidebar, and the display work in
+   the direction notes.
+
+## Parked
+
+- Arrow keys beep on the Deck under Proton on every press. Present on the
+  upstream build too, not caused by this fork.
+- Held-key map scrolling uses the edge-scroll speed for the `ScrollRate`
+  option and may want a rate of its own.
