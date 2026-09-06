@@ -130,6 +130,7 @@
 #include "lightcon.h"
 #include "loaddlg.h"
 #include "logic.h"
+#include "consolemenu.h"
 #include "mainopt.h"
 #include "mixfile.h"
 #include "misc.h"
@@ -814,6 +815,118 @@ static BOOL CALLBACK Campaign_Choice_Dialog_Proc(HWND window, UINT message, WPAR
 }
 
 
+// Enlarges a piece of the backdrop behind the rows: sampled smoothly, dimmed, and faded out
+// toward the edge so it sits in the backdrop rather than on it.
+static void Draw_Emblem(Surface & surface, Surface const & backdrop, Rect const & source, Rect const & dest)
+{
+	auto split = [](int pixel, int & red, int & green, int & blue) {
+		red = ((pixel >> DSurface::RedRight) & (255 >> DSurface::RedLeft)) << DSurface::RedLeft;
+		green = ((pixel >> DSurface::GreenRight) & (255 >> DSurface::GreenLeft)) << DSurface::GreenLeft;
+		blue = ((pixel >> DSurface::BlueRight) & (255 >> DSurface::BlueLeft)) << DSurface::BlueLeft;
+	};
+	auto sample = [&](float sx, float sy, int & red, int & green, int & blue) {
+		int x0 = int(sx);
+		int y0 = int(sy);
+		float fx = sx - x0;
+		float fy = sy - y0;
+		int x1 = std::min(x0 + 1, source.X + source.Width - 1);
+		int y1 = std::min(y0 + 1, source.Y + source.Height - 1);
+		int r[4], g[4], b[4];
+		split(backdrop.Get_Pixel(Point2D(x0, y0)), r[0], g[0], b[0]);
+		split(backdrop.Get_Pixel(Point2D(x1, y0)), r[1], g[1], b[1]);
+		split(backdrop.Get_Pixel(Point2D(x0, y1)), r[2], g[2], b[2]);
+		split(backdrop.Get_Pixel(Point2D(x1, y1)), r[3], g[3], b[3]);
+		float w0 = (1 - fx) * (1 - fy), w1 = fx * (1 - fy), w2 = (1 - fx) * fy, w3 = fx * fy;
+		red = int(r[0] * w0 + r[1] * w1 + r[2] * w2 + r[3] * w3);
+		green = int(g[0] * w0 + g[1] * w1 + g[2] * w2 + g[3] * w3);
+		blue = int(b[0] * w0 + b[1] * w1 + b[2] * w2 + b[3] * w3);
+	};
+
+	float const strength = 0.6f;
+	float const fade_start = 0.5f;
+	float const fade_end = 0.95f;
+	float cx = dest.Width / 2.0f;
+	float cy = dest.Height / 2.0f;
+	for (int y = 0; y < dest.Height; y++) {
+		for (int x = 0; x < dest.Width; x++) {
+			float dx = (x + 0.5f - cx) / cx;
+			float dy = (y + 0.5f - cy) / cy;
+			float distance = std::sqrt(dx * dx + dy * dy);
+			if (distance >= fade_end) continue;
+			float alpha = strength * (distance <= fade_start ? 1.0f : (fade_end - distance) / (fade_end - fade_start));
+			float sx = source.X + (x + 0.5f) * source.Width / dest.Width - 0.5f;
+			float sy = source.Y + (y + 0.5f) * source.Height / dest.Height - 0.5f;
+			sx = std::clamp(sx, float(source.X), float(source.X + source.Width - 1));
+			sy = std::clamp(sy, float(source.Y), float(source.Y + source.Height - 1));
+			int red, green, blue;
+			sample(sx, sy, red, green, blue);
+			int under_red, under_green, under_blue;
+			split(surface.Get_Pixel(Point2D(dest.X + x, dest.Y + y)), under_red, under_green, under_blue);
+			red = int(under_red + (red - under_red) * alpha);
+			green = int(under_green + (green - under_green) * alpha);
+			blue = int(under_blue + (blue - under_blue) * alpha);
+			surface.Put_Pixel(Point2D(dest.X + x, dest.Y + y), DSurface::Build_Hicolor_Pixel(red, green, blue));
+		}
+	}
+}
+
+
+// The console-style campaign choice: one row per campaign, the difficulty under them, and
+// the chosen side's emblem from the backdrop filling the panel behind. It writes the
+// difficulty option as the dialog does.
+static CampaignType Console_Campaign_Screen(void)
+{
+	std::vector<int> available;
+	for (int index = 0; index < Campaigns.Count(); index++) {
+		if (Campaign_Available(Campaigns[index])) {
+			available.push_back(index);
+		}
+	}
+	if (available.empty()) {
+		return(CAMPAIGN_NONE);
+	}
+
+	int chosen = -1;
+	int difficulty = std::clamp(Options.Difficulty, 0, 2);
+
+	ConsoleMenuClass menu("New Campaign");
+	menu.Set_Prompts("Start", "Back");
+
+	// The emblems are the two discs of the Firestorm backdrop, enlarged behind the rows.
+	auto is_nod = [&](int index) {
+		char const * text = Campaigns[available[index]]->Description;
+		for (char const * p = text; *p != '\0'; p++) {
+			if (strnicmp(p, "Nod", 3) == 0) return(true);
+		}
+		return(false);
+	};
+	menu.Set_Backdrop_Panel([&](Surface & surface, Surface const & backdrop, Rect const & box) {
+		int focus = menu.Get_Focus();
+		int shown = focus < int(available.size()) ? focus : std::max(chosen, 0);
+		Rect source = is_nod(shown) ? Rect(494, 264, 112, 112) : Rect(27, 22, 112, 112);
+		Rect frame = surface.Get_Rect();
+		source.X += (frame.Width - box.Width) / 2;
+		source.Y += (frame.Height - box.Height) / 2;
+		int size = 320;
+		Rect dest(box.X + (box.Width - size) / 2, box.Y + (box.Height - size) / 2 + 16, size, size);
+		Draw_Emblem(surface, backdrop, source, dest);
+	});
+
+	for (int index = 0; index < int(available.size()); index++) {
+		menu.Add_Row({std::string(Campaigns[available[index]]->Description), nullptr, nullptr,
+			[&, index]{ chosen = index; menu.Finish(CONSOLE_MENU_ACCEPT); }});
+	}
+	menu.Add_Row({"Difficulty", [&]{ return(std::string(Fetch_String(GameDifficultyNames[difficulty]))); },
+		[&](int step) { difficulty = std::clamp(difficulty + step, 0, 2); }, []{}});
+
+	if (menu.Process() != CONSOLE_MENU_ACCEPT || chosen < 0) {
+		return(CAMPAIGN_NONE);
+	}
+	Options.Difficulty = difficulty;
+	return(CampaignType(available[chosen]));
+}
+
+
 /// <summary>
 /// Asks the player which campaign to play.
 /// This routine reads the campaign list first if that has not already happened, and then
@@ -834,6 +947,10 @@ static CampaignType Choose_Campaign(void)
 		if (Campaigns.Count() == 0) {
 			return(CAMPAIGN_NONE);
 		}
+	}
+
+	if (Options.ControlScheme == CONTROL_CONTROLLER) {
+		return(Console_Campaign_Screen());
 	}
 
 	dialog = OwnerDraw::Begin_Dialog(IDD_CAMPAIGN, (DLGPROC) Campaign_Choice_Dialog_Proc);

@@ -55,7 +55,15 @@ class ConsoleMenuClass
 		int Add_Row(ConsoleRowType const & row);
 		void Set_Prompts(char const * accept, char const * back);
 		void Set_Side_Panel(std::function<void(Surface &, Rect const &)> draw);
+		void Set_Backdrop_Panel(std::function<void(Surface &, Surface const &, Rect const &)> draw);	// Given the frame, the undimmed backdrop, and the menu box.
 		void Refresh(void) { IsDirty = true; }
+		int Get_Focus(void) const { return(Focus); }
+
+		/// <summary>
+		/// Ends Process with the given result once the current input has been handled, for a
+		/// row whose activation is the menu's outcome.
+		/// </summary>
+		void Finish(ConsoleMenuResult result) { IsFinished = true; FinishResult = result; }
 
 		ConsoleMenuResult Process(void);
 
@@ -70,10 +78,13 @@ class ConsoleMenuClass
 		std::string BackPrompt;
 		std::vector<ConsoleRowType> Rows;
 		std::function<void(Surface &, Rect const &)> SidePanel;
+		std::function<void(Surface &, Surface const &, Rect const &)> BackdropPanel;
 		MSFont * Font;
 		MSFont * FocusFont;
 		Surface * Backdrop;
 		GamepadStateType PreviousPad;
 		int Focus;
 		bool IsDirty;
+		bool IsFinished;
+		ConsoleMenuResult FinishResult;
 };

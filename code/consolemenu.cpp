@@ -68,7 +68,9 @@ ConsoleMenuClass::ConsoleMenuClass(char const * title) :
 	Backdrop(NULL),
 	PreviousPad(),
 	Focus(0),
-	IsDirty(true)
+	IsDirty(true),
+	IsFinished(false),
+	FinishResult(CONSOLE_MENU_BACK)
 {
 }
 
@@ -101,6 +103,13 @@ void ConsoleMenuClass::Set_Prompts(char const * accept, char const * back)
 void ConsoleMenuClass::Set_Side_Panel(std::function<void(Surface &, Rect const &)> draw)
 {
 	SidePanel = draw;
+	IsDirty = true;
+}
+
+
+void ConsoleMenuClass::Set_Backdrop_Panel(std::function<void(Surface &, Surface const &, Rect const &)> draw)
+{
+	BackdropPanel = draw;
 	IsDirty = true;
 }
 
@@ -228,6 +237,9 @@ void ConsoleMenuClass::Draw(void)
 
 	surface.Blit_From(*Backdrop);
 	surface.Fill_Rect_Trans(Rect(left + PANEL_INSET, top + PANEL_INSET, MENU_WIDTH - 2 * PANEL_INSET, MENU_HEIGHT - 2 * PANEL_INSET), RGBClass(0, 0, 0), PANEL_OPACITY);
+	if (BackdropPanel) {
+		BackdropPanel(surface, *Backdrop, Rect(left, top, MENU_WIDTH, MENU_HEIGHT));
+	}
 
 	if (Font == NULL) {
 		Font = new MSFont(false);
@@ -257,7 +269,11 @@ void ConsoleMenuClass::Draw(void)
 	for (int index = 0; index < count; index++) {
 		ConsoleRowType const & row = Rows[index];
 		bool focused = index == Focus;
-		print(row.Label, left + LABEL_RIGHT - width(row.Label), y, focused);
+		if (!row.Value) {
+			print(row.Label, left + (MENU_WIDTH - width(row.Label)) / 2, y, focused);
+		} else {
+			print(row.Label, left + LABEL_RIGHT - width(row.Label), y, focused);
+		}
 		if (row.Value) {
 			std::string value = row.Value();
 			// A value that would run past the box is cut short with a trailing "..".
@@ -328,6 +344,10 @@ ConsoleMenuResult ConsoleMenuClass::Process(void)
 			break;
 		}
 		if (GameInFocus && Poll_Input(result)) {
+			break;
+		}
+		if (IsFinished) {
+			result = FinishResult;
 			break;
 		}
 		if (IsDirty) {

@@ -25,11 +25,13 @@ target.
 
 | Piece | Where | State |
 | --- | --- | --- |
-| `ControlScheme` option | `code/options.cpp`, manual key page | Done. No in-game control changes it yet; edit the file. |
+| `ControlScheme` option | `code/options.cpp`, manual key page | Done. Defaults to Auto: Controller when a pad is connected at launch. Switched from the console options screen or the options page's Switch To Controller button. |
 | Console menu framework | `code/consolemenu.cpp` | Rows of label, value, step, activate, optional icon and swatch strip. Big menu font, teal focus row, dark panel over the backdrop, held-key repeat, Shift or a shoulder button steps by five. |
 | Native pad reader | `code/gamepad.cpp` | XInput, loaded at first use. D-pad or left stick, A accept, B back, LB/RB fast step. Under Steam the pad must be on the Gamepad template, not Keyboard & Mouse. |
 | Skirmish setup | `code/consoleskirmish.cpp` | Console screen: name (read only), side with faction icon, colour swatch strip, numbered map list with preview, then the numeric rows and toggles. Writes the same session fields as the dialog. |
-| Shell menu pages | `code/grphmenu.cpp`, `code/grphmimg.cpp` | Original artwork kept. Spatial d-pad navigation over the buttons, Tiberian Sun selected on entry, unselected discs darkened 70 percent. |
+| Shell menu pages | `code/grphmenu.cpp`, `code/grphmimg.cpp` | Original artwork kept. Spatial d-pad navigation over the buttons, Tiberian Sun selected on entry, unselected discs darkened 70 percent, B or Escape takes the page's Back button. A button still held from the previous screen is not a press. |
+| Options | `code/consoleoptions.cpp` | Console screen: control scheme, resolution from the display's mode list, scale mode, integer scaling, stretch movies, game speed, scroll rate and coasting, detail, campaign difficulty, cameo text, action lines, tool tips, three volumes stepped live. Accept saves; back restores the volumes. |
+| New Campaign | `code/init.cpp` | Console screen: the campaign stepped like a list, difficulty under it, Start to begin. Writes the difficulty option like the dialog. |
 | Shell render size | `code/mainopt.cpp`, `code/init.cpp` | Under the controller scheme the shell renders at 640x400, the size its artwork was drawn for, so the presenter fits it to the panel height with pillars on wide screens. The play resolution returns when a scenario starts. The keyboard scheme keeps the shell at the play resolution. |
 
 ## Findings that shape the work
@@ -51,16 +53,17 @@ target.
 
 ## Next
 
-1. Options as a console screen, so the control scheme can be flipped from the
-   pad.
-2. A zoom setting for play: the render frame takes the panel's aspect and a
+1. A zoom setting for play: the render frame takes the panel's aspect and a
    zoom value picks its height, so no screen shows bars and each device tunes
    its own sprite size. A 32:9 panel at 2x felt right in testing.
-3. Glyph sets for prompts and a `PromptStyle` option (Auto, Xbox,
+2. Glyph sets for prompts and a `PromptStyle` option (Auto, Xbox,
    PlayStation, Deck) with pad type detection.
-4. An on-screen keyboard for the player name.
-5. Small: B on the shell pages.
-6. Later: the in-game control scheme, the sidebar, and the display work in
+3. An on-screen keyboard for the player name.
+4. A Steam Input layout for the game, shipped in the repo, so the pad is on
+   the Gamepad template without the player building one. Steam only defaults
+   a layout the app owner publishes, so this is a file to import once, and
+   Steam keeps the choice per player after that.
+5. Later: the in-game control scheme, the sidebar, and the display work in
    the direction notes.
 
 ## Parked

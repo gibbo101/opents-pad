@@ -5123,7 +5123,7 @@ ControlScheme:
     value_type: string
     status: generated
     _provenance:
-      default_candidate: null
+      default_candidate: Auto
       declared_in: OptionsClass
       member: null
       source: code/options.cpp
