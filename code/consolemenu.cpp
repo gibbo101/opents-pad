@@ -66,6 +66,7 @@ ConsoleMenuClass::ConsoleMenuClass(char const * title) :
 	Font(NULL),
 	FocusFont(NULL),
 	Backdrop(NULL),
+	PreviousPad(),
 	Focus(0),
 	IsDirty(true)
 {
@@ -138,8 +139,6 @@ bool ConsoleMenuClass::Poll_Input(ConsoleMenuResult & result)
 {
 	static unsigned int _repeat_at = 0;
 	static NavType _held = NAV_NONE;
-	static GamepadStateType _previous = {};
-
 	GamepadStateType pad = Gamepad_Read();
 
 	// A held shift or shoulder button steps values five at a time.
@@ -185,13 +184,13 @@ bool ConsoleMenuClass::Poll_Input(ConsoleMenuResult & result)
 		}
 	}
 
-	if (pad.Up && !_previous.Up) navigate(NAV_UP);
-	if (pad.Down && !_previous.Down) navigate(NAV_DOWN);
-	if (pad.Left && !_previous.Left) navigate(NAV_LEFT);
-	if (pad.Right && !_previous.Right) navigate(NAV_RIGHT);
-	bool accept_pressed = pad.Accept && !_previous.Accept;
-	bool back_pressed = pad.Back && !_previous.Back;
-	_previous = pad;
+	if (pad.Up && !PreviousPad.Up) navigate(NAV_UP);
+	if (pad.Down && !PreviousPad.Down) navigate(NAV_DOWN);
+	if (pad.Left && !PreviousPad.Left) navigate(NAV_LEFT);
+	if (pad.Right && !PreviousPad.Right) navigate(NAV_RIGHT);
+	bool accept_pressed = pad.Accept && !PreviousPad.Accept;
+	bool back_pressed = pad.Back && !PreviousPad.Back;
+	PreviousPad = pad;
 	if (accept_pressed && accept()) return(true);
 	if (back_pressed) {
 		result = CONSOLE_MENU_BACK;
@@ -310,6 +309,8 @@ ConsoleMenuResult ConsoleMenuClass::Process(void)
 
 	Keyboard->Clear();
 	Hide_Mouse();
+	// A button still held from the screen before must not count as a press here.
+	PreviousPad = Gamepad_Read();
 
 	// The map preview loader scribbles on AlternateSurface, so the backdrop is kept on a surface of its own.
 	if (Backdrop == NULL) {

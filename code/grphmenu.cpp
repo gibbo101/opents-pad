@@ -118,6 +118,7 @@ GraphicMenu * _Graphic_Menu(INIClass const & ini, const char * name)
 GraphicMenu::GraphicMenu(void) :
 	Engine(),
 	Items(),
+	BackID(-1),
 	CurrentAnim(NULL)
 {
 	BackgroundName.Set("Title.PCX");
@@ -187,7 +188,7 @@ int GraphicMenu::Presentation(void)
 
 	bool padded = Options.ControlScheme == CONTROL_CONTROLLER;
 	Point2D last_mouse(Get_Mouse_X(), Get_Mouse_Y());
-	GamepadStateType previous = {};
+	GamepadStateType previous = Gamepad_Read();
 	auto select = [&](GraphicMenuItem * temp, bool silent = false) {
 		if (item != temp) {
 			if (item != NULL) {
@@ -234,6 +235,15 @@ int GraphicMenu::Presentation(void)
 	if (padded) {
 		step(0, 0, true);
 	}
+	auto back = [&](void) {
+		for (int index = 0; index < Items.Count(); index++) {
+			if (Items[index]->Get_ID() == BackID && Items[index]->Is_Enabled()) {
+				select(Items[index], true);
+				done = true;
+				return;
+			}
+		}
+	};
 
 	while (!done) {
 		Hide_Mouse();
@@ -254,6 +264,8 @@ int GraphicMenu::Presentation(void)
 				step(1, 0);
 			} else if (padded && (key == KN_RETURN || key == KN_SPACE) && item != NULL && mouse == last_mouse) {
 				done = true;
+			} else if (padded && key == KN_ESC && BackID >= 0) {
+				back();
 			} else {
 				GraphicMenuItem * temp = (key == KN_LMOUSE || key == KN_RETURN) ? Get_Item_Under_Mouse(mouse) : Get_Item_For_Key(key);
 				if (temp != NULL) {
@@ -273,6 +285,7 @@ int GraphicMenu::Presentation(void)
 			if (pad.Left && !previous.Left) step(-1, 0);
 			if (pad.Right && !previous.Right) step(1, 0);
 			if (pad.Accept && !previous.Accept && item != NULL) done = true;
+			if (pad.Back && !previous.Back) back();
 			previous = pad;
 		}
 		Engine.Wait_Delay(1);

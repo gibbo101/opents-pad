@@ -23,6 +23,7 @@ struct GamepadStateType
 	bool Accept;
 	bool Back;
 	bool Fast;
+	bool Menu;
 };
 
 /// <summary>
@@ -30,3 +31,9 @@ struct GamepadStateType
 /// or no controller support is present.
 /// </summary>
 GamepadStateType Gamepad_Read(void);
+
+/// <summary>
+/// Feeds the keyboard buffer with the keys the controller stands in for, so screens that
+/// only read keys still answer the pad. Call it from the message pump.
+/// </summary>
+void Gamepad_Pump(void);

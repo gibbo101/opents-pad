@@ -11,6 +11,10 @@
 
 #include "gamepad.h"
 
+#include "_keyboar.h"
+#include "globals.h"
+#include "goptions.h"
+#include "options.h"
 #include "win.h"
 
 #include <Xinput.h>
@@ -70,7 +74,34 @@ GamepadStateType Gamepad_Read(void)
 		result.Accept = (pad.wButtons & XINPUT_GAMEPAD_A) != 0;
 		result.Back = (pad.wButtons & XINPUT_GAMEPAD_B) != 0;
 		result.Fast = (pad.wButtons & (XINPUT_GAMEPAD_RIGHT_SHOULDER|XINPUT_GAMEPAD_LEFT_SHOULDER)) != 0;
+		result.Menu = (pad.wButtons & XINPUT_GAMEPAD_START) != 0;
 		break;
 	}
 	return(result);
+}
+
+
+// The menu button is Escape everywhere: it skips a movie, opens the in-game menu, and
+// backs out of a screen. Polling is held to once per frame because asking XInput about
+// a controller that is not there is slow.
+void Gamepad_Pump(void)
+{
+	static bool _menu_was_down = false;
+	static unsigned long _next_poll = 0;
+
+	if (Options.ControlScheme != CONTROL_CONTROLLER || Keyboard == NULL) {
+		return;
+	}
+	unsigned long now = timeGetTime();
+	if (now < _next_poll) {
+		return;
+	}
+	_next_poll = now + 16;
+
+	GamepadStateType pad = Gamepad_Read();
+	if (pad.Menu && !_menu_was_down) {
+		Keyboard->Put(KN_ESC);
+		Keyboard->Put(KN_ESC | WWKEY_RLS_BIT);
+	}
+	_menu_was_down = pad.Menu;
 }

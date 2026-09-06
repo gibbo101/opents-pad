@@ -215,6 +215,7 @@ int NewMenuClass::Display_Menu(char const * section, DynamicVectorClass<int> & o
 	for (int option : options) {
 		menu->Set_Item_Enabled(option, false);
 	}
+	menu->Set_Back_Item(GMENU_BACK);
 
 	int result = menu->Presentation();
 	delete menu;

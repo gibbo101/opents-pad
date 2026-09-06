@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include "gamepad.h"
 #include "rect.h"
 
 #include <functional>
@@ -72,6 +73,7 @@ class ConsoleMenuClass
 		MSFont * Font;
 		MSFont * FocusFont;
 		Surface * Backdrop;
+		GamepadStateType PreviousPad;
 		int Focus;
 		bool IsDirty;
 };

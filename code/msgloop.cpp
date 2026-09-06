@@ -40,6 +40,7 @@
 
 #include "_tooltip.h"
 #include "cctooltip.h"
+#include "gamepad.h"
 #include "vector.h"
 #include "video.h"
 
@@ -97,6 +98,8 @@ bool (*Message_Intercept_Handler)(MSG &msg) = NULL;
 void Windows_Message_Handler(void)
 {
 	if (MainWindow == 0) return;
+
+	Gamepad_Pump();
 
 	MSG msg;
 

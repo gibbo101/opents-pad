@@ -103,6 +103,7 @@ class GraphicMenu
 		void Add_Item(GraphicMenuItem * item);
 
 		void Set_Item_Enabled(int item_id, bool enabled);
+		void Set_Back_Item(int item_id) { BackID = item_id; }
 		int Presentation(void);
 		GraphicMenuItem * Get_Item_Under_Mouse(Point2D const & mouse);
 		GraphicMenuItem * Get_Item_For_Key(KeyNumType key);
@@ -141,6 +142,7 @@ class GraphicMenu
 		 * them along with itself.
 		 */
 		ITEM_LIST Items;
+		int BackID;					// The item the pad's back button chooses, or -1 when the page has none.
 };
 
 
