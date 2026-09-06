@@ -45,9 +45,11 @@
 
 #include "campaign.h"
 #include "conquer.h"
+#include "consolemenu.h"
 #include "data.h"
 #include "gamedirs.h"
 #include "globals.h"
+#include "goptions.h"
 #include "houstype.h"
 #include "init.h"
 #include "language/language.h"
@@ -62,6 +64,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <string>
 #include <vector>
 
 
@@ -130,7 +133,74 @@ bool LoadOptionsClass::Load(void)
 {
 	Style = LOAD;
 	Description = NULL;
+	if (Options.ControlScheme == CONTROL_CONTROLLER && !ScenarioActive) {
+		return(Console_Load());
+	}
 	return(Dialog());
+}
+
+
+/// <summary>
+/// Runs the console-style load screen: one row per save game, newest first, the date at
+/// the left and the description at the right, and loads the one the player picks.
+/// </summary>
+/// <returns>bool; Was a game loaded?</returns>
+bool LoadOptionsClass::Console_Load(void)
+{
+	Scan_Files();
+	std::vector<int> valid;
+	for (int index = 0; index < Files.Count(); index++) {
+		if (Files[index]->Valid) {
+			valid.push_back(index);
+		}
+	}
+	if (valid.empty()) {
+		return(false);
+	}
+
+	std::vector<std::string> stamps;
+	for (int index : valid) {
+		FileEntryClass const * entry = Files[index];
+		char buffer[64] = "";
+		if (entry->DateTime.dwHighDateTime != -1 && entry->DateTime.dwLowDateTime != -1) {
+			FILETIME local;
+			SYSTEMTIME time;
+			FileTimeToLocalFileTime(&entry->DateTime, &local);
+			FileTimeToSystemTime(&local, &time);
+			char date[32];
+			char clock[32];
+			GetDateFormat(LANG_USER_DEFAULT, 0, &time, "dd MMM", date, sizeof(date));
+			GetTimeFormat(LANG_USER_DEFAULT, TIME_NOSECONDS, &time, NULL, clock, sizeof(clock));
+			snprintf(buffer, sizeof(buffer), "%s %s", date, clock);
+		}
+		stamps.push_back(buffer);
+	}
+
+	int chosen = -1;
+	while (true) {
+		ConsoleMenuClass menu("Load Mission");
+		menu.Set_Prompts("Load", "Back");
+		for (int slot = 0; slot < int(valid.size()); slot++) {
+			FileEntryClass const * entry = Files[valid[slot]];
+			std::string label = stamps[slot];
+			if (entry->Type != GAME_NORMAL) label += " *";
+			menu.Add_Row({label, [entry]{ return(std::string(entry->Descr)); }, nullptr,
+				[&, slot]{ chosen = slot; menu.Finish(CONSOLE_MENU_ACCEPT); }});
+		}
+		if (menu.Process() != CONSOLE_MENU_ACCEPT) {
+			return(false);
+		}
+		if (chosen < 0) chosen = menu.Get_Focus();
+		FileEntryClass const * entry = Files[valid[std::clamp(chosen, 0, int(valid.size()) - 1)]];
+		if (entry->Num != -1) {
+			Init_Campaigns();
+		}
+		if (Load_File(entry->Filename)) {
+			return(true);
+		}
+		WWMessageBox().Process(TXT_ERROR_LOADING_GAME, TXT_OK, TXT_NONE, TXT_NONE);
+		chosen = -1;
+	}
 }
 
 
@@ -629,9 +699,9 @@ void LoadOptionsClass::Clear_List(void)
  *   02/14/1995 BR : Created.                                                                  *
  *   06/25/1995 JLB : Shows which saved games are "(old)".                                     *
  *=============================================================================================*/
-void LoadOptionsClass::Fill_List(HWND window)
+// Reads the save games into Files, newest first, with the empty slot ahead of them when saving.
+void LoadOptionsClass::Scan_Files(void)
 {
-	OwnerDraw::CellData thecell;
 	FileEntryClass * fdata = NULL;  // for adding entries to 'Files'
 	WIN32_FIND_DATAA ff;            // for FindFirstFile
 
@@ -714,12 +784,20 @@ void LoadOptionsClass::Fill_List(HWND window)
 	}
 
 	if (Files.Count() > 0) {
-
-		/*
-		**	Now sort the list in order of Date/Time (newest first, oldest last)
-		*/
 		qsort((void *)(&Files[0]), Files.Count(), sizeof(class FileEntryClass *), LoadOptionsClass::Compare);
+	}
+}
 
+
+void LoadOptionsClass::Fill_List(HWND window)
+{
+	OwnerDraw::CellData thecell;
+	FileEntryClass * fdata = NULL;
+	char buffer[128];
+
+	Scan_Files();
+
+	if (Files.Count() > 0) {
 		ListBox_ResetContent(window);
 
 		/*
