@@ -84,10 +84,16 @@ GamepadStateType Gamepad_Read(void)
 // The menu button is Escape everywhere: it skips a movie, opens the in-game menu, and
 // backs out of a screen. Polling is held to once per frame because asking XInput about
 // a controller that is not there is slow.
-void Gamepad_Pump(void)
+void Gamepad_Pump(void * dialog)
 {
-	static bool _menu_was_down = false;
+	enum {
+		POLL_MS = 16,
+		REPEAT_FIRST_MS = 350,
+		REPEAT_NEXT_MS = 90,
+	};
+	static GamepadStateType _previous = {};
 	static unsigned long _next_poll = 0;
+	static unsigned long _repeat_at = 0;
 
 	if (Options.ControlScheme != CONTROL_CONTROLLER || Keyboard == NULL) {
 		return;
@@ -96,12 +102,36 @@ void Gamepad_Pump(void)
 	if (now < _next_poll) {
 		return;
 	}
-	_next_poll = now + 16;
+	_next_poll = now + POLL_MS;
 
 	GamepadStateType pad = Gamepad_Read();
-	if (pad.Menu && !_menu_was_down) {
+	if (pad.Menu && !_previous.Menu) {
 		Keyboard->Put(KN_ESC);
 		Keyboard->Put(KN_ESC | WWKEY_RLS_BIT);
 	}
-	_menu_was_down = pad.Menu;
+
+	HWND window = (HWND)dialog;
+	if (window != NULL) {
+		auto press = [&](int vk) {
+			HWND target = GetFocus();
+			if (target == NULL || !IsChild(window, target)) {
+				target = window;
+			}
+			PostMessage(target, WM_KEYDOWN, vk, 0);
+			PostMessage(target, WM_KEYUP, vk, 0xC0000000);
+		};
+		// A held direction repeats, as it does on the console screens.
+		bool any = pad.Up || pad.Down || pad.Left || pad.Right;
+		bool fresh = (pad.Up && !_previous.Up) || (pad.Down && !_previous.Down) || (pad.Left && !_previous.Left) || (pad.Right && !_previous.Right);
+		if (any && (fresh || now >= _repeat_at)) {
+			if (pad.Up) press(VK_UP);
+			if (pad.Down) press(VK_DOWN);
+			if (pad.Left) press(VK_LEFT);
+			if (pad.Right) press(VK_RIGHT);
+			_repeat_at = now + (fresh ? REPEAT_FIRST_MS : REPEAT_NEXT_MS);
+		}
+		if (pad.Accept && !_previous.Accept) press(VK_RETURN);
+		if (pad.Back && !_previous.Back) press(VK_ESCAPE);
+	}
+	_previous = pad;
 }

@@ -33,7 +33,9 @@ struct GamepadStateType
 GamepadStateType Gamepad_Read(void);
 
 /// <summary>
-/// Feeds the keyboard buffer with the keys the controller stands in for, so screens that
-/// only read keys still answer the pad. Call it from the message pump.
+/// Feeds the keys the controller stands in for: the menu button presses Escape into the
+/// keyboard buffer, and while a dialog is open the d-pad, accept, and back go to it as
+/// arrow, Enter, and Escape key messages. Call it from the message pump.
 /// </summary>
-void Gamepad_Pump(void);
+/// <param name="dialog">The topmost open dialog, or NULL when none is open.</param>
+void Gamepad_Pump(void * dialog);
