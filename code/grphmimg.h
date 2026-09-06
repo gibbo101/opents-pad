@@ -21,9 +21,14 @@ class GraphicMenuImageItem : public GraphicMenuItem
 		virtual ~GraphicMenuImageItem(void) override;
 
 		virtual bool Is_Mouse_Over(Point2D const & mouse) override;
+		virtual Rect Get_Active_Rect(void) const override { return(ActiveRect); }
 		virtual void Action(MSEngine * engine) override;
 		virtual void On_Selected_Change(bool) override;
 		virtual void On_Enabled_Change(bool) override;
+
+	private:
+		void Refresh_Dimmer(void);
+		Rect Refresh_Rect(void) const;
 
 	public:
 		/*
@@ -52,6 +57,12 @@ class GraphicMenuImageItem : public GraphicMenuItem
 		 * highlights silently.
 		 */
 		MSSfxEntry * HighlightSound;
+
+		/*
+		 * Darkens the artwork while the item is not selected under the controller scheme,
+		 * so the selected one stands out. NULL under keyboard and mouse and for small buttons.
+		 */
+		MSAnim * Dimmer;
 
 		/*
 		 * This is the name of the movie to play when this item is chosen. The movie runs

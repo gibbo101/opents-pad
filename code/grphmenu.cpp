@@ -14,13 +14,17 @@
 #include "_keyboar.h"
 #include "_surface.h"
 #include "ccfile.h"
+#include "gamepad.h"
 #include "globals.h"
+#include "goptions.h"
 #include "grphmitm.h"
 #include "ini.h"
 #include "keyboard.h"
 #include "msanim.h"
 #include "ownrdraw.h"
 #include "theme.h"
+
+#include <cstdlib>
 
 GraphicMenu * _Graphic_Menu(INIClass const & ini, const char * name);
 GraphicMenuItem * GM_Create_Item_From_INI(const char * name, INIClass const & ini, MSEngine & engine, Point2D & image_size);
@@ -143,6 +147,18 @@ GraphicMenu::~GraphicMenu(void)
 /// </summary>
 /// <param name="id">The identifier of the items to change.</param>
 /// <param name="enabled">Should the items be enabled?</param>
+int GraphicMenu::Item_Count(void) const
+{
+	return(Items.Count());
+}
+
+
+GraphicMenuItem * GraphicMenu::Get_Item(int index) const
+{
+	return(Items[index]);
+}
+
+
 void GraphicMenu::Set_Item_Enabled(int id, bool enabled)
 {
 	for (GraphicMenuItem * item : Items) {
@@ -181,6 +197,56 @@ int GraphicMenu::Presentation(void)
 	Engine.Restore_Anims(AlternateSurface->Get_Rect());
 	Engine.Restore_And_Advance();
 
+	bool padded = Options.ControlScheme == CONTROL_CONTROLLER;
+	Point2D last_mouse(Get_Mouse_X(), Get_Mouse_Y());
+	GamepadStateType previous = {};
+	auto select = [&](GraphicMenuItem * temp) {
+		if (item != temp) {
+			if (item != NULL) {
+				item->Set_Selected(false);
+			}
+			item = temp;
+			if (temp != NULL) {
+				temp->Set_Selected(true);
+			}
+		}
+	};
+	// Steps the selection to the nearest item with artwork in the given direction.
+	auto step = [&](int dx, int dy) {
+		Rect from = item != NULL ? item->Get_Active_Rect() : Rect();
+		GraphicMenuItem * best = NULL;
+		int best_score = 0;
+		for (int index = 0; index < Items.Count(); index++) {
+			GraphicMenuItem * candidate = Items[index];
+			Rect rect = candidate->Get_Active_Rect();
+			if (!candidate->Is_Enabled() || !rect.Is_Valid() || candidate == item) {
+				continue;
+			}
+			if (!from.Is_Valid()) {
+				best = candidate;
+				break;
+			}
+			int cx = (rect.X + rect.Width / 2) - (from.X + from.Width / 2);
+			int cy = (rect.Y + rect.Height / 2) - (from.Y + from.Height / 2);
+			int forward = cx * dx + cy * dy;
+			int sideways = std::abs(cx * dy) + std::abs(cy * dx);
+			if (forward <= 0 || sideways > forward * 5 / 2) {
+				continue;
+			}
+			int score = forward + sideways * 2;
+			if (best == NULL || score < best_score) {
+				best = candidate;
+				best_score = score;
+			}
+		}
+		if (best != NULL) {
+			select(best);
+		}
+	};
+	if (padded) {
+		step(0, 0);
+	}
+
 	while (!done) {
 		Hide_Mouse();
 		Engine.Wait_For_Focus();
@@ -189,34 +255,38 @@ int GraphicMenu::Presentation(void)
 		Point2D mouse(Get_Mouse_X(), Get_Mouse_Y());
 
 		if (Keyboard->Check() != KN_NONE) {
-			KeyNumType key = Keyboard->Get();
-			GraphicMenuItem * temp = (key == KN_LMOUSE || key == KN_RETURN) ? Get_Item_Under_Mouse(mouse) : Get_Item_For_Key(key);
-
-			if (temp != NULL) {
-				if (item != temp) {
-					if (item != NULL) {
-						item->Set_Selected(false);
-					}
-					item = temp;
-					if (temp != NULL) {
-						temp->Set_Selected(true);
-					}
-				}
+			KeyNumType key = KeyNumType(Keyboard->Get() & ~(WWKEY_SHIFT_BIT|WWKEY_ALT_BIT|WWKEY_CTRL_BIT|WWKEY_VK_BIT));
+			if (padded && key == KN_UP) {
+				step(0, -1);
+			} else if (padded && key == KN_DOWN) {
+				step(0, 1);
+			} else if (padded && key == KN_LEFT) {
+				step(-1, 0);
+			} else if (padded && key == KN_RIGHT) {
+				step(1, 0);
+			} else if (padded && (key == KN_RETURN || key == KN_SPACE) && item != NULL && mouse == last_mouse) {
 				done = true;
-			}
-		} else {
-			GraphicMenuItem * temp = Get_Item_Under_Mouse(mouse);
-			if (temp != item) {
-				if (item != NULL) {
-					item->Set_Selected(false);
-				}
-				item = temp;
+			} else {
+				GraphicMenuItem * temp = (key == KN_LMOUSE || key == KN_RETURN) ? Get_Item_Under_Mouse(mouse) : Get_Item_For_Key(key);
 				if (temp != NULL) {
-					temp->Set_Selected(true);
+					select(temp);
+					done = true;
 				}
 			}
+		} else if (!padded || mouse != last_mouse) {
+			select(Get_Item_Under_Mouse(mouse));
 		}
+		last_mouse = mouse;
 
+		if (padded && !done) {
+			GamepadStateType pad = Gamepad_Read();
+			if (pad.Up && !previous.Up) step(0, -1);
+			if (pad.Down && !previous.Down) step(0, 1);
+			if (pad.Left && !previous.Left) step(-1, 0);
+			if (pad.Right && !previous.Right) step(1, 0);
+			if (pad.Accept && !previous.Accept && item != NULL) done = true;
+			previous = pad;
+		}
 		Engine.Wait_Delay(1);
 	}
 

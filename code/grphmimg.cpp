@@ -13,9 +13,15 @@
 
 #include "_surface.h"
 #include "ccfile.h"
+#include "dsurface.h"
+#include "globals.h"
+#include "goptions.h"
 #include "ini.h"
 #include "msanim.h"
 #include "mschoice.h"
+
+#include <algorithm>
+#include <vector>
 
 
 /// <summary>
@@ -78,10 +84,120 @@ GraphicMenuItem * GM_Read_Image_Item(const char * name, INIClass const & ini, MS
 /// <param name="disabled_image">Filename of the artwork shown while disabled.</param>
 /// <param name="highlight_sound">Filename of the sound to play as this item is selected.</param>
 /// <param name="select_vq">Filename of the movie to play when this item is chosen.</param>
+enum {
+	DIM_MIN_SIZE = 100,			// Smaller buttons carry their own highlight in their artwork.
+	DIM_PERCENT = 70,
+	DIM_DARK = 24,
+};
+
+
+static void Split_Pixel(int pixel, int & red, int & green, int & blue)
+{
+	red = ((pixel >> DSurface::RedRight) & (255 >> DSurface::RedLeft)) << DSurface::RedLeft;
+	green = ((pixel >> DSurface::GreenRight) & (255 >> DSurface::GreenLeft)) << DSurface::GreenLeft;
+	blue = ((pixel >> DSurface::BlueRight) & (255 >> DSurface::BlueLeft)) << DSurface::BlueLeft;
+}
+
+
+/*
+ * Darkens the artwork of a menu image while it is not selected. The unlit artwork is part
+ * of the backdrop, which may be a movie that repaints every frame, so the darkening is
+ * applied to the frame on every advance. The artwork's shape is taken from the lit image:
+ * the pixels that are not dark and differ from the backdrop beneath them.
+ */
+class MSDimAnim : public MSAnim
+{
+	public:
+		MSDimAnim(Surface const & lit, Rect const & area);
+		virtual bool Advance(Surface * surface, Rect & rect) override;
+		virtual void Redraw(Surface * surface, Rect const * rect = NULL) override;
+		virtual Rect Get_Rect(void) const override { return(Area); }
+
+	private:
+		void Build_Mask(void);
+		void Darken(Surface * surface, Rect const & rect);
+
+		Surface const & Lit;
+		Rect Area;
+		std::vector<unsigned char> Mask;
+		std::vector<int> Written;		// What the dimmer last wrote per pixel, so it never darkens its own output again.
+};
+
+
+MSDimAnim::MSDimAnim(Surface const & lit, Rect const & area) :
+	MSAnim(area.X, area.Y, false),
+	Lit(lit),
+	Area(area)
+{
+}
+
+
+// The backdrop is only painted once the page is up, so the shape is traced on first use.
+void MSDimAnim::Build_Mask(void)
+{
+	Mask.assign(Area.Width * Area.Height, 0);
+	Written.assign(Area.Width * Area.Height, -1);
+	for (int y = 0; y < Area.Height; y++) {
+		for (int x = 0; x < Area.Width; x++) {
+			int pixel = Lit.Get_Pixel(Point2D(x, y));
+			int red, green, blue;
+			Split_Pixel(pixel, red, green, blue);
+			bool dark = red < DIM_DARK && green < DIM_DARK && blue < DIM_DARK;
+			if (!dark && pixel != AlternateSurface->Get_Pixel(Point2D(Area.X + x, Area.Y + y))) {
+				Mask[y * Area.Width + x] = 1;
+			}
+		}
+	}
+}
+
+
+void MSDimAnim::Darken(Surface * surface, Rect const & rect)
+{
+	Rect draw = Intersect(rect, Area);
+	if (!draw.Is_Valid() || Mask.empty()) return;
+	for (int y = draw.Y; y < draw.Y + draw.Height; y++) {
+		for (int x = draw.X; x < draw.X + draw.Width; x++) {
+			int index = (y - Area.Y) * Area.Width + (x - Area.X);
+			if (!Mask[index]) continue;
+			int pixel = surface->Get_Pixel(Point2D(x, y));
+			if (pixel == Written[index]) continue;
+			int red, green, blue;
+			Split_Pixel(pixel, red, green, blue);
+			int dimmed = DSurface::Build_Hicolor_Pixel(red * (100 - DIM_PERCENT) / 100, green * (100 - DIM_PERCENT) / 100, blue * (100 - DIM_PERCENT) / 100);
+			surface->Put_Pixel(Point2D(x, y), dimmed);
+			Written[index] = dimmed;
+		}
+	}
+}
+
+
+bool MSDimAnim::Advance(Surface * surface, Rect & rect)
+{
+	rect = Rect();
+	if (Active) {
+		if (Mask.empty()) {
+			Build_Mask();
+		}
+		Darken(surface, Area);
+		rect = Area;
+	}
+	return(false);
+}
+
+
+void MSDimAnim::Redraw(Surface * surface, Rect const * rect)
+{
+	if (Active && !Mask.empty()) {
+		Darken(surface, rect != NULL ? *rect : Area);
+	}
+}
+
+
 GraphicMenuImageItem::GraphicMenuImageItem(int id, MSEngine & engine, Point2D const & origin, Rect const & rect, const char * image, const char * highlight_image, const char * disabled_image, char * highlight_sound, const char * select_vq) :
 	GraphicMenuItem(id),
 	Engine(&engine),
-	ActiveRect(rect)
+	ActiveRect(rect),
+	Dimmer(NULL)
 {
 	Image = NULL;
 	HighlightImage = NULL;
@@ -120,6 +236,31 @@ GraphicMenuImageItem::GraphicMenuImageItem(int id, MSEngine & engine, Point2D co
 			engine.Add_Animation(DisabledImage);
 		}
 	}
+	MSPCXAnim * lit = (MSPCXAnim *)HighlightImage;
+	if (Options.ControlScheme == CONTROL_CONTROLLER && lit != NULL && lit->Image != NULL
+		&& std::min(lit->Get_Rect().Width, lit->Get_Rect().Height) >= DIM_MIN_SIZE) {
+		Dimmer = new MSDimAnim(*lit->Image, lit->Get_Rect());
+		engine.Add_Animation(Dimmer);
+		Refresh_Dimmer();
+	}
+}
+
+
+void GraphicMenuImageItem::Refresh_Dimmer(void)
+{
+	if (Dimmer != NULL) {
+		Dimmer->Set_Active(Enabled && !Selected);
+	}
+}
+
+
+// The dimmer covers the whole image, which can reach past the active area.
+Rect GraphicMenuImageItem::Refresh_Rect(void) const
+{
+	if (Dimmer != NULL) {
+		return(Union(ActiveRect, Dimmer->Get_Rect()));
+	}
+	return(ActiveRect);
 }
 
 
@@ -161,7 +302,8 @@ void GraphicMenuImageItem::On_Selected_Change(bool selected)
 	if (DisabledImage != NULL) {
 		DisabledImage->Set_Active(Enabled == false);
 	}
-	Engine->Restore_Anims(ActiveRect);
+	Refresh_Dimmer();
+	Engine->Restore_Anims(Refresh_Rect());
 	Engine->Restore_And_Advance();
 	if (selected) {
 		if (HighlightSound != NULL) {
@@ -188,7 +330,8 @@ void GraphicMenuImageItem::On_Enabled_Change(bool active)
 	if (DisabledImage != NULL) {
 		DisabledImage->Set_Active(active == false);
 	}
-	Engine->Restore_Anims(ActiveRect);
+	Refresh_Dimmer();
+	Engine->Restore_Anims(Refresh_Rect());
 	Engine->Restore_And_Advance();
 }
 

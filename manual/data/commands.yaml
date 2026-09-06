@@ -1687,6 +1687,37 @@ fixed_controls:
   _provenance:
     source: code/consolemenu.cpp
     guard: null
+- id: fixed:graphic-menu-navigate
+  route_id: fixed-graphic-menu-navigate
+  kind: fixed
+  title: Graphic menu navigation
+  description: Moves the selection between the buttons of a shell menu page by position, under the controller
+    control scheme.
+  audience: player
+  availability: *id001
+  bindings:
+  - Up
+  - Down
+  - Left
+  - Right
+  context: Shell menu pages under the controller control scheme
+  _provenance:
+    source: code/grphmenu.cpp
+    guard: null
+- id: fixed:graphic-menu-activate
+  route_id: fixed-graphic-menu-activate
+  kind: fixed
+  title: Graphic menu activate
+  description: Activates the selected button of a shell menu page, under the controller control scheme.
+  audience: player
+  availability: *id001
+  bindings:
+  - Enter
+  - Space
+  context: Shell menu pages under the controller control scheme
+  _provenance:
+    source: code/grphmenu.cpp
+    guard: null
 - id: fixed:console-menu-accept
   route_id: fixed-console-menu-accept
   kind: fixed

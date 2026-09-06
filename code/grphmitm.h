@@ -28,6 +28,8 @@ class GraphicMenuItem
 		void Set_Enabled(bool enabled);
 
 		int Get_ID(void) const { return(ID); }
+		bool Is_Enabled(void) const { return(Enabled); }
+		virtual Rect Get_Active_Rect(void) const { return(Rect()); }		// Invalid when the item occupies no screen area.
 		void Set_Select_Sound(MSSfxEntry * sound) { SelectSound = sound; }
 
 	protected:

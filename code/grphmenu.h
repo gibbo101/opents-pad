@@ -106,6 +106,8 @@ class GraphicMenu
 		int Presentation(void);
 		GraphicMenuItem * Get_Item_Under_Mouse(Point2D const & mouse);
 		GraphicMenuItem * Get_Item_For_Key(KeyNumType key);
+		int Item_Count(void) const;
+		GraphicMenuItem * Get_Item(int index) const;
 
 	public:
 		/*
