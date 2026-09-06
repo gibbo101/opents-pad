@@ -68,6 +68,7 @@ execute_process(COMMAND ${CMAKE_COMMAND} ${OPENTS_STAMP_ARGS})
 
 add_custom_target(OpenTSBuildStamp ALL
     COMMAND ${CMAKE_COMMAND} ${OPENTS_STAMP_ARGS}
+    BYPRODUCTS "${OPENTS_VERSION_HEADER}" "${OPENTS_STAMP_HEADER}"
     COMMENT "Stamping the build identity"
     VERBATIM
 )
