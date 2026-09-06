@@ -88,11 +88,12 @@ GraphicMenuItem::~GraphicMenuItem(void)
 /// really differs, so derived items never see a redundant notification.
 /// </summary>
 /// <param name="selected">Should the item become the highlighted one?</param>
-void GraphicMenuItem::Set_Selected(bool selected)
+/// <param name="silent">Should the item keep its highlight sound to itself?</param>
+void GraphicMenuItem::Set_Selected(bool selected, bool silent)
 {
 	if (selected != Selected) {
 		Selected = selected;
-		On_Selected_Change(selected);
+		On_Selected_Change(selected, silent);
 	}
 }
 
@@ -117,7 +118,7 @@ void GraphicMenuItem::Set_Enabled(bool enabled)
 /// The base item has nothing to do. Derived items override this routine when they must
 /// adjust their appearance as the menu highlight moves on or off them.
 /// </summary>
-void GraphicMenuItem::On_Selected_Change(bool)
+void GraphicMenuItem::On_Selected_Change(bool, bool)
 {
 	//nothing
 }

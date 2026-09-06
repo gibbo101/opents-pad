@@ -327,7 +327,7 @@ bool GraphicMenuImageItem::Is_Mouse_Over(Point2D const & mouse)
 /// the screen this item occupies, and plays the highlight sound as the item is selected.
 /// </summary>
 /// <param name="selected">Is this item now the selected one?</param>
-void GraphicMenuImageItem::On_Selected_Change(bool selected)
+void GraphicMenuImageItem::On_Selected_Change(bool selected, bool silent)
 {
 	if (Image != NULL) {
 		Image->Set_Active(!selected && (Enabled || DisabledImage == NULL));
@@ -341,10 +341,8 @@ void GraphicMenuImageItem::On_Selected_Change(bool selected)
 	Refresh_Dimmer();
 	Engine->Restore_Anims(Refresh_Rect());
 	Engine->Restore_And_Advance();
-	if (selected) {
-		if (HighlightSound != NULL) {
-			HighlightSound->Play();
-		}
+	if (selected && !silent && HighlightSound != NULL) {
+		HighlightSound->Play();
 	}
 }
 

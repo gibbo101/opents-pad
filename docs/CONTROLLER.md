@@ -67,5 +67,9 @@ target.
 
 - Arrow keys beep on the Deck under Proton on every press. Present on the
   upstream build too, not caused by this fork.
+- The screen flashes white at launch, before the Westwood logo. Stock
+  Tiberian Sun does the same under Proton, so it sits below the game. A
+  black window brush and a black frame presented right after renderer init
+  both failed to remove it. Worth a targeted look at the end of the project.
 - Held-key map scrolling uses the edge-scroll speed for the `ScrollRate`
   option and may want a rate of its own.

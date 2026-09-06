@@ -188,19 +188,19 @@ int GraphicMenu::Presentation(void)
 	bool padded = Options.ControlScheme == CONTROL_CONTROLLER;
 	Point2D last_mouse(Get_Mouse_X(), Get_Mouse_Y());
 	GamepadStateType previous = {};
-	auto select = [&](GraphicMenuItem * temp) {
+	auto select = [&](GraphicMenuItem * temp, bool silent = false) {
 		if (item != temp) {
 			if (item != NULL) {
 				item->Set_Selected(false);
 			}
 			item = temp;
 			if (temp != NULL) {
-				temp->Set_Selected(true);
+				temp->Set_Selected(true, silent);
 			}
 		}
 	};
 	// Steps the selection to the nearest item with artwork in the given direction.
-	auto step = [&](int dx, int dy) {
+	auto step = [&](int dx, int dy, bool silent = false) {
 		Rect from = item != NULL ? item->Get_Active_Rect() : Rect();
 		GraphicMenuItem * best = NULL;
 		int best_score = 0;
@@ -228,11 +228,11 @@ int GraphicMenu::Presentation(void)
 			}
 		}
 		if (best != NULL) {
-			select(best);
+			select(best, silent);
 		}
 	};
 	if (padded) {
-		step(0, 0);
+		step(0, 0, true);
 	}
 
 	while (!done) {

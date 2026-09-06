@@ -23,7 +23,7 @@ class GraphicMenuImageItem : public GraphicMenuItem
 		virtual bool Is_Mouse_Over(Point2D const & mouse) override;
 		virtual Rect Get_Active_Rect(void) const override { return(ActiveRect); }
 		virtual void Action(MSEngine * engine) override;
-		virtual void On_Selected_Change(bool) override;
+		virtual void On_Selected_Change(bool selected, bool silent) override;
 		virtual void On_Enabled_Change(bool) override;
 
 	private:

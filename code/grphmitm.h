@@ -21,10 +21,10 @@ class GraphicMenuItem
 		virtual bool Is_Input_Key(KeyNumType key);
 		virtual bool Is_Mouse_Over(Point2D const & mouse);
 		virtual void Action(MSEngine * engine);
-		virtual void On_Selected_Change(bool);
+		virtual void On_Selected_Change(bool selected, bool silent);
 		virtual void On_Enabled_Change(bool);
 
-		void Set_Selected(bool selected);
+		void Set_Selected(bool selected, bool silent = false);
 		void Set_Enabled(bool enabled);
 
 		int Get_ID(void) const { return(ID); }
