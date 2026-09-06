@@ -68,6 +68,7 @@
 #include "command.h"
 #include "dbgprint.h"
 #include "dsurface.h"
+#include "gamepad.h"
 #include "globals.h"
 #include "init.h"
 #include "ipxmgr.h"
@@ -112,6 +113,7 @@ OptionsClass::OptionsClass(void) :
 	GameSpeed(3),
 	ScrollRate(3),
 	ControlScheme(CONTROL_KEYBOARD_MOUSE),
+	ControlSchemeAuto(true),
 	SoundVolume(.7f),
 	VoiceVolume(1.0f),
 	ScoreVolume(.5f),
@@ -427,9 +429,14 @@ void OptionsClass::Load_Settings(void)
 	DebugString("ToolTips are %s\n", ToolTips == true ? "ON" : "OFF");
 
 	char schemename[32];
-	ConfigINI.Get_String("Options", "ControlScheme", (char *)Control_Scheme_Name(ControlScheme), schemename, sizeof(schemename));
-	ControlScheme = Control_Scheme_From_Name(schemename, ControlScheme);
-	DebugString("ControlScheme is %s\n", Control_Scheme_Name(ControlScheme));
+	ConfigINI.Get_String("Options", "ControlScheme", "Auto", schemename, sizeof(schemename));
+	ControlSchemeAuto = stricmp(schemename, "Auto") == 0;
+	if (ControlSchemeAuto) {
+		ControlScheme = Gamepad_Read().Connected ? CONTROL_CONTROLLER : CONTROL_KEYBOARD_MOUSE;
+	} else {
+		ControlScheme = Control_Scheme_From_Name(schemename, ControlScheme);
+	}
+	DebugString("ControlScheme is %s%s\n", Control_Scheme_Name(ControlScheme), ControlSchemeAuto ? " (auto)" : "");
 
 	TextBackgroundColor = ConfigINI.Get_Int("Options", "TextBackgroundColor", TextBackgroundColor);
 	DebugString("TextBackgroundColor = %d\n", TextBackgroundColor);
@@ -506,7 +513,7 @@ void OptionsClass::Save_Settings (void)
 	ConfigINI.Put_Bool("Options", "SidebarSorting", SidebarSorting);
 	ConfigINI.Put_Bool("Options", "UnitActionLines", ActionLines);
 	ConfigINI.Put_Bool("Options", "ToolTips", ToolTips);
-	ConfigINI.Put_String("Options", "ControlScheme", (char *)Control_Scheme_Name(ControlScheme));
+	ConfigINI.Put_String("Options", "ControlScheme", (char *)(ControlSchemeAuto ? "Auto" : Control_Scheme_Name(ControlScheme)));
 	ConfigINI.Put_Int("Options", "TextBackgroundColor", TextBackgroundColor);
 	ConfigINI.Put_Int("Options", "AutoSaveInterval", AutoSaveInterval);
 	ConfigINI.Put_Int("Video", "ScreenWidth", ScreenWidth);

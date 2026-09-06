@@ -101,6 +101,7 @@ class OptionsClass {
 		 * console-style screens; the keyboard and mouse scheme keeps the original dialogs.
 		 */
 		int ControlScheme;
+		bool ControlSchemeAuto;			// The scheme follows whether a controller is connected at launch.
 
 		/*
 		 * This is how much detail the renderer is allowed to draw (0 - 2). Animations, particle
