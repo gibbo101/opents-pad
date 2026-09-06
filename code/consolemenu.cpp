@@ -68,6 +68,7 @@ ConsoleMenuClass::ConsoleMenuClass(char const * title) :
 	Backdrop(NULL),
 	PreviousPad(),
 	Focus(0),
+	First(0),
 	IsDirty(true),
 	IsFinished(false),
 	FinishResult(CONSOLE_MENU_BACK)
@@ -79,7 +80,23 @@ ConsoleMenuClass::~ConsoleMenuClass(void)
 {
 	delete Font;
 	delete FocusFont;
+	for (auto & entry : ColorFonts) {
+		delete entry.second;
+	}
 	delete Backdrop;
+}
+
+
+MSFont * ConsoleMenuClass::Font_For(RGBClass const & color)
+{
+	unsigned key = (unsigned(color.Get_Red()) << 16) | (unsigned(color.Get_Green()) << 8) | unsigned(color.Get_Blue());
+	for (auto & entry : ColorFonts) {
+		if (entry.first == key) return(entry.second);
+	}
+	MSFont * font = new MSFont(false);
+	font->Set_Color(color);
+	ColorFonts.push_back({key, font});
+	return(font);
 }
 
 
@@ -107,7 +124,13 @@ void ConsoleMenuClass::Set_Side_Panel(std::function<void(Surface &, Rect const &
 }
 
 
-void ConsoleMenuClass::Set_Backdrop_Panel(std::function<void(Surface &, Surface const &, Rect const &)> draw)
+void ConsoleMenuClass::Add_Hit_Area(Rect const & area, std::function<void()> hover, std::function<void()> click)
+{
+	Hits.push_back({area, hover, click});
+}
+
+
+void ConsoleMenuClass::Set_Backdrop_Panel(std::function<void(ConsoleCanvas &)> draw)
 {
 	BackdropPanel = draw;
 	IsDirty = true;
@@ -174,8 +197,62 @@ bool ConsoleMenuClass::Poll_Input(ConsoleMenuResult & result)
 		return(true);
 	};
 
+	Point2D mouse(Get_Mouse_X(), Get_Mouse_Y());
+	Rect frame = HiddenSurface->Get_Rect();
+	Point2D box_origin((frame.Width - MENU_WIDTH) / 2, (frame.Height - MENU_HEIGHT) / 2);
+	auto hit_at = [&](Point2D const & point) -> HitType const * {
+		for (HitType const & hit : Hits) {
+			Rect area = hit.Area;
+			area.X += box_origin.X;
+			area.Y += box_origin.Y;
+			if (area.Is_Point_Within(point)) return(&hit);
+		}
+		return(NULL);
+	};
+	auto row_at = [&](Point2D const & point) -> int {
+		for (int index = 0; index < int(RowRects.size()); index++) {
+			if (RowRects[index].Is_Valid() && RowRects[index].Is_Point_Within(point)) return(index);
+		}
+		return(-1);
+	};
+	if (mouse != LastMouse) {
+		LastMouse = mouse;
+		int row = row_at(mouse);
+		if (row >= 0 && row != Focus) {
+			Focus = row;
+			IsDirty = true;
+		}
+		HitType const * hit = hit_at(mouse);
+		if (hit != NULL && hit->Hover) {
+			hit->Hover();
+			IsDirty = true;
+		}
+	}
+
 	while (Keyboard->Check() != KN_NONE) {
 		KeyNumType key = KeyNumType(Keyboard->Get() & ~(WWKEY_SHIFT_BIT|WWKEY_ALT_BIT|WWKEY_CTRL_BIT|WWKEY_VK_BIT));
+		if (key == KN_LMOUSE) {
+			if (BackRect.Is_Point_Within(mouse)) {
+				result = CONSOLE_MENU_BACK;
+				return(true);
+			}
+			if (AcceptRect.Is_Point_Within(mouse)) {
+				result = CONSOLE_MENU_ACCEPT;
+				return(true);
+			}
+			HitType const * hit = hit_at(mouse);
+			if (hit != NULL && hit->Click) {
+				hit->Click();
+				IsDirty = true;
+				continue;
+			}
+			int row = row_at(mouse);
+			if (row >= 0) {
+				Focus = row;
+				if (accept()) return(true);
+			}
+			continue;
+		}
 		switch (key) {
 			case KN_UP: navigate(NAV_UP); break;
 			case KN_DOWN: navigate(NAV_DOWN); break;
@@ -237,10 +314,6 @@ void ConsoleMenuClass::Draw(void)
 
 	surface.Blit_From(*Backdrop);
 	surface.Fill_Rect_Trans(Rect(left + PANEL_INSET, top + PANEL_INSET, MENU_WIDTH - 2 * PANEL_INSET, MENU_HEIGHT - 2 * PANEL_INSET), RGBClass(0, 0, 0), PANEL_OPACITY);
-	if (BackdropPanel) {
-		BackdropPanel(surface, *Backdrop, Rect(left, top, MENU_WIDTH, MENU_HEIGHT));
-	}
-
 	if (Font == NULL) {
 		Font = new MSFont(false);
 		FocusFont = new MSFont(false);
@@ -254,6 +327,19 @@ void ConsoleMenuClass::Draw(void)
 		return(Font->Get_String_Width(text.c_str()));
 	};
 
+	if (BackdropPanel) {
+		ConsoleCanvas canvas = {
+			surface, *Backdrop, Rect(left, top, MENU_WIDTH, MENU_HEIGHT),
+			print,
+			[&](std::string const & text, int x, int y, RGBClass const & color) {
+				Font_For(color)->Draw_String(&surface, (unsigned char const *)text.c_str(), x, y, FRAME_NORMAL);
+			},
+			width,
+			height,
+		};
+		BackdropPanel(canvas);
+	}
+
 	print(Title, left + (MENU_WIDTH - width(Title)) / 2, top + TITLE_Y);
 
 	if (SidePanel) {
@@ -261,14 +347,45 @@ void ConsoleMenuClass::Draw(void)
 	}
 
 	int count = int(Rows.size());
-	int pitch = height + 4;
-	if (count > 0) {
-		pitch = std::min(pitch, (ROWS_BOTTOM - ROWS_TOP) / count);
+	int listed = 0;
+	for (ConsoleRowType const & row : Rows) {
+		if (row.Y <= 0) listed++;
 	}
-	int y = top + ROWS_TOP;
+	int pitch = height + 4;
+	int visible = std::max((ROWS_BOTTOM - ROWS_TOP) / pitch, 1);
+	// A list a little too long is packed to fit; a long one scrolls, keeping the focused row in view.
+	if (listed > visible && listed <= visible + visible / 2) {
+		pitch = (ROWS_BOTTOM - ROWS_TOP) / listed;
+		visible = listed;
+	}
+	int focus_order = 0;
+	for (int index = 0; index < Focus && index < count; index++) {
+		if (Rows[index].Y <= 0) focus_order++;
+	}
+	if (Rows.empty() || Rows[Focus].Y > 0) focus_order = First;
+	if (focus_order < First) First = focus_order;
+	if (focus_order >= First + visible) First = focus_order - visible + 1;
+	First = std::clamp(First, 0, std::max(listed - visible, 0));
+	if (First > 0) {
+		print("..", left + (MENU_WIDTH - width("..")) / 2, top + ROWS_TOP - height);
+	}
+	if (First + visible < listed) {
+		print("..", left + (MENU_WIDTH - width("..")) / 2, top + ROWS_BOTTOM);
+	}
+	RowRects.assign(count, Rect());
+	int list_y = top + ROWS_TOP;
+	int order = 0;
 	for (int index = 0; index < count; index++) {
 		ConsoleRowType const & row = Rows[index];
 		bool focused = index == Focus;
+		int y = row.Y > 0 ? top + row.Y : list_y;
+		if (row.Y <= 0) {
+			int slot = order++;
+			if (slot < First || slot >= First + visible) continue;
+			list_y += pitch;
+		}
+		if (row.Label.empty() && !row.Value) continue;
+		RowRects[index] = Rect(left + PANEL_INSET, y, MENU_WIDTH - 2 * PANEL_INSET, pitch);
 		if (!row.Value) {
 			print(row.Label, left + (MENU_WIDTH - width(row.Label)) / 2, y, focused);
 		} else {
@@ -308,11 +425,12 @@ void ConsoleMenuClass::Draw(void)
 				}
 			}
 		}
-		y += pitch;
 	}
 
 	print(BackPrompt, left + PROMPT_INSET, top + PROMPT_Y);
 	print(AcceptPrompt, left + MENU_WIDTH - PROMPT_INSET - width(AcceptPrompt), top + PROMPT_Y);
+	BackRect = Rect(left + PROMPT_INSET - 8, top + PROMPT_Y - 4, width(BackPrompt) + 16, height + 8);
+	AcceptRect = Rect(left + MENU_WIDTH - PROMPT_INSET - width(AcceptPrompt) - 8, top + PROMPT_Y - 4, width(AcceptPrompt) + 16, height + 8);
 
 	Update_Visible_Surface(&surface);
 	IsDirty = false;
@@ -324,9 +442,9 @@ ConsoleMenuResult ConsoleMenuClass::Process(void)
 	ConsoleMenuResult result = CONSOLE_MENU_BACK;
 
 	Keyboard->Clear();
-	Hide_Mouse();
 	// A button still held from the screen before must not count as a press here.
 	PreviousPad = Gamepad_Read();
+	LastMouse = Point2D(Get_Mouse_X(), Get_Mouse_Y());
 
 	// The map preview loader scribbles on AlternateSurface, so the backdrop is kept on a surface of its own.
 	if (Backdrop == NULL) {
@@ -351,12 +469,13 @@ ConsoleMenuResult ConsoleMenuClass::Process(void)
 			break;
 		}
 		if (IsDirty) {
+			Hide_Mouse();
 			Draw();
+			Show_Mouse();
 		}
 		Sleep(1);
 	}
 
 	Keyboard->Clear();
-	Show_Mouse();
 	return(result);
 }

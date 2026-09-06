@@ -132,6 +132,7 @@
 #include "logic.h"
 #include "consolemenu.h"
 #include "mainopt.h"
+#include "mschoice.h"
 #include "mixfile.h"
 #include "misc.h"
 #include "mono.h"
@@ -815,9 +816,9 @@ static BOOL CALLBACK Campaign_Choice_Dialog_Proc(HWND window, UINT message, WPAR
 }
 
 
-// Enlarges a piece of the backdrop behind the rows: sampled smoothly, dimmed, and faded out
+// Enlarges a piece of the backdrop: sampled smoothly, at the given strength, and faded out
 // toward the edge so it sits in the backdrop rather than on it.
-static void Draw_Emblem(Surface & surface, Surface const & backdrop, Rect const & source, Rect const & dest)
+static void Draw_Emblem(Surface & surface, Surface const & backdrop, Rect const & source, Rect const & dest, float strength)
 {
 	auto split = [](int pixel, int & red, int & green, int & blue) {
 		red = ((pixel >> DSurface::RedRight) & (255 >> DSurface::RedLeft)) << DSurface::RedLeft;
@@ -842,9 +843,8 @@ static void Draw_Emblem(Surface & surface, Surface const & backdrop, Rect const 
 		blue = int(b[0] * w0 + b[1] * w1 + b[2] * w2 + b[3] * w3);
 	};
 
-	float const strength = 0.6f;
-	float const fade_start = 0.5f;
-	float const fade_end = 0.95f;
+	float const fade_start = 0.55f;
+	float const fade_end = 0.98f;
 	float cx = dest.Width / 2.0f;
 	float cy = dest.Height / 2.0f;
 	for (int y = 0; y < dest.Height; y++) {
@@ -871,59 +871,112 @@ static void Draw_Emblem(Surface & surface, Surface const & backdrop, Rect const 
 }
 
 
-// The console-style campaign choice: one row per campaign, the difficulty under them, and
-// the chosen side's emblem from the backdrop filling the panel behind. It writes the
-// difficulty option as the dialog does.
+// The console-style campaign choice, in the manner of a side select: the two sides'
+// emblems, cut from the backdrop's own discs, stand large at left and right with their
+// names beneath. The focused side is lit and grown, the other faded. Difficulty sits along
+// the bottom. The difficulty option is written as the dialog writes it.
 static CampaignType Console_Campaign_Screen(void)
 {
-	std::vector<int> available;
-	for (int index = 0; index < Campaigns.Count(); index++) {
-		if (Campaign_Available(Campaigns[index])) {
-			available.push_back(index);
-		}
-	}
-	if (available.empty()) {
-		return(CAMPAIGN_NONE);
-	}
-
-	int chosen = -1;
-	int difficulty = std::clamp(Options.Difficulty, 0, 2);
-
-	ConsoleMenuClass menu("New Campaign");
-	menu.Set_Prompts("Start", "Back");
-
-	// The emblems are the two discs of the Firestorm backdrop, enlarged behind the rows.
-	auto is_nod = [&](int index) {
-		char const * text = Campaigns[available[index]]->Description;
-		for (char const * p = text; *p != '\0'; p++) {
+	auto is_nod = [](CampaignClass const * campaign) {
+		for (char const * p = campaign->Description; *p != '\0'; p++) {
 			if (strnicmp(p, "Nod", 3) == 0) return(true);
 		}
 		return(false);
 	};
-	menu.Set_Backdrop_Panel([&](Surface & surface, Surface const & backdrop, Rect const & box) {
-		int focus = menu.Get_Focus();
-		int shown = focus < int(available.size()) ? focus : std::max(chosen, 0);
-		Rect source = is_nod(shown) ? Rect(494, 264, 112, 112) : Rect(27, 22, 112, 112);
-		Rect frame = surface.Get_Rect();
-		source.X += (frame.Width - box.Width) / 2;
-		source.Y += (frame.Height - box.Height) / 2;
-		int size = 320;
-		Rect dest(box.X + (box.Width - size) / 2, box.Y + (box.Height - size) / 2 + 16, size, size);
-		Draw_Emblem(surface, backdrop, source, dest);
+	std::vector<int> sides[2];
+	for (int index = 0; index < Campaigns.Count(); index++) {
+		if (Campaign_Available(Campaigns[index])) {
+			sides[is_nod(Campaigns[index]) ? 1 : 0].push_back(index);
+		}
+	}
+	if (sides[0].empty() && sides[1].empty()) {
+		return(CAMPAIGN_NONE);
+	}
+
+	int side = -1;							// No side until the player picks one.
+	int choice[2] = {0, 0};
+	int difficulty = std::clamp(Options.Difficulty, 0, 2);
+	static Rect const _discs[2] = {Rect(24, 16, 122, 122), Rect(480, 253, 136, 136)};
+	static char const * const _names[2] = {"Global Defense Initiative", "Brotherhood of Nod"};
+	static RGBClass const _colors[2] = {RGBClass(236, 200, 72), RGBClass(232, 56, 40)};
+	MSSfxEntry click("HighlightSound", (char *)"CHOICE1.AUD");
+
+	ConsoleMenuClass menu("Select Campaign");
+	menu.Set_Prompts("Start", "Back");
+
+	enum { SIDE_ROW = 0, DIFFICULTY_ROW = 1, ACT_Y = 38, EMBLEM_Y = 180, NAME_Y = 290, ROW_Y = 332, BIG = 200, SMALL = 144 };
+
+	menu.Set_Backdrop_Panel([&](ConsoleCanvas & canvas) {
+		bool picking = menu.Get_Focus() == SIDE_ROW;
+		for (int index = 0; index < 2; index++) {
+			bool chosen = index == side;
+			int size = chosen ? BIG : SMALL;
+			int cx = canvas.Box.X + (index == 0 ? 160 : 480);
+			Rect source = _discs[index];
+			source.X += canvas.Box.X;
+			source.Y += canvas.Box.Y;
+			Rect dest(cx - size / 2, canvas.Box.Y + EMBLEM_Y - size / 2, size, size);
+			Draw_Emblem(canvas.Frame, canvas.Backdrop, source, dest, chosen ? 1.0f : 0.45f);
+			std::string name = _names[index];
+			if (sides[index].empty()) name += " (unavailable)";
+			int x = cx - canvas.Width(name) / 2;
+			int y = canvas.Box.Y + NAME_Y;
+			if (chosen) {
+				canvas.PrintColor(name, x, y, picking ? RGBClass(48, 224, 248) : _colors[index]);
+			} else {
+				canvas.Print(name, x, y, false);
+			}
+		}
+		// The chosen side's campaign, under the title, cut short if it would spill.
+		if (side >= 0 && !sides[side].empty()) {
+			std::string act = Campaigns[sides[side][choice[side]]]->Description;
+			int limit = canvas.Box.Width - 48;
+			if (canvas.Width(act) > limit) {
+				while (act.size() > 1 && canvas.Width(act + "..") > limit) act.pop_back();
+				act += "..";
+			}
+			canvas.Print(act, canvas.Box.X + (canvas.Box.Width - canvas.Width(act)) / 2, canvas.Box.Y + ACT_Y, false);
+		}
 	});
 
-	for (int index = 0; index < int(available.size()); index++) {
-		menu.Add_Row({std::string(Campaigns[available[index]]->Description), nullptr, nullptr,
-			[&, index]{ chosen = index; menu.Finish(CONSOLE_MENU_ACCEPT); }});
+	auto pick = [&](int index) {
+		if (index != side && !sides[index].empty()) {
+			side = index;
+			click.Play();
+		}
+	};
+	for (int index = 0; index < 2; index++) {
+		int cx = index == 0 ? 160 : 480;
+		menu.Add_Hit_Area(Rect(cx - BIG / 2, EMBLEM_Y - BIG / 2, BIG, BIG),
+			[&, index]{ pick(index); },
+			[&, index]{ if (side == index) menu.Finish(CONSOLE_MENU_ACCEPT); });
 	}
-	menu.Add_Row({"Difficulty", [&]{ return(std::string(Fetch_String(GameDifficultyNames[difficulty]))); },
-		[&](int step) { difficulty = std::clamp(difficulty + step, 0, 2); }, []{}});
 
-	if (menu.Process() != CONSOLE_MENU_ACCEPT || chosen < 0) {
+	ConsoleRowType side_row = {"", nullptr, [&](int step) {
+		if (side < 0) {
+			pick(step < 0 ? 0 : 1);
+			if (side < 0) pick(step < 0 ? 1 : 0);
+		} else if (!sides[1 - side].empty()) {
+			pick(1 - side);
+		} else {
+			int count = int(sides[side].size());
+			if (count > 1) {
+				choice[side] = ((choice[side] + step) % count + count) % count;
+				click.Play();
+			}
+		}
+	}, [&]{ if (side >= 0) menu.Finish(CONSOLE_MENU_ACCEPT); }};
+	menu.Add_Row(side_row);
+	ConsoleRowType difficulty_row = {"Difficulty", [&]{ return(std::string(Fetch_String(GameDifficultyNames[difficulty]))); },
+		[&](int step) { difficulty = std::clamp(difficulty + step, 0, 2); }, [&]{ if (side >= 0) menu.Finish(CONSOLE_MENU_ACCEPT); }};
+	difficulty_row.Y = ROW_Y;
+	menu.Add_Row(difficulty_row);
+
+	if (menu.Process() != CONSOLE_MENU_ACCEPT || side < 0 || sides[side].empty()) {
 		return(CAMPAIGN_NONE);
 	}
 	Options.Difficulty = difficulty;
-	return(CampaignType(available[chosen]));
+	return(CampaignType(sides[side][choice[side]]));
 }
 
 
