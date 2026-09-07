@@ -556,18 +556,16 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 	hold_key(_force_fire, pad.RightShoulder && pad.LeftShoulder, VK_CONTROL);
 	hold_key(_force_move, pad.RightShoulder && pad.LeftTrigger, VK_MENU);
 
-	// The right stick scrolls the map as a right-button drag does: the coast scroll moves the
-	// pointer's offset from the press point over the scroll rate option sixty times a second,
-	// and a full push stands for the pointer pulled a third of the view's height away.
+	// The right stick scrolls the map at the pad's own pace, apart from the mouse scroll
+	// settings: a full push crosses a few view heights a second, and the squared response
+	// keeps a light touch slow.
 	{
-		const float DRAG_STEPS_PER_SECOND = 60.0f;
-		const float FULL_PUSH_OFFSET = 1.0f / 3.0f;		// Of the view's height.
+		const float STICK_SCROLL_RATE = 3.0f;		// View heights per second at full stick.
 		static float _scroll_x = 0.0f;
 		static float _scroll_y = 0.0f;
 		float rx = pad.RightStickX * (pad.RightStickX < 0 ? -pad.RightStickX : pad.RightStickX);
 		float ry = -pad.RightStickY * (pad.RightStickY < 0 ? -pad.RightStickY : pad.RightStickY);
-		float offset = TacticalRect.Height * FULL_PUSH_OFFSET;
-		float rate = DRAG_STEPS_PER_SECOND * offset / float(Options.ScrollRate + 1);
+		float rate = TacticalRect.Height * STICK_SCROLL_RATE;
 		_scroll_x += rx * dt * rate;
 		_scroll_y += ry * dt * rate;
 		int sx = int(_scroll_x);

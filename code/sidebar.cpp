@@ -1484,8 +1484,14 @@ void SidebarClass::Draw_Pad_View(void)
 						Draw_Shape(*SidebarSurface, *CameoDrawer, icon, 0, Point2D(x, y), cliprect, ShapeFlags_Type(SHAPE_WIN_REL));
 					}
 					bool dark = bottom ? (column == 0 ? super_count == 0 : super_count < 2) : !has_items;
-					if (dark && icon != NULL && StripClass::DarkenShapes != NULL) {
-						Draw_Shape(*SidebarSurface, *SidebarDrawer, StripClass::DarkenShapes, 0, Point2D(x, y), cliprect, ShapeFlags_Type(SHAPE_WIN_REL|SHAPE_DARKEN));
+					if (dark && icon != NULL) {
+						// A section with no factory yet sits well behind the ones that build, so
+						// the strip's darkening is followed by a black wash.
+						if (StripClass::DarkenShapes != NULL) {
+							Draw_Shape(*SidebarSurface, *SidebarDrawer, StripClass::DarkenShapes, 0, Point2D(x, y), cliprect, ShapeFlags_Type(SHAPE_WIN_REL|SHAPE_DARKEN));
+						}
+						Rect wash(x, cliprect.Y + y, StripClass::OBJECT_WIDTH, StripClass::OBJECT_HEIGHT);
+						SidebarSurface->Fill_Rect_Trans(wash, RGBClass(0, 0, 0), 55);
 					}
 					char const * name = bottom && column != 0 ? _PadSectionNames[5] : _PadSectionNames[row];
 					Print_Cameo_Text(name, Point2D(x, y + StripClass::CAMEO_TEXT_Y_OFFSET), cliprect, StripClass::OBJECT_WIDTH - 2);
