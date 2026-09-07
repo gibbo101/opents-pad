@@ -13,4 +13,5 @@ bool Change_Display_Mode(int width, int height);
 bool Shell_Display_Mode(void);
 bool Play_Display_Mode(void);
 bool Console_Options_Screen(bool in_game = false);	// In game the display rows are left out.
+bool Console_Audio_Screen(bool in_game = false);	// In game the track rows are offered too.
 void Main_Options_Dialog(void);

@@ -55,6 +55,12 @@ struct ConsoleRowType
 	bool Quiet = false;							// No click when the focus lands here.
 };
 
+/// <summary>
+/// Makes every console menu draw on the named title-screen file instead of the shell
+/// page's backdrop until cleared with NULL, for screens opened from within a mission.
+/// </summary>
+void Console_Set_Backdrop_File(char const * name);
+
 // Draws one of the lobby's magenta-keyed icons with its key left out.
 void Console_Draw_Icon(Surface & surface, Surface & icon, int x, int y);
 

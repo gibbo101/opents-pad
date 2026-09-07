@@ -89,7 +89,7 @@ static std::string Save_Now(void)
 
 ConsoleIngameResult Console_Ingame_Menu(void)
 {
-	enum { ACTION_NONE, ACTION_RESUME, ACTION_OPTIONS, ACTION_BRIEFING, ACTION_SAVE, ACTION_LOAD, ACTION_RESTART, ACTION_ABORT };
+	enum { ACTION_NONE, ACTION_RESUME, ACTION_OPTIONS, ACTION_AUDIO, ACTION_BRIEFING, ACTION_SAVE, ACTION_LOAD, ACTION_RESTART, ACTION_ABORT };
 
 	IgnoreInput = true;
 	Keyboard->Clear();
@@ -97,6 +97,8 @@ ConsoleIngameResult Console_Ingame_Menu(void)
 	// The menu is its own screen at the shell's size, like the main menus, so its text and
 	// artwork are the same on every panel; the play size returns on the way out.
 	Shell_Display_Mode();
+	// The mission's own plate, the one the briefing uses, rather than the shell's backdrop.
+	Console_Set_Backdrop_File("SCORE.PCX");
 
 	ConsoleIngameResult result = INGAME_MENU_RESUME;
 	std::string notice;
@@ -110,6 +112,7 @@ ConsoleIngameResult Console_Ingame_Menu(void)
 			menu.Add_Row({label, nullptr, nullptr, [&, which]{ action = which; menu.Finish(CONSOLE_MENU_ACCEPT); }});
 		};
 		add("Game Options", ACTION_OPTIONS);
+		add("Audio Options", ACTION_AUDIO);
 		if (Session.Type == GAME_NORMAL) {
 			add("Mission Briefing", ACTION_BRIEFING);
 		}
@@ -147,6 +150,10 @@ ConsoleIngameResult Console_Ingame_Menu(void)
 
 			case ACTION_OPTIONS:
 				Console_Options_Screen(true);
+				break;
+
+			case ACTION_AUDIO:
+				Console_Audio_Screen(true);
 				break;
 
 			case ACTION_BRIEFING:
@@ -192,6 +199,7 @@ ConsoleIngameResult Console_Ingame_Menu(void)
 		}
 	}
 
+	Console_Set_Backdrop_File(NULL);
 	Play_Display_Mode();
 
 	Keyboard->Clear();

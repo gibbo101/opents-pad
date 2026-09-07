@@ -21,6 +21,7 @@
 #include "options.h"
 #include "padglyph.h"
 #include "techno.h"
+#include "theme.h"
 #include "video.h"
 
 #include <algorithm>
@@ -105,9 +106,74 @@ static bool Confirm_Keyboard_Mouse(void)
 
 
 /// <summary>
-/// Runs the console-style options screen. Sound volumes change as they are stepped so the
-/// player hears them; everything else applies when the player accepts, and backing out
-/// restores the volumes. Accepting saves the settings file.
+/// Runs the console-style audio screen. The volumes change as they are stepped and are
+/// kept when the player accepts or put back when they back out. In play the screen also
+/// offers shuffle, repeat, a track to play with accept on its row, and a stop, which take
+/// effect at once as the dialog's do.
+/// </summary>
+/// <param name="in_game">Is a scenario in progress?</param>
+/// <returns>bool; Did the player accept the volumes?</returns>
+bool Console_Audio_Screen(bool in_game)
+{
+	float const old_score = Options.ScoreVolume;
+	float const old_sound = Options.SoundVolume;
+	float const old_voice = Options.VoiceVolume;
+	int music = Volume_Steps(old_score);
+	int sound = Volume_Steps(old_sound);
+	int voice = Volume_Steps(old_voice);
+
+	std::vector<ThemeType> tracks;
+	int track = 0;
+	for (ThemeType index = THEME_FIRST; index < Theme.Max_Themes(); index = ThemeType(index + 1)) {
+		if (Theme.Is_Allowed(index)) {
+			if (index == Theme.What_Is_Playing()) track = int(tracks.size());
+			tracks.push_back(index);
+		}
+	}
+
+	ConsoleMenuClass menu("Audio");
+	menu.Set_Prompts("Accept", "Back");
+	menu.Add_Row({"Music Volume", [&]{ return(std::to_string(music)); },
+		[&](int step) { music = std::clamp(music + step, 0, int(VOLUME_STEPS)); Options.Set_Score_Volume(music / float(VOLUME_STEPS), true); }, nullptr});
+	menu.Add_Row({"Sound Volume", [&]{ return(std::to_string(sound)); },
+		[&](int step) { sound = std::clamp(sound + step, 0, int(VOLUME_STEPS)); Options.Set_Sound_Volume(sound / float(VOLUME_STEPS), true); }, nullptr});
+	menu.Add_Row({"Voice Volume", [&]{ return(std::to_string(voice)); },
+		[&](int step) { voice = std::clamp(voice + step, 0, int(VOLUME_STEPS)); Options.Set_Voice_Volume(voice / float(VOLUME_STEPS), true); }, nullptr});
+	if (in_game) {
+		menu.Add_Row({"Shuffle", [&]{ return(On_Off(Options.IsScoreShuffle)); },
+			[&](int) { Options.Set_Shuffle(!Options.IsScoreShuffle); if (Options.IsScoreShuffle) Options.Set_Repeat(false); }, nullptr});
+		menu.Add_Row({"Repeat", [&]{ return(On_Off(Options.IsScoreRepeat)); },
+			[&](int) { Options.Set_Repeat(!Options.IsScoreRepeat); if (Options.IsScoreRepeat) Options.Set_Shuffle(false); }, nullptr});
+		if (!tracks.empty()) {
+			menu.Add_Row({"Track", [&]{
+					ThemeType theme = tracks[track];
+					int length = Theme.Track_Length(theme);
+					char buffer[128];
+					snprintf(buffer, sizeof(buffer), "%s%02d - %s [%d:%02d]", theme == Theme.What_Is_Playing() ? "> " : "", track + 1, Theme.Full_Name(theme), length / 60, length % 60);
+					return(std::string(buffer));
+				},
+				[&](int step) { track = Wrap(track + step, 0, int(tracks.size()) - 1); },
+				[&]{ Theme.Stop(); Theme.Queue_Song(tracks[track]); }});
+			menu.Add_Row({"Stop Music", nullptr, nullptr, [&]{ Theme.Queue_Song(THEME_QUIET); menu.Refresh(); }});
+		}
+	}
+
+	bool accepted = menu.Process() == CONSOLE_MENU_ACCEPT;
+	if (!accepted) {
+		Options.Set_Score_Volume(old_score, false);
+		Options.Set_Sound_Volume(old_sound, false);
+		Options.Set_Voice_Volume(old_voice, false);
+		return(false);
+	}
+	Options.Save_Settings();
+	return(true);
+}
+
+
+/// <summary>
+/// Runs the console-style options screen. Everything applies when the player accepts, and
+/// accepting saves the settings file; the Audio row opens the audio screen, which keeps its
+/// own changes.
 /// </summary>
 /// <returns>bool; Did the player accept the settings?</returns>
 bool Console_Options_Screen(bool in_game)
@@ -128,12 +194,6 @@ bool Console_Options_Screen(bool in_game)
 	bool action_lines = Options.ActionLines;
 	bool tooltips = Options.ToolTips;
 	bool coasting = Options.ScrollMethod == 0;
-	float const old_score = Options.ScoreVolume;
-	float const old_sound = Options.SoundVolume;
-	float const old_voice = Options.VoiceVolume;
-	int music = Volume_Steps(old_score);
-	int sound = Volume_Steps(old_sound);
-	int voice = Volume_Steps(old_voice);
 
 	static char const * const _scale_names[] = {"Nearest", "Linear", "Pixel Art"};
 	static char const * const _detail_names[] = {"Low", "Medium", "High"};
@@ -171,21 +231,13 @@ bool Console_Options_Screen(bool in_game)
 	menu.Add_Row({"Sidebar Cameo Text", [&]{ return(On_Off(cameo_text)); }, [&](int) { cameo_text = !cameo_text; }, nullptr});
 	menu.Add_Row({"Action Lines", [&]{ return(On_Off(action_lines)); }, [&](int) { action_lines = !action_lines; }, nullptr});
 	menu.Add_Row({"Tool Tips", [&]{ return(On_Off(tooltips)); }, [&](int) { tooltips = !tooltips; }, nullptr});
-	menu.Add_Row({"Music Volume", [&]{ return(std::to_string(music)); },
-		[&](int step) { music = std::clamp(music + step, 0, int(VOLUME_STEPS)); Options.Set_Score_Volume(music / float(VOLUME_STEPS), true); }, nullptr});
-	menu.Add_Row({"Sound Volume", [&]{ return(std::to_string(sound)); },
-		[&](int step) { sound = std::clamp(sound + step, 0, int(VOLUME_STEPS)); Options.Set_Sound_Volume(sound / float(VOLUME_STEPS), true); }, nullptr});
-	menu.Add_Row({"Voice Volume", [&]{ return(std::to_string(voice)); },
-		[&](int step) { voice = std::clamp(voice + step, 0, int(VOLUME_STEPS)); Options.Set_Voice_Volume(voice / float(VOLUME_STEPS), true); }, nullptr});
+	menu.Add_Row({"Audio", nullptr, nullptr, [&]{ Console_Audio_Screen(in_game); menu.Refresh(); }});
 
 	int const old_prompts = Options.PromptStyle;
 	bool accepted = menu.Process() == CONSOLE_MENU_ACCEPT;
 
 	if (!accepted) {
 		Options.PromptStyle = old_prompts;
-		Options.Set_Score_Volume(old_score, false);
-		Options.Set_Sound_Volume(old_sound, false);
-		Options.Set_Voice_Volume(old_voice, false);
 		return(false);
 	}
 
