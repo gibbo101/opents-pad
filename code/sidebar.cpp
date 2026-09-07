@@ -1129,6 +1129,9 @@ void SidebarClass::Pad_Enter(void)
 void SidebarClass::Pad_Leave(void)
 {
 	PadFocus = false;
+	if (PadSection >= 0) {
+		Pad_Toggle_Grid();
+	}
 	Pad_Focus_Changed();
 }
 
