@@ -18,6 +18,7 @@
 #include <vector>
 
 class MSFont;
+class MSSfxEntry;
 class RGBClass;
 class Surface;
 
@@ -71,11 +72,18 @@ class ConsoleMenuClass
 		~ConsoleMenuClass(void);
 
 		int Add_Row(ConsoleRowType const & row);
+		std::size_t Row_Count(void) const { return(Rows.size()); }
+		void Set_Row_Step(int row, std::function<void(int)> step) { if (row >= 0 && row < int(Rows.size())) Rows[row].Step = step; }
 		void Set_Prompts(char const * accept, char const * back);
 		void Set_Side_Panel(std::function<void(Surface &, Rect const &)> draw);
 		void Set_Backdrop_Panel(std::function<void(ConsoleCanvas &)> draw);
 		void Refresh(void) { IsDirty = true; }
 		int Get_Focus(void) const { return(Focus); }
+		void Set_Focus(int focus);
+		void Set_Idle(std::function<void()> idle) { Idle = idle; }
+		void Set_Panel(Rect const & panel) { Panel = panel; IsDirty = true; }	// The dark panel's area within the box; invalid means the whole box.
+		void Set_Panel_Opacity(int percent) { PanelOpacity = percent; IsDirty = true; }	// Zero leaves the backdrop bare.
+		int Text_Width(char const * text);		// Runs once per pass of Process, for screens that must service something.
 
 		/// <summary>
 		/// Ends Process with the given result once the current input has been handled, for a
@@ -108,15 +116,20 @@ class ConsoleMenuClass
 		};
 		std::vector<HitType> Hits;
 		std::vector<Rect> RowRects;			// Where each row was last drawn, in frame coordinates; invalid when not drawn.
+		Rect Panel;
+		int PanelOpacity;
 		Rect BackRect;
 		Rect AcceptRect;
 		Point2D LastMouse;
 		std::function<void(Surface &, Rect const &)> SidePanel;
 		std::function<void(ConsoleCanvas &)> BackdropPanel;
+		std::function<void()> Idle;
 		std::vector<std::pair<unsigned, MSFont *>> ColorFonts;
 		MSFont * Font_For(RGBClass const & color);
 		MSFont * Font;
 		MSFont * FocusFont;
+		MSSfxEntry * Click;				// The shell's highlight sound, played as the focus moves.
+		void Play_Click(void);
 		Surface * Backdrop;
 		GamepadStateType PreviousPad;
 		int Focus;

@@ -20,6 +20,7 @@
 #include "gametime.h"
 #include "globals.h"
 #include "gscreen.h"
+#include "mschoice.h"
 #include "msfont.h"
 #include "msgloop.h"
 #include "newmenu.h"
@@ -65,6 +66,8 @@ ConsoleMenuClass::ConsoleMenuClass(char const * title) :
 	BackPrompt("Back"),
 	Font(NULL),
 	FocusFont(NULL),
+	Click(NULL),
+	PanelOpacity(PANEL_OPACITY),
 	Backdrop(NULL),
 	PreviousPad(),
 	Focus(0),
@@ -80,6 +83,7 @@ ConsoleMenuClass::~ConsoleMenuClass(void)
 {
 	delete Font;
 	delete FocusFont;
+	delete Click;
 	for (auto & entry : ColorFonts) {
 		delete entry.second;
 	}
@@ -137,10 +141,42 @@ void ConsoleMenuClass::Set_Backdrop_Panel(std::function<void(ConsoleCanvas &)> d
 }
 
 
+int ConsoleMenuClass::Text_Width(char const * text)
+{
+	if (Font == NULL) {
+		Font = new MSFont(false);
+		FocusFont = new MSFont(false);
+		FocusFont->Set_Color(RGBClass(48, 224, 248));
+	}
+	return(Font->Get_String_Width(text));
+}
+
+
+void ConsoleMenuClass::Set_Focus(int focus)
+{
+	if (Rows.empty()) return;
+	Focus = std::clamp(focus, 0, int(Rows.size()) - 1);
+	IsDirty = true;
+}
+
+
+void ConsoleMenuClass::Play_Click(void)
+{
+	if (Click == NULL) {
+		Click = new MSSfxEntry("HighlightSound", (char *)"CHOICE1.AUD");
+	}
+	Click->Play();
+}
+
+
 void ConsoleMenuClass::Move_Focus(int step)
 {
 	if (Rows.empty()) return;
+	int was = Focus;
 	Focus = (Focus + step + int(Rows.size())) % int(Rows.size());
+	if (Focus != was) {
+		Play_Click();
+	}
 	IsDirty = true;
 }
 
@@ -220,6 +256,7 @@ bool ConsoleMenuClass::Poll_Input(ConsoleMenuResult & result)
 		int row = row_at(mouse);
 		if (row >= 0 && row != Focus) {
 			Focus = row;
+			Play_Click();
 			IsDirty = true;
 		}
 		HitType const * hit = hit_at(mouse);
@@ -313,7 +350,13 @@ void ConsoleMenuClass::Draw(void)
 	int top = (frame.Height - MENU_HEIGHT) / 2;
 
 	surface.Blit_From(*Backdrop);
-	surface.Fill_Rect_Trans(Rect(left + PANEL_INSET, top + PANEL_INSET, MENU_WIDTH - 2 * PANEL_INSET, MENU_HEIGHT - 2 * PANEL_INSET), RGBClass(0, 0, 0), PANEL_OPACITY);
+	if (PanelOpacity <= 0) {
+		// Bare backdrop.
+	} else if (Panel.Is_Valid()) {
+		surface.Fill_Rect_Trans(Rect(left + Panel.X, top + Panel.Y, Panel.Width, Panel.Height), RGBClass(0, 0, 0), PanelOpacity);
+	} else {
+		surface.Fill_Rect_Trans(Rect(left + PANEL_INSET, top + PANEL_INSET, MENU_WIDTH - 2 * PANEL_INSET, MENU_HEIGHT - 2 * PANEL_INSET), RGBClass(0, 0, 0), PanelOpacity);
+	}
 	if (Font == NULL) {
 		Font = new MSFont(false);
 		FocusFont = new MSFont(false);
@@ -457,6 +500,9 @@ ConsoleMenuResult ConsoleMenuClass::Process(void)
 	while (true) {
 		Call_Back();
 		Windows_Message_Handler();
+		if (Idle) {
+			Idle();
+		}
 		if (!GameActive) {
 			result = CONSOLE_MENU_BACK;
 			break;
