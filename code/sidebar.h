@@ -161,6 +161,8 @@ class SidebarClass : public PowerClass
 				bool Abandon_Production(FactoryClass const * factory);
 				bool Scroll(bool up);
 				bool Page(bool up);
+				void Draw_Cameo(int index, int x, int y, Rect const & cliprect);
+				unsigned Activate(int index, unsigned flags);
 				bool AI(KeyNumType & input, Point2D const & xy);
 				char const * Help_Text(int id);
 				void Draw_It(bool complete);

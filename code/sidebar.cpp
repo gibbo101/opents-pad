@@ -1936,6 +1936,185 @@ char const * SidebarClass::StripClass::Help_Text(int id)
 }
 
 
+/// <summary>
+/// Draws one buildable's cameo at a window-relative position with its state: the clock while
+/// it builds, READY or HOLD when it is done or paused, the queue count, and darkened when it
+/// cannot be built. An index past the buildables draws the blank slot.
+/// </summary>
+void SidebarClass::StripClass::Draw_Cameo(int index, int x, int y, Rect const & cliprect)
+{
+	ShapeSet const * shapefile = NULL;
+	bool production = false;
+	bool completed = false;
+	int stage = 0;
+	bool darken = false;
+	FactoryClass * factory = NULL;
+	char const * state = NULL;
+	bool isready = false;
+	char const * name = NULL;
+	TechnoTypeClass const * obj = NULL;
+
+	/*
+	**	Fetch the shape number for the object type located at this current working
+	**	slot. This shape pointer is used to draw the underlying graphic there.
+	*/
+	if (index < BuildableCount) {
+		SuperWeaponType spc = SUPER_NONE;
+
+		if (Buildables[index].BuildableType != RTTI_SPECIAL) {
+
+			obj = Fetch_Techno_Type(Buildables[index].BuildableType, Buildables[index].BuildableID);
+			if (obj != NULL) {
+
+				name = obj->Full_Name();
+
+				/*
+				**	If there is already a factory producing this kind of object, then all
+				**	objects of this type are displays in a disabled state.
+				*/
+				bool isbusy = false;
+				if (obj->RTTI == RTTI_BUILDINGTYPE) {
+					isbusy = (PlayerPtr->Fetch_Factory(Buildables[index].BuildableType) != NULL);
+				}
+
+				if (obj->Who_Can_Build_Me(true, true, true, PlayerPtr) == NULL) {
+					isbusy = true;
+				}
+
+				if (!isbusy && PlayerPtr->Can_Build(Fetch_Techno_Type(Buildables[index].BuildableType, Buildables[index].BuildableID), false, false) == -1) {
+					isbusy = true;
+				}
+
+				shapefile = (ShapeSet const *)obj->Get_Cameo_Data();
+				factory = Buildables[index].Factory;
+				if (factory != NULL) {
+					production	= true;
+					completed	= factory->Has_Completed();
+					if (completed) {
+						state = Fetch_String(TXT_READY);
+					}
+					stage		= factory->Completion();
+					darken		= false;
+				} else {
+					production  = false;
+				//							darken      = IsBuilding;
+
+					/*
+					**	Darken the imagery if a factory of a matching type is
+					**	already busy.
+					*/
+					darken = isbusy;
+				}
+			} else {
+				darken = false;
+			}
+
+		} else {
+
+			spc = SuperWeaponType(Buildables[index].BuildableID);
+			name = SuperWeaponTypes[spc]->Full_Name();
+			shapefile = Get_Special_Cameo(spc);
+
+			production = true;
+			completed = PlayerPtr->SuperWeapon[spc]->Is_Charging() == false;
+			isready = PlayerPtr->SuperWeapon[spc]->Can_Place();
+			state = PlayerPtr->SuperWeapon[spc]->State_String();
+			stage = PlayerPtr->SuperWeapon[spc]->Anim_Stage();
+			darken = false;
+		}
+
+		if (obj != NULL || spc != SUPER_NONE) {
+			/*
+			**	If this item is flashing then take care of it.
+			**
+			*/
+			// if (Flasher == index && (Fetch_Stage() & 0x01)) {
+			// 	remapper = Map.FadingLight;
+			// }
+
+		} else {
+			shapefile	= LogoShapes;
+			// if (!darken) {
+			// 	shapenum		= SB_BLANK;
+			// }
+		}
+	} else {
+		shapefile	= LogoShapes;
+		production	= false;
+	}
+
+	/*
+	**	Now that the shape of the object at the current working slot has been found,
+	**	draw it and any graphic overlays as necessary.
+	*/
+	if (shapefile != LogoShapes) {
+
+		if (shapefile != NULL) {
+			Draw_Shape(*SidebarSurface, *CameoDrawer, shapefile, 0, Point2D(x, y), cliprect, ShapeFlags_Type(SHAPE_WIN_REL));
+		}
+
+		/*
+		**	Darken this object because it cannot be produced or is otherwise
+		**	unavailable.
+		*/
+		if (darken) {
+			Draw_Shape(*SidebarSurface, *SidebarDrawer, DarkenShapes, 0, Point2D(x, y), cliprect, ShapeFlags_Type(SHAPE_WIN_REL|SHAPE_DARKEN));
+		}
+	}
+
+	if (name != NULL) {
+		Print_Cameo_Text(name, Point2D(x, y + CAMEO_TEXT_Y_OFFSET), cliprect, OBJECT_WIDTH-2);
+	}
+
+	bool hasqueuecount = false;
+	if (obj != NULL) {
+		FactoryClass * factory = PlayerPtr->Fetch_Factory(obj->RTTI);
+
+		if (factory != NULL) {
+			int total = factory->Total(obj);
+			if (total > 1 || total > 0 && !factory->Is_Currently_Producing(obj)) {
+				Fancy_Text_Print("%d", *SidebarSurface, cliprect, Point2D(x + QUEUE_COUNT_X_OFFSET, y + TEXT_Y_OFFSET), Fetch_Scheme_By_Name("LightGrey"), TBLACK, TextPrintType(TPF_RIGHT|TPF_FULLSHADOW|TPF_8POINT), total);
+				hasqueuecount = true;
+			}
+		}
+	}
+
+	/*
+	**	Draw the overlapping clock shape if this is object is being constructed.
+	**	If the object is completed, then display "Ready" with no clock shape.
+	*/
+	if (production) {
+
+		/*
+		**	Display text showing that the object is ready to place.
+		*/
+		if (state != NULL) {
+			Fancy_Text_Print(state, *SidebarSurface, cliprect, Point2D(x + TEXT_X_OFFSET, y + TEXT_Y_OFFSET), Fetch_Scheme_By_Name("LightBlue"), TBLACK, TextPrintType(TPF_CENTER|TPF_FULLSHADOW|TPF_8POINT));
+		}
+
+		if (!completed) {
+
+			if (!isready) {
+				Draw_Shape(*SidebarSurface, *SidebarDrawer, ClockShapes, stage + 1, Point2D(x, y), cliprect, ShapeFlags_Type(SHAPE_WIN_REL|SHAPE_TRANSLUCENT50));
+			} else {
+				Draw_Shape(*SidebarSurface, *SidebarDrawer, RechargeClockShapes, stage + 1, Point2D(x, y), cliprect, ShapeFlags_Type(SHAPE_WIN_REL|SHAPE_TRANSLUCENT50));
+			}
+
+			/*
+			**	Display text showing that the construction is temporarily on hold.
+			*/
+			if (factory && !factory->Is_Building()) {
+				if (!hasqueuecount) {
+					Fancy_Text_Print(TXT_HOLD, *SidebarSurface, cliprect, Point2D(x + TEXT_X_OFFSET, y + TEXT_Y_OFFSET), Fetch_Scheme_By_Name("LightGrey"), TBLACK, TextPrintType(TPF_CENTER|TPF_FULLSHADOW|TPF_8POINT));
+				} else {
+					Fancy_Text_Print(TXT_HOLD, *SidebarSurface, cliprect, Point2D(x, y + TEXT_Y_OFFSET), Fetch_Scheme_By_Name("LightGrey"), TBLACK, TextPrintType(TPF_FULLSHADOW|TPF_8POINT));
+				}
+			}
+		}
+	}
+}
+
+
 /***********************************************************************************************
  * SidebarClass::StripClass::Draw_It -- Render the sidebar display.                            *
  *                                                                                             *
@@ -1973,19 +2152,9 @@ void SidebarClass::StripClass::Draw_It(bool complete)
 		**	them. Their Y offset may be adjusted if the strip is in the process of scrolling.
 		*/
 		for (int i = 0; i < Map.Max_Visible() + (IsScrolling ? 1 : 0); i++) {
-			ShapeSet const * shapefile = NULL;
-
 			int index = i+TopIndex;
 			int x = X;
 			int y = COLUMN_ONE_Y + i * OBJECT_HEIGHT;
-
-			bool production = false;
-			bool completed = false;
-			int stage = 0;
-			bool darken = false;
-			FactoryClass * factory = NULL;
-			char const * state = NULL;
-			bool isready = false;
 
 			/*
 			**	If the strip is scrolling, then the offset is adjusted accordingly.
@@ -1994,169 +2163,8 @@ void SidebarClass::StripClass::Draw_It(bool complete)
 				y -= OBJECT_HEIGHT - Slid;
 			}
 
-			char const * name = NULL;
-			TechnoTypeClass const * obj = NULL;
-
-			/*
-			**	Fetch the shape number for the object type located at this current working
-			**	slot. This shape pointer is used to draw the underlying graphic there.
-			*/
-			if (index < BuildableCount) {
-				SuperWeaponType spc = SUPER_NONE;
-
-				if (Buildables[index].BuildableType != RTTI_SPECIAL) {
-
-					obj = Fetch_Techno_Type(Buildables[index].BuildableType, Buildables[index].BuildableID);
-					if (obj != NULL) {
-
-						name = obj->Full_Name();
-
-						/*
-						**	If there is already a factory producing this kind of object, then all
-						**	objects of this type are displays in a disabled state.
-						*/
-						bool isbusy = false;
-						if (obj->RTTI == RTTI_BUILDINGTYPE) {
-							isbusy = (PlayerPtr->Fetch_Factory(Buildables[index].BuildableType) != NULL);
-						}
-
-						if (obj->Who_Can_Build_Me(true, true, true, PlayerPtr) == NULL) {
-							isbusy = true;
-						}
-
-						if (!isbusy && PlayerPtr->Can_Build(Fetch_Techno_Type(Buildables[index].BuildableType, Buildables[index].BuildableID), false, false) == -1) {
-							isbusy = true;
-						}
-
-						shapefile = (ShapeSet const *)obj->Get_Cameo_Data();
-						factory = Buildables[index].Factory;
-						if (factory != NULL) {
-							production	= true;
-							completed	= factory->Has_Completed();
-							if (completed) {
-								state = Fetch_String(TXT_READY);
-							}
-							stage		= factory->Completion();
-							darken		= false;
-						} else {
-							production  = false;
-						//							darken      = IsBuilding;
-
-							/*
-							**	Darken the imagery if a factory of a matching type is
-							**	already busy.
-							*/
-							darken = isbusy;
-						}
-					} else {
-						darken = false;
-					}
-
-				} else {
-
-					spc = SuperWeaponType(Buildables[index].BuildableID);
-					name = SuperWeaponTypes[spc]->Full_Name();
-					shapefile = Get_Special_Cameo(spc);
-
-					production = true;
-					completed = PlayerPtr->SuperWeapon[spc]->Is_Charging() == false;
-					isready = PlayerPtr->SuperWeapon[spc]->Can_Place();
-					state = PlayerPtr->SuperWeapon[spc]->State_String();
-					stage = PlayerPtr->SuperWeapon[spc]->Anim_Stage();
-					darken = false;
-				}
-
-				if (obj != NULL || spc != SUPER_NONE) {
-					/*
-					**	If this item is flashing then take care of it.
-					**
-					*/
-					// if (Flasher == index && (Fetch_Stage() & 0x01)) {
-					// 	remapper = Map.FadingLight;
-					// }
-
-				} else {
-					shapefile	= LogoShapes;
-					// if (!darken) {
-					// 	shapenum		= SB_BLANK;
-					// }
-				}
-			} else {
-				shapefile	= LogoShapes;
-				production	= false;
-			}
-
-			/*
-			**	Now that the shape of the object at the current working slot has been found,
-			**	draw it and any graphic overlays as necessary.
-			*/
-			if (shapefile != LogoShapes) {
-
-				if (shapefile != NULL) {
-					Draw_Shape(*SidebarSurface, *CameoDrawer, shapefile, 0, Point2D(x, y), cliprect, ShapeFlags_Type(SHAPE_WIN_REL));
-				}
-
-				/*
-				**	Darken this object because it cannot be produced or is otherwise
-				**	unavailable.
-				*/
-				if (darken) {
-					Draw_Shape(*SidebarSurface, *SidebarDrawer, DarkenShapes, 0, Point2D(x, y), cliprect, ShapeFlags_Type(SHAPE_WIN_REL|SHAPE_DARKEN));
-				}
-			}
-
-			if (name != NULL) {
-				Print_Cameo_Text(name, Point2D(x, y + CAMEO_TEXT_Y_OFFSET), cliprect, OBJECT_WIDTH-2);
-			}
-
-			bool hasqueuecount = false;
-			if (obj != NULL) {
-				FactoryClass * factory = PlayerPtr->Fetch_Factory(obj->RTTI);
-
-				if (factory != NULL) {
-					int total = factory->Total(obj);
-					if (total > 1 || total > 0 && !factory->Is_Currently_Producing(obj)) {
-						Fancy_Text_Print("%d", *SidebarSurface, cliprect, Point2D(x + QUEUE_COUNT_X_OFFSET, y + TEXT_Y_OFFSET), Fetch_Scheme_By_Name("LightGrey"), TBLACK, TextPrintType(TPF_RIGHT|TPF_FULLSHADOW|TPF_8POINT), total);
-						hasqueuecount = true;
-					}
-				}
-			}
-
-			/*
-			**	Draw the overlapping clock shape if this is object is being constructed.
-			**	If the object is completed, then display "Ready" with no clock shape.
-			*/
-			if (production) {
-
-				/*
-				**	Display text showing that the object is ready to place.
-				*/
-				if (state != NULL) {
-					Fancy_Text_Print(state, *SidebarSurface, cliprect, Point2D(x + TEXT_X_OFFSET, y + TEXT_Y_OFFSET), Fetch_Scheme_By_Name("LightBlue"), TBLACK, TextPrintType(TPF_CENTER|TPF_FULLSHADOW|TPF_8POINT));
-				}
-
-				if (!completed) {
-
-					if (!isready) {
-						Draw_Shape(*SidebarSurface, *SidebarDrawer, ClockShapes, stage + 1, Point2D(x, y), cliprect, ShapeFlags_Type(SHAPE_WIN_REL|SHAPE_TRANSLUCENT50));
-					} else {
-						Draw_Shape(*SidebarSurface, *SidebarDrawer, RechargeClockShapes, stage + 1, Point2D(x, y), cliprect, ShapeFlags_Type(SHAPE_WIN_REL|SHAPE_TRANSLUCENT50));
-					}
-
-					/*
-					**	Display text showing that the construction is temporarily on hold.
-					*/
-					if (factory && !factory->Is_Building()) {
-						if (!hasqueuecount) {
-							Fancy_Text_Print(TXT_HOLD, *SidebarSurface, cliprect, Point2D(x + TEXT_X_OFFSET, y + TEXT_Y_OFFSET), Fetch_Scheme_By_Name("LightGrey"), TBLACK, TextPrintType(TPF_CENTER|TPF_FULLSHADOW|TPF_8POINT));
-						} else {
-							Fancy_Text_Print(TXT_HOLD, *SidebarSurface, cliprect, Point2D(x, y + TEXT_Y_OFFSET), Fetch_Scheme_By_Name("LightGrey"), TBLACK, TextPrintType(TPF_FULLSHADOW|TPF_8POINT));
-						}
-					}
-				}
-			}
+			Draw_Cameo(index, x, y, cliprect);
 		}
-
 		LastSlid = Slid;
 
 	} else {
@@ -2394,41 +2402,23 @@ void SidebarClass::StripClass::SelectClass::Set_Owner(StripClass & strip, int in
 }
 
 
-/***********************************************************************************************
- * SidebarClass::StripClass::SelectClass:: -- Action function when buildable cameo is selected *
- *                                                                                             *
- *    This function is called when the buildable icon (cameo) is clicked on. It handles        *
- *    starting and stopping production as indicated.                                           *
- *                                                                                             *
- * INPUT:   flags -- The input event that triggered the call.                                  *
- *                                                                                             *
- *          key   -- The keyboard value at the time of the input.                              *
- *                                                                                             *
- * OUTPUT:  Returns with whether the input list should be scanned further.                     *
- *                                                                                             *
- * WARNINGS:   none                                                                            *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   01/19/1995 JLB : Created.                                                                 *
- *   10/09/1996 JLB : Sonar pulse converted to regular event type.                             *
- *=============================================================================================*/
-int SidebarClass::StripClass::SelectClass::Action(unsigned flags, KeyNumType & key)
+/// <summary>
+/// Acts on one buildable as a click on its cameo would: a left press starts, resumes, or
+/// places it, a right press holds or cancels it, and a superweapon fires or begins
+/// targeting. Returns the flags with those consumed removed.
+/// </summary>
+unsigned SidebarClass::StripClass::Activate(int index, unsigned flags)
 {
-	if (Strip == NULL) {
-		return(1);
-	}
-
-	int index = Strip->TopIndex + Index;
-	RTTIType otype = Strip->Buildables[index].BuildableType;
-	int oid = Strip->Buildables[index].BuildableID;
-	FactoryClass * factory = Strip->Buildables[index].Factory;
+	RTTIType otype = Buildables[index].BuildableType;
+	int oid = Buildables[index].BuildableID;
+	FactoryClass * factory = Buildables[index].Factory;
 
 	TechnoTypeClass const * choice = NULL;
 	SuperWeaponType spc = SUPER_NONE;
 
 	Map.Override_Mouse_Shape(MOUSE_NORMAL);
 
-	if (index < Strip->BuildableCount) {
+	if (index < BuildableCount) {
 		if (otype != RTTI_SPECIAL) {
 			choice = Fetch_Techno_Type(otype, oid);
 		} else {
@@ -2441,22 +2431,22 @@ int SidebarClass::StripClass::SelectClass::Action(unsigned flags, KeyNumType & k
 		/*
 		**	Display the help text if the mouse is over the button.
 		*/
-		if (flags & LEFTUP) {
-			flags &= ~LEFTUP;
+		if (flags & GadgetClass::LEFTUP) {
+			flags &= ~GadgetClass::LEFTUP;
 		}
 
 		/*
 		**	A right mouse button signals "cancel".  If we are in targeting
 		**	mode then we don't want to be any more.
 		*/
-		if (flags & RIGHTPRESS) {
+		if (flags & GadgetClass::RIGHTPRESS) {
 			Map.IsTargettingMode = SUPER_NONE;
 		}
 		/*
 		**	A left mouse press signal "activate".  If our weapon type is
 		**	available then we should activate it.
 		*/
-		if (flags & LEFTPRESS) {
+		if (flags & GadgetClass::LEFTPRESS) {
 
 			if ((unsigned)spc < (unsigned)PlayerPtr->SuperWeapon.Count()) {
 				if (PlayerPtr->SuperWeapon[spc]->Can_Place()) {
@@ -2480,14 +2470,14 @@ int SidebarClass::StripClass::SelectClass::Action(unsigned flags, KeyNumType & k
 			/*
 			**	Display the help text if the mouse is over the button.
 			*/
-			if (flags & LEFTUP) {
-				flags &= ~LEFTUP;
+			if (flags & GadgetClass::LEFTUP) {
+				flags &= ~GadgetClass::LEFTUP;
 			}
 
 			/*
 			**	A right mouse button signals "cancel".
 			*/
-			if (flags & RIGHTPRESS) {
+			if (flags & GadgetClass::RIGHTPRESS) {
 
 				/*
 				**	If production is in progress, put it on hold. If production is already
@@ -2529,7 +2519,7 @@ int SidebarClass::StripClass::SelectClass::Action(unsigned flags, KeyNumType & k
 				}
 			}
 
-			if (flags & LEFTPRESS) {
+			if (flags & GadgetClass::LEFTPRESS) {
 
 				if (factory != NULL && !factory->Is_Building()) {
 
@@ -2622,6 +2612,35 @@ int SidebarClass::StripClass::SelectClass::Action(unsigned flags, KeyNumType & k
 			flags = 0;
 		}
 	}
+	return(flags);
+}
+
+
+/***********************************************************************************************
+ * SidebarClass::StripClass::SelectClass:: -- Action function when buildable cameo is selected *
+ *                                                                                             *
+ *    This function is called when the buildable icon (cameo) is clicked on. It handles        *
+ *    starting and stopping production as indicated.                                           *
+ *                                                                                             *
+ * INPUT:   flags -- The input event that triggered the call.                                  *
+ *                                                                                             *
+ *          key   -- The keyboard value at the time of the input.                              *
+ *                                                                                             *
+ * OUTPUT:  Returns with whether the input list should be scanned further.                     *
+ *                                                                                             *
+ * WARNINGS:   none                                                                            *
+ *                                                                                             *
+ * HISTORY:                                                                                    *
+ *   01/19/1995 JLB : Created.                                                                 *
+ *   10/09/1996 JLB : Sonar pulse converted to regular event type.                             *
+ *=============================================================================================*/
+int SidebarClass::StripClass::SelectClass::Action(unsigned flags, KeyNumType & key)
+{
+	if (Strip == NULL) {
+		return(1);
+	}
+	int index = Strip->TopIndex + Index;
+	flags = Strip->Activate(index, flags);
 
 	ControlClass::Action(flags, key);
 
