@@ -13,6 +13,7 @@
 
 #include "_keyboar.h"
 #include "_map.h"
+#include "_rect.h"
 #include "dbgprint.h"
 #include "globals.h"
 #include "goptions.h"
@@ -348,6 +349,30 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 	};
 	hold_key(_force_fire, pad.RightShoulder && pad.LeftShoulder, VK_CONTROL);
 	hold_key(_force_move, pad.RightShoulder && pad.LeftTrigger, VK_MENU);
+
+	// The right stick scrolls the map, as a right-button drag does, at a rate that scales
+	// with the view so a full push crosses it in about a second and a half.
+	{
+		const float SCROLL_RATE = 0.7f;		// View heights per second at full stick.
+		static float _scroll_x = 0.0f;
+		static float _scroll_y = 0.0f;
+		float rx = pad.RightStickX * (pad.RightStickX < 0 ? -pad.RightStickX : pad.RightStickX);
+		float ry = -pad.RightStickY * (pad.RightStickY < 0 ? -pad.RightStickY : pad.RightStickY);
+		_scroll_x += rx * dt * TacticalRect.Height * SCROLL_RATE;
+		_scroll_y += ry * dt * TacticalRect.Height * SCROLL_RATE;
+		int sx = int(_scroll_x);
+		int sy = int(_scroll_y);
+		_scroll_x -= sx;
+		_scroll_y -= sy;
+		if (sx != 0) {
+			int distance = sx < 0 ? -sx : sx;
+			Map.Scroll_Map(sx < 0 ? FACING_W : FACING_E, distance, true);
+		}
+		if (sy != 0) {
+			int distance = sy < 0 ? -sy : sy;
+			Map.Scroll_Map(sy < 0 ? FACING_N : FACING_S, distance, true);
+		}
+	}
 
 	if (pressed(pad.LeftThumb, previous.LeftThumb)) Execute_Command("DeployObject");
 	if (pressed(pad.RightThumb, previous.RightThumb)) Execute_Command("CenterBase");
