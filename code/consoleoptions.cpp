@@ -163,8 +163,11 @@ bool Console_Options_Screen(bool in_game)
 	menu.Add_Row({"Scroll Coasting", [&]{ return(On_Off(coasting)); }, [&](int) { coasting = !coasting; }, nullptr});
 	menu.Add_Row({"Detail Level", [&]{ return(std::string(_detail_names[std::clamp(detail, 0, 2)])); },
 		[&](int step) { detail = std::clamp(detail + step, 0, int(OptionsClass::MAX_DETAIL_SETTING) - 1); }, nullptr});
-	menu.Add_Row({"Campaign Difficulty", [&]{ return(std::string(Fetch_String(_difficulty_names[std::clamp(difficulty, 0, 2)]))); },
-		[&](int step) { difficulty = std::clamp(difficulty + step, 0, std::min(int(OptionsClass::MAX_DIFFICULTY_SETTING), 3) - 1); }, nullptr});
+	// The difficulty is a setting for the next campaign mission, so it is not offered in play.
+	if (!in_game) {
+		menu.Add_Row({"Campaign Difficulty", [&]{ return(std::string(Fetch_String(_difficulty_names[std::clamp(difficulty, 0, 2)]))); },
+			[&](int step) { difficulty = std::clamp(difficulty + step, 0, std::min(int(OptionsClass::MAX_DIFFICULTY_SETTING), 3) - 1); }, nullptr});
+	}
 	menu.Add_Row({"Sidebar Cameo Text", [&]{ return(On_Off(cameo_text)); }, [&](int) { cameo_text = !cameo_text; }, nullptr});
 	menu.Add_Row({"Action Lines", [&]{ return(On_Off(action_lines)); }, [&](int) { action_lines = !action_lines; }, nullptr});
 	menu.Add_Row({"Tool Tips", [&]{ return(On_Off(tooltips)); }, [&](int) { tooltips = !tooltips; }, nullptr});
@@ -209,7 +212,9 @@ bool Console_Options_Screen(bool in_game)
 		Options.DetailLevel = detail;
 		Map.Reinit_Cell_Drawers();
 	}
-	Options.Difficulty = difficulty;
+	if (!in_game) {
+		Options.Difficulty = difficulty;
+	}
 	if (Options.SidebarCameoText != cameo_text) {
 		Options.SidebarCameoText = cameo_text;
 		Map.Toggle_Cameo_Text(cameo_text);

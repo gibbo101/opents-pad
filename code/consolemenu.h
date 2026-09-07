@@ -80,6 +80,8 @@ class ConsoleMenuClass
 		void Set_Row_Step(int row, std::function<void(int)> step) { if (row >= 0 && row < int(Rows.size())) Rows[row].Step = step; }
 		void Play_Click_Public(void) { Play_Click(); }
 		void Set_Row_Quiet(int row) { if (row >= 0 && row < int(Rows.size())) Rows[row].Quiet = true; }
+		void Set_Row_Y(int row, int y) { if (row >= 0 && row < int(Rows.size())) Rows[row].Y = y; }
+		std::string const & Row_Label(int row) const { static std::string const _none; return(row >= 0 && row < int(Rows.size()) ? Rows[row].Label : _none); }
 		void Set_Prompts(char const * accept, char const * back);
 		void Set_Side_Panel(std::function<void(Surface &, Rect const &)> draw);
 		void Set_Backdrop_Panel(std::function<void(ConsoleCanvas &)> draw);

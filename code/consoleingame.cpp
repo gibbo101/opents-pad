@@ -22,11 +22,13 @@
 #include "loaddlg.h"
 #include "mainopt.h"
 #include "restate.h"
+#include "rgb.h"
 #include "savemgr.h"
 #include "scenario.h"
 #include "session.h"
 #include "wincursor.h"
 
+#include <algorithm>
 #include <string>
 
 
@@ -36,12 +38,40 @@ static bool Single_Player(void)
 }
 
 
+enum {
+	ROW_PITCH = 26,
+	PANEL_PAD = 20,
+	TITLE_GAP = 36,
+	MENU_HEIGHT = 400,
+};
+
+// Boxes the rows in the manner of the menu pages: each on its own line, centred as a group,
+// the panel sized to the widest, and the title above the box.
+static void Box_Rows(ConsoleMenuClass & menu, std::string const & title)
+{
+	int count = int(menu.Row_Count());
+	int first_y = (MENU_HEIGHT - count * ROW_PITCH) / 2 + 8;
+	int widest = menu.Text_Width(title.c_str());
+	for (int index = 0; index < count; index++) {
+		menu.Set_Row_Y(index, first_y + index * ROW_PITCH);
+		widest = std::max(widest, menu.Text_Width(menu.Row_Label(index).c_str()));
+	}
+	int panel_width = widest + 2 * PANEL_PAD;
+	menu.Set_Panel(Rect((640 - panel_width) / 2, first_y - PANEL_PAD, panel_width, count * ROW_PITCH + PANEL_PAD));
+	menu.Set_Row_Colors(RGBClass(96, 208, 248), RGBClass(255, 255, 255));
+	menu.Set_Backdrop_Panel([title, first_y](ConsoleCanvas & canvas) {
+		canvas.Print(title, canvas.Box.X + (canvas.Box.Width - canvas.Width(title)) / 2, canvas.Box.Y + first_y - TITLE_GAP - PANEL_PAD, false);
+	});
+}
+
+
 static bool Confirm(char const * title, char const * question)
 {
-	ConsoleMenuClass menu(title);
+	ConsoleMenuClass menu("");
 	menu.Set_Prompts("Confirm", "Back");
 	menu.Add_Row({question, nullptr, nullptr, nullptr});
 	menu.Set_Row_Quiet(0);
+	Box_Rows(menu, title);
 	return(menu.Process() == CONSOLE_MENU_ACCEPT);
 }
 
@@ -74,7 +104,7 @@ ConsoleIngameResult Console_Ingame_Menu(void)
 	bool done = false;
 	while (!done) {
 		int action = ACTION_NONE;
-		ConsoleMenuClass menu("Game Paused");
+		ConsoleMenuClass menu("");
 		menu.Set_Prompts("Select", "Return");
 		auto add = [&](char const * label, int which) {
 			menu.Add_Row({label, nullptr, nullptr, [&, which]{ action = which; menu.Finish(CONSOLE_MENU_ACCEPT); }});
@@ -101,6 +131,7 @@ ConsoleIngameResult Console_Ingame_Menu(void)
 			menu.Add_Row({notice, nullptr, nullptr, nullptr});
 			menu.Set_Row_Quiet(int(menu.Row_Count()) - 1);
 		}
+		Box_Rows(menu, "Game Paused");
 		menu.Set_Focus(focus < 0 ? return_row : focus);
 		ConsoleMenuResult outcome = menu.Process();
 		focus = menu.Get_Focus();
