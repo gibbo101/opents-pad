@@ -454,16 +454,15 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 		_select_type_pending = false;
 		Execute_Command("SelectType");
 	}
-	if (pressed(pad.Accept, previous.Accept) && pad.RightShoulder) {
-		// R1 with cross works the sidebar's cell from the map: place, build again, or queue.
-		Map.Pad_Repeat();
-		_cross_sent = false;
-		_cross_stage = 2;
-	} else if (pressed(pad.Accept, previous.Accept)) {
+	// R1 with a cross tap works the sidebar's cell from the map: place, build again, or
+	// queue. Moving while held still draws a band box, so the tap is judged on release.
+	static bool _cross_repeat = false;
+	if (pressed(pad.Accept, previous.Accept)) {
 		_cross_since = now;
 		GetCursorPos(&_cross_at);
 		_cross_sent = false;
 		_cross_stage = 0;
+		_cross_repeat = pad.RightShoulder;
 	} else if (pad.Accept && previous.Accept && !_cross_sent && _cross_stage != 2) {
 		POINT at;
 		GetCursorPos(&at);
@@ -502,6 +501,8 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 	} else if (!pad.Accept && previous.Accept) {
 		if (_cross_sent) {
 			click(MOUSEEVENTF_LEFTUP, false);
+		} else if (_cross_stage == 0 && _cross_repeat) {
+			Map.Pad_Repeat();
 		} else if (_cross_stage == 0) {
 			click(MOUSEEVENTF_LEFTDOWN, true);
 			click(MOUSEEVENTF_LEFTUP, false);
