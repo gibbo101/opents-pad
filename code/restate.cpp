@@ -16,6 +16,8 @@
 #include "data.h"
 #include "gamepad.h"
 #include "goptions.h"
+#include "mainopt.h"
+#include "misc.h"
 #include "options.h"
 #include "padglyph.h"
 
@@ -259,15 +261,32 @@ RestateButtonStruct _buttons[BUTTON_COUNT] = {
  *   06/23/1995 JLB : Created.                                                                 *
  *   08/06/1995 JLB : Uses preloaded briefing text.                                            *
  *=============================================================================================*/
+static bool _ResumesMission = false;	// The briefing was opened from within the mission.
+
 void Restate_Mission(ScenarioClass * scen)
 {
 	bool save_started = ScenarioActive;
 	ScenarioActive = false;
+	_ResumesMission = save_started;
+
+	// Under the controller scheme the page is shown at the shell's size like the other
+	// console screens; the size it was opened at returns afterwards.
+	bool padded = Options.ControlScheme == CONTROL_CONTROLLER;
+	int width = VideoModeWidth;
+	int height = VideoModeHeight;
+	if (padded) {
+		Shell_Display_Mode();
+	}
+
 	if (RestateMission().Presentation(scen) == true) {
 		ThemeType theme = Theme.What_Is_Playing();
 		Theme.Stop();
 		Play_Movie(scen->BriefMovie, THEME_NONE, 1, 1);
 		Theme.Play_Song(theme);
+	}
+
+	if (padded && (VideoModeWidth != width || VideoModeHeight != height)) {
+		Change_Display_Mode(width, height);
 	}
 	ScenarioActive = save_started;
 	Keyboard->Clear();
@@ -597,7 +616,7 @@ void RestateMission::Draw_Prompts(Surface * surface)
 	int glyph = PromptFont->Get_Font_Height() + 4;
 	int used = Resolved_Prompt_Style() == PROMPT_STYLE_TEXT ? 0 : glyph + 6;
 	// Before the mission starts there is nothing to resume, so the last page just closes.
-	char const * accept = Fetch_String(Prompt == PROMPT_MORE ? TXT_MORE : ScenarioActive ? TXT_RESUME_MISSION : TXT_OK);
+	char const * accept = Fetch_String(Prompt == PROMPT_MORE ? TXT_MORE : _ResumesMission ? TXT_RESUME_MISSION : TXT_OK);
 	int x = CenterX + 640 - 24 - used - PromptFont->Get_String_Width(accept);
 	Draw_Pad_Glyph(*surface, PAD_BUTTON_ACCEPT, x, y - 2, glyph);
 	PromptFont->Draw_String(surface, (unsigned char const *)accept, x + used, y, 2);
