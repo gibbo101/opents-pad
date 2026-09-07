@@ -1519,10 +1519,10 @@ void SidebarClass::Draw_Pad_View(void)
 					if (bottom && column != 0 && super_count > 1) {
 						PadItemType next = supers[(PadSuper + 1) % super_count];
 						icon = Column[next.Column].Get_Special_Cameo(SuperWeaponType(Column[next.Column].Buildables[next.Index].BuildableID));
-					} else if (bottom) {
-						// With nothing charged yet the side's own superweapons stand in, dulled.
-						icon = Column[0].Get_Special_Cameo(Pad_Side_Super(0, column == 0 ? 0 : 1));
-					} else {
+					} else if (bottom && column == 0) {
+						// With nothing on the field yet the side's first superweapon stands in, dulled.
+						icon = Column[0].Get_Special_Cameo(Pad_Side_Super(0, 0));
+					} else if (!bottom) {
 						icon = Pad_Section_Icon(row, column);
 					}
 					// The strip's blank-slot shape is never drawn by the engine and may be
