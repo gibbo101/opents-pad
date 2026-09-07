@@ -55,10 +55,6 @@
 /*
 ******************************** Prototypes *********************************
 */
-static int Request_To_Join(int join_index);
-static void Unjoin_Game(int game_index);
-static void Send_Join_Queries(int gamenow, int playernow, int chatnow, int init = 0);
-static void Get_Join_Responses(void);
 
 BOOL CALLBACK MPlayer_Guest_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
 BOOL CALLBACK MPlayer_Game_List_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
@@ -737,6 +733,151 @@ bool Net2Console_Remote_Connect(void)
 }
 
 
+/// <summary>
+/// Starts the game this machine has joined: applies the agreed options and derives the packet
+/// timing from the measured response time.
+/// </summary>
+void Net2Start_Joined_Game(void)
+{
+	PregameSetup();
+
+	//.....................................................................
+	// Compute frame delay value for packet transmissions:
+	// - Divide global channel's response time by 8 (2 to convert to 1-way
+	//	  value, 4 more to convert from ticks to frames)
+	//.....................................................................
+	Session.LatencyFudge = 0;
+	Session.PrecalcMaxAhead = 0;
+	Session.PrecalcDesiredFrameRate = 0;
+	Session.FrameSendRate = 3;
+	if (Session.CommProtocol == COMM_PROTOCOL_MULTI_E_COMP) {
+		Session.MaxAhead = std::max<unsigned int>(((((Ipx.Global_Response_Time() / 8) + (Session.FrameSendRate - 1)) / Session.FrameSendRate) * Session.FrameSendRate), NETWORK_MIN_MAX_AHEAD * 3);
+	} else {
+		Session.MaxAhead = std::max(((int)Ipx.Global_Response_Time() / 8), NETWORK_MIN_MAX_AHEAD);
+	}
+}
+
+
+/// <summary>
+/// Starts the hosted game: broadcasts the final options, tells every player to go, sends the
+/// scenario to any player that lacks it, and primes the network timing for play.
+/// </summary>
+void Net2Start_Hosted_Game(void)
+{
+	Net2GameStarted = 1;
+
+	PumpGameopts(true, true);
+
+	if (MultiplayerMapPreview != NULL) {
+		delete MultiplayerMapPreview;
+		MultiplayerMapPreview = NULL;
+	}
+
+	PregameSetup();
+
+	//.....................................................................
+	// Compute frame delay value for packet transmissions:
+	// - Divide global channel's response time by 8 (2 to convert to 1-way
+	//	  value, 4 more to convert from ticks to frames)
+	//.....................................................................
+	Session.FrameSendRate = 3;
+	Session.LatencyFudge = 0;
+	Session.PrecalcMaxAhead = 0;
+	Session.PrecalcDesiredFrameRate = 0;
+	if (Session.CommProtocol == COMM_PROTOCOL_MULTI_E_COMP) {
+		Session.MaxAhead = std::max<unsigned int>(((((Ipx.Global_Response_Time() / 8) + (Session.FrameSendRate - 1)) / Session.FrameSendRate) * Session.FrameSendRate), NETWORK_MIN_MAX_AHEAD * 3);
+	} else {
+		Session.MaxAhead = std::max(((int)Ipx.Global_Response_Time() / 8), NETWORK_MIN_MAX_AHEAD);
+	}
+
+	Ipx.Set_Timing(std::max<unsigned>(TIMER_SECOND / 2, (unsigned int)Ipx.Global_Response_Time() + 2), (unsigned int)-1, 10 * TIMER_SECOND);
+
+	//.....................................................................
+	// Send all players the NET_GO packet.  Wait until all ACK's have been
+	// received.
+	//.....................................................................
+	GlobalPacketType gpacket;
+	memset(&gpacket, 0, sizeof(gpacket));
+	gpacket.Command = NET_GO;
+	gpacket.ResponseTime.OneWay = Session.MaxAhead;
+	for (int i = 1; i < Session.Players.Count(); i++) {
+		Ipx.Send_Global_Message(&gpacket, sizeof(gpacket), 1, &(Session.Players[i]->Address));
+	}
+
+	//.....................................................................
+	// Wait for all the ACK's to come in.
+	//.....................................................................
+	CDTimerClass<SystemTimerClass> timeout = TIMER_SECOND * 20;
+	while (Ipx.Global_Num_Send() > 0 && !timeout) {
+		Call_Back();
+	}
+
+	/*
+	** Wait for the go responses from each player in case someone needs the scenario
+	** file to be sent.
+	*/
+	int responses[MAX_PLAYERS];
+	memset(responses, 0, sizeof(responses));
+	int num_responses = 0;
+	bool send_scenario = false;
+	DebugString("About to wait for 'GO' response.\n");
+	CDTimerClass<SystemTimerClass> response_timer;    // timeout timer for waiting for responses
+	response_timer = TIMER_SECOND * 10;               // Wait for 10 seconds. If we dont hear by then assume someone crashed
+
+	do {
+		Call_Back();
+		int retcode = Ipx.Get_Global_Message(&Session.GPacket, sizeof(Session.GPacket), &Session.GPacketlen, &Session.GAddress, &Session.GProductID);
+		if (retcode && Session.GProductID == IPXGlobalConnClass::COMMAND_AND_CONQUER2) {
+			for (int i = 1; i < Session.Players.Count(); i++) {
+				if (Session.Players[i]->Address == Session.GAddress) {
+					if (!responses[i]) {
+						if (Session.GPacket.Command == NET_REQ_SCENARIO) {
+							DebugString("Received REQ_SCENARIO packet.\n");
+							responses[i] = Session.GPacket.Command;
+							send_scenario = true;
+							num_responses++;
+						}
+						if (Session.GPacket.Command == NET_READY_TO_GO) {
+							DebugString("Received READY_TO_GO packet.\n");
+							responses[i] = Session.GPacket.Command;
+							num_responses++;
+						}
+					}
+				}
+			}
+		}
+	} while (num_responses < Session.Players.Count() - 1 && response_timer);
+
+	/*
+	** If one of the machines requested that the scenario be sent then send it.
+	*/
+	if (send_scenario) {
+		memset(Session.ScenarioRequests, 0, sizeof(Session.ScenarioRequests));
+		Session.RequestCount = 0;
+		for (int i = 1; i < Session.Players.Count(); i++) {
+			if (responses[i] == NET_REQ_SCENARIO) {
+				Session.ScenarioRequests[Session.RequestCount++] = i;
+			}
+		}
+		Send_Remote_File(Scen->ScenarioName, false, true);
+	}
+
+	//------------------------------------------------------------------------
+	// Init network timing values, using previous response times as a measure
+	// of what our retry delta & timeout should be.
+	//------------------------------------------------------------------------
+	Ipx.Set_Timing(std::max<unsigned>(Ipx.Global_Response_Time() + 2, TIMER_SECOND / 2), (unsigned int)-1, std::max<unsigned>(2 * TIMER_SECOND, Ipx.Global_Response_Time() * 8));
+
+	//------------------------------------------------------------------------
+	// Restore screen
+	//------------------------------------------------------------------------
+	Hide_Mouse();
+	Draw_Menu_Background();
+	Show_Mouse();
+	WS_Destroy_Dialog(NULL, 0);
+}
+
+
 bool Net2Remote_Connect(void)
 {
 	RulesID = RulesClass::Get_Rule_Unique_ID();
@@ -1035,23 +1176,7 @@ bool Net2Remote_Connect(void)
 			while (WS_Destroy_Dialog(NULL, 0) == true) {}
 			_netresponse = 0;
 
-			PregameSetup();
-
-			//.....................................................................
-			// Compute frame delay value for packet transmissions:
-			// - Divide global channel's response time by 8 (2 to convert to 1-way
-			//	  value, 4 more to convert from ticks to frames)
-			//.....................................................................
-			Session.LatencyFudge = 0;
-			Session.PrecalcMaxAhead = 0;
-			Session.PrecalcDesiredFrameRate = 0;
-			Session.FrameSendRate = 3;
-			if (Session.CommProtocol == COMM_PROTOCOL_MULTI_E_COMP) {
-				Session.MaxAhead = std::max<unsigned int>(((((Ipx.Global_Response_Time() / 8) + (Session.FrameSendRate - 1)) / Session.FrameSendRate) * Session.FrameSendRate), NETWORK_MIN_MAX_AHEAD * 3);
-			} else {
-				Session.MaxAhead = std::max(((int)Ipx.Global_Response_Time() / 8), NETWORK_MIN_MAX_AHEAD);
-			}
-
+			Net2Start_Joined_Game();
 			break;
 		}
 
@@ -1070,117 +1195,7 @@ bool Net2Remote_Connect(void)
 				_netresponse = 0;
 
 			} else {
-				Net2GameStarted = 1;
-
-				PumpGameopts(true, true);
-
-				if (MultiplayerMapPreview != NULL) {
-					delete MultiplayerMapPreview;
-					MultiplayerMapPreview = NULL;
-				}
-
-				PregameSetup();
-
-				//.....................................................................
-				// Compute frame delay value for packet transmissions:
-				// - Divide global channel's response time by 8 (2 to convert to 1-way
-				//	  value, 4 more to convert from ticks to frames)
-				//.....................................................................
-				Session.FrameSendRate = 3;
-				Session.LatencyFudge = 0;
-				Session.PrecalcMaxAhead = 0;
-				Session.PrecalcDesiredFrameRate = 0;
-				if (Session.CommProtocol == COMM_PROTOCOL_MULTI_E_COMP) {
-					Session.MaxAhead = std::max<unsigned int>(((((Ipx.Global_Response_Time() / 8) + (Session.FrameSendRate - 1)) / Session.FrameSendRate) * Session.FrameSendRate), NETWORK_MIN_MAX_AHEAD * 3);
-				} else {
-					Session.MaxAhead = std::max(((int)Ipx.Global_Response_Time() / 8), NETWORK_MIN_MAX_AHEAD);
-				}
-
-				Ipx.Set_Timing(std::max<unsigned>(TIMER_SECOND / 2, (unsigned int)Ipx.Global_Response_Time() + 2), (unsigned int)-1, 10 * TIMER_SECOND);
-
-				//.....................................................................
-				// Send all players the NET_GO packet.  Wait until all ACK's have been
-				// received.
-				//.....................................................................
-				GlobalPacketType gpacket;
-				memset(&gpacket, 0, sizeof(gpacket));
-				gpacket.Command = NET_GO;
-				gpacket.ResponseTime.OneWay = Session.MaxAhead;
-				for (int i = 1; i < Session.Players.Count(); i++) {
-					Ipx.Send_Global_Message(&gpacket, sizeof(gpacket), 1, &(Session.Players[i]->Address));
-				}
-
-				//.....................................................................
-				// Wait for all the ACK's to come in.
-				//.....................................................................
-				CDTimerClass<SystemTimerClass> timeout = TIMER_SECOND * 20;
-				while (Ipx.Global_Num_Send() > 0 && !timeout) {
-					Call_Back();
-				}
-
-				/*
-				** Wait for the go responses from each player in case someone needs the scenario
-				** file to be sent.
-				*/
-				int responses[MAX_PLAYERS];
-				memset(responses, 0, sizeof(responses));
-				int num_responses = 0;
-				bool send_scenario = false;
-				DebugString("About to wait for 'GO' response.\n");
-				CDTimerClass<SystemTimerClass> response_timer;    // timeout timer for waiting for responses
-				response_timer = TIMER_SECOND * 10;               // Wait for 10 seconds. If we dont hear by then assume someone crashed
-
-				do {
-					Call_Back();
-					int retcode = Ipx.Get_Global_Message(&Session.GPacket, sizeof(Session.GPacket), &Session.GPacketlen, &Session.GAddress, &Session.GProductID);
-					if (retcode && Session.GProductID == IPXGlobalConnClass::COMMAND_AND_CONQUER2) {
-						for (int i = 1; i < Session.Players.Count(); i++) {
-							if (Session.Players[i]->Address == Session.GAddress) {
-								if (!responses[i]) {
-									if (Session.GPacket.Command == NET_REQ_SCENARIO) {
-										DebugString("Received REQ_SCENARIO packet.\n");
-										responses[i] = Session.GPacket.Command;
-										send_scenario = true;
-										num_responses++;
-									}
-									if (Session.GPacket.Command == NET_READY_TO_GO) {
-										DebugString("Received READY_TO_GO packet.\n");
-										responses[i] = Session.GPacket.Command;
-										num_responses++;
-									}
-								}
-							}
-						}
-					}
-				} while (num_responses < Session.Players.Count() - 1 && response_timer);
-
-				/*
-				** If one of the machines requested that the scenario be sent then send it.
-				*/
-				if (send_scenario) {
-					memset(Session.ScenarioRequests, 0, sizeof(Session.ScenarioRequests));
-					Session.RequestCount = 0;
-					for (int i = 1; i < Session.Players.Count(); i++) {
-						if (responses[i] == NET_REQ_SCENARIO) {
-							Session.ScenarioRequests[Session.RequestCount++] = i;
-						}
-					}
-					Send_Remote_File(Scen->ScenarioName, false, true);
-				}
-
-				//------------------------------------------------------------------------
-				// Init network timing values, using previous response times as a measure
-				// of what our retry delta & timeout should be.
-				//------------------------------------------------------------------------
-				Ipx.Set_Timing(std::max<unsigned>(Ipx.Global_Response_Time() + 2, TIMER_SECOND / 2), (unsigned int)-1, std::max<unsigned>(2 * TIMER_SECOND, Ipx.Global_Response_Time() * 8));
-
-				//------------------------------------------------------------------------
-				// Restore screen
-				//------------------------------------------------------------------------
-				Hide_Mouse();
-				Draw_Menu_Background();
-				Show_Mouse();
-				WS_Destroy_Dialog(NULL, 0);
+				Net2Start_Hosted_Game();
 				break;
 			}
 		}
@@ -1994,7 +2009,7 @@ BOOL CALLBACK MPlayer_Host_Dialog_Proc(HWND window, UINT message, WPARAM wparam,
  *                                                                         *
  * HISTORY:                                                                *
  *=========================================================================*/
-static int Request_To_Join(int join_index)
+int Request_To_Join(int join_index)
 {
 	//------------------------------------------------------------------------
 	// Validate join_index
@@ -2101,7 +2116,7 @@ static int Request_To_Join(int join_index)
  * HISTORY:                                                                *
  *   12/12/1995 BRR : Created.                                             *
  *=========================================================================*/
-static void Unjoin_Game(int game_index)
+void Unjoin_Game(int game_index)
 {
 	int i;
 	GlobalPacketType packet;
@@ -2193,7 +2208,7 @@ static void Unjoin_Game(int game_index)
  *   02/14/1995 BR : Created.                                                                  *
  *   04/15/1995 BRR : Created.                                                                 *
  *=============================================================================================*/
-static void Send_Join_Queries(int gamenow, int playernow, int chatnow, int init)
+void Send_Join_Queries(int gamenow, int playernow, int chatnow, int init)
 {
 	GlobalPacketType packet = {};
 
@@ -2403,7 +2418,7 @@ bool Process_Global_Packet(GlobalPacketType *packet, IPXAddressClass *address)
  *   02/14/1995 BR : Created.                                                                  *
  *   04/15/1995 BRR : Created.                                                                 *
  *=============================================================================================*/
-static void Get_Join_Responses(void)
+void Get_Join_Responses(void)
 {
 	int rc;
 	NodeNameType *who;				// node to add to Games or Players
