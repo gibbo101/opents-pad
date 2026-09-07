@@ -1464,7 +1464,7 @@ static ShapeSet const * Pad_Section_Icon(int row, int column)
 }
 
 
-// A right-pointing arrow over a cell, lit when there is something to step to.
+// A left-pointing arrow over a cell, lit when there is something to step to.
 static void Pad_Draw_Next_Arrow(int x, int y, bool lit)
 {
 	int color = DSurface::Build_Hicolor_Pixel(lit ? RGBClass(236, 236, 236) : RGBClass(88, 88, 88));
@@ -1475,10 +1475,10 @@ static void Pad_Draw_Next_Arrow(int x, int y, bool lit)
 	for (int pass = 0; pass < 2; pass++) {
 		int fill = pass == 0 ? edge : color;
 		int grow = pass == 0 ? 1 : 0;
-		SidebarSurface->Fill_Rect(Rect(cx - 14 - grow, cy - 4 - grow, 16 + grow, 8 + grow * 2), fill);
+		SidebarSurface->Fill_Rect(Rect(cx - 2, cy - 4 - grow, 16 + grow, 8 + grow * 2), fill);
 		for (int step = 0; step <= 12 + grow; step++) {
 			int half = 12 + grow - step;
-			SidebarSurface->Fill_Rect(Rect(cx + 2 + step - grow, cy - half, 1, half * 2 + 1), fill);
+			SidebarSurface->Fill_Rect(Rect(cx - 2 - step + grow, cy - half, 1, half * 2 + 1), fill);
 		}
 	}
 }
@@ -1515,7 +1515,7 @@ void SidebarClass::Draw_Pad_View(void)
 				int super_count = bottom ? Pad_Items((PAD_SECTION_ROWS - 1) * PAD_COLUMNS, supers, StripClass::MAX_BUILDABLES) : 0;
 				PadItemType items[1];
 				bool has_items = bottom ? super_count > 0 : Pad_Items(section, items, 1) > 0;
-				bool shown = bottom || has_items || Pad_Section_Shown(row, column);
+				bool shown = has_items || (bottom ? Pad_Owned_Factory(Pad_Column_House(0), PAD_KIND_STRUCTURES) != NULL : Pad_Section_Shown(row, column));
 				PadItemType active;
 				if (!shown) {
 					// Nothing marks a section the player has no way into yet.
