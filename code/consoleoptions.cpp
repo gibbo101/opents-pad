@@ -110,7 +110,7 @@ static bool Confirm_Keyboard_Mouse(void)
 /// restores the volumes. Accepting saves the settings file.
 /// </summary>
 /// <returns>bool; Did the player accept the settings?</returns>
-bool Console_Options_Screen(void)
+bool Console_Options_Screen(bool in_game)
 {
 	// 0 follows the connected controller, 1 is keyboard and mouse, 2 is controller.
 	int scheme = Options.ControlSchemeAuto ? 0 : (Options.ControlScheme == CONTROL_CONTROLLER ? 2 : 1);
@@ -148,12 +148,14 @@ bool Console_Options_Screen(void)
 	static char const * const _prompt_names[] = {"Auto", "Text", "Xbox", "PlayStation", "Steam Deck"};
 	menu.Add_Row({"Button Prompts", [&]{ return(std::string(_prompt_names[prompts])); },
 		[&](int step) { prompts = Wrap(prompts + step, 0, int(PROMPT_STYLE_DECK)); Options.PromptStyle = prompts; }, nullptr});
-	menu.Add_Row({"Resolution", [&]{ return(std::to_string(modes[mode].first) + " x " + std::to_string(modes[mode].second)); },
-		[&](int step) { mode = Wrap(mode + step, 0, int(modes.size()) - 1); }, nullptr});
-	menu.Add_Row({"Scale Mode", [&]{ return(std::string(_scale_names[std::clamp(scale_mode, 0, 2)])); },
-		[&](int step) { scale_mode = Wrap(scale_mode + step, 0, 2); }, nullptr});
-	menu.Add_Row({"Integer Scaling", [&]{ return(On_Off(integer_scaling)); }, [&](int) { integer_scaling = !integer_scaling; }, nullptr});
-	menu.Add_Row({"Stretch Movies", [&]{ return(On_Off(stretch)); }, [&](int) { stretch = !stretch; }, nullptr});
+	if (!in_game) {
+		menu.Add_Row({"Resolution", [&]{ return(std::to_string(modes[mode].first) + " x " + std::to_string(modes[mode].second)); },
+			[&](int step) { mode = Wrap(mode + step, 0, int(modes.size()) - 1); }, nullptr});
+		menu.Add_Row({"Scale Mode", [&]{ return(std::string(_scale_names[std::clamp(scale_mode, 0, 2)])); },
+			[&](int step) { scale_mode = Wrap(scale_mode + step, 0, 2); }, nullptr});
+		menu.Add_Row({"Integer Scaling", [&]{ return(On_Off(integer_scaling)); }, [&](int) { integer_scaling = !integer_scaling; }, nullptr});
+		menu.Add_Row({"Stretch Movies", [&]{ return(On_Off(stretch)); }, [&](int) { stretch = !stretch; }, nullptr});
+	}
 	menu.Add_Row({"Game Speed", [&]{ return(std::to_string(speed)); },
 		[&](int step) { speed = std::clamp(speed + step, 0, int(OptionsClass::MAX_SPEED_SETTING) - 1); }, nullptr});
 	menu.Add_Row({"Scroll Rate", [&]{ return(std::to_string(scroll)); },

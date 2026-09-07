@@ -43,3 +43,18 @@ class GameOptionsClass : public OptionsClass {
 
 int Abort_Dialog(void);
 void Game_Options_Dialog(void);
+
+// How the console pause menu was left, for the menu loop to act on.
+enum ConsoleIngameResult {
+	INGAME_MENU_RESUME,
+	INGAME_MENU_LOADED,		// A saved game replaced the scenario.
+	INGAME_MENU_RESTART,	// Restart the mission, or surrender a multiplayer game.
+	INGAME_MENU_ABORT,
+};
+
+/// <summary>
+/// Runs the console pause menu over the frozen frame under the controller scheme, with the
+/// options, briefing, save, load, and confirmations inside it. Sets SpecialDialog to
+/// SDLG_LOAD when a multiplayer load must run from the menu loop.
+/// </summary>
+ConsoleIngameResult Console_Ingame_Menu(void);

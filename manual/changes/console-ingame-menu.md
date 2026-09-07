@@ -1,0 +1,12 @@
+---
+title: Add a console-style in-game menu under the controller scheme
+category: feature
+release: 0.2.0
+targets:
+- type: key
+  id: ControlScheme
+  effect: changed
+credit: [gibbo101]
+---
+
+Under the `Controller` control scheme the in-game menu is a pause box over the frozen frame: Game Options, Mission Briefing, Save Game, Load Game, Restart Mission, Abort Mission, and Return To Mission as rows, with restart and abort asking for confirmation. Save writes a fresh slot under the mission's name and reports in the box, Load opens the console-style load list, and in a LAN game Save and Load take the multiplayer paths and Restart becomes Surrender. The console-style LAN screens gained a host lobby and a guest lobby, and the pre-mission briefing now closes with OK rather than Resume Mission. The `KeyboardMouse` dialogs are unchanged.

@@ -220,7 +220,25 @@ void Ingame_Menu_Dialog(void)
 				#endif
 
 				case SDLG_OPTIONS:
-					Game_Options_Dialog();
+					if (Options.ControlScheme == CONTROL_CONTROLLER) {
+						switch (Console_Ingame_Menu()) {
+							case INGAME_MENU_ABORT:
+								Queue_Exit();
+								break;
+							case INGAME_MENU_RESTART:
+								if (Session.Type == GAME_NORMAL || Session.Type == GAME_SKIRMISH) {
+									PlayerRestarts = true;
+								} else {
+									OutList.push_back(EventClass(PlayerPtr->HeapID, EventClass::DESTRUCT));
+									_special_dialog_flag = false;
+								}
+								break;
+							default:
+								break;
+						}
+					} else {
+						Game_Options_Dialog();
+					}
 					if (SpecialDialog != SDLG_OPTIONS) {
 						break;
 					}

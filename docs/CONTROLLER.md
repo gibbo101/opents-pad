@@ -39,7 +39,8 @@ target.
 | Select Campaign | `code/init.cpp` | Side select in the manner of Remastered: the backdrop's own GDI and Nod discs enlarged at left and right, both dim until a side is picked, then the picked one lit and grown with its campaign named under the title; names beneath in faction colours, difficulty along the bottom. Left and right pick the side, or the act when a side has two, with the shell's hover click; A or a click on the lit emblem starts. Writes the difficulty option like the dialog. |
 | Load Mission | `code/loaddlg.cpp` | Console list of the save games, newest first, date at the left and description at the right, a star for multiplayer saves; long lists scroll. |
 | Dialogs | `code/gamepad.cpp`, `code/msgloop.cpp` | While any dialog is open the pad drives it through key messages: d-pad as arrows with repeat, A as Enter, B as Escape. Covers the message boxes, Version, and the multiplayer lobby for now. |
-| Mission briefing | `code/restate.cpp` | Under the controller scheme the buttons give way to console prompts: A continues or turns the page, B plays the mission video when there is one. |
+| In-game menu | `code/consoleingame.cpp` | Under the controller scheme the Escape menu in play is a console screen in the manner of Retaliation: "Game Paused" over the frozen, dimmed frame, a bordered box of gold rows with the focused one white, focus starting on Return To Mission. Game Options opens the console options screen without its display rows; Mission Briefing restates; Save Game writes a fresh slot under the mission's name and reports in the box; Load Game opens the console load list; Restart Mission and Abort Mission each confirm first. In a LAN game Save and Load go through the multiplayer paths and Restart becomes Surrender. The menu loop's pause, resume, restart and exit handling is shared with the dialog. |
+| Mission briefing | `code/restate.cpp` | Under the controller scheme the buttons give way to console prompts: A continues or turns the page, B plays the mission video when there is one. Before the mission starts the last page closes with OK; restated from the pause menu it reads Resume Mission. |
 | Shell render size | `code/mainopt.cpp`, `code/init.cpp` | Under the controller scheme the shell renders at 640x400, the size its artwork was drawn for, so the presenter fits it to the panel height with pillars on wide screens. The play resolution returns when a scenario starts. The keyboard scheme keeps the shell at the play resolution. |
 
 ## Findings that shape the work
@@ -62,17 +63,16 @@ target.
 ## Next
 
 1. An on-screen keyboard for the player name, then LAN chat.
-2. The in-game menu as a console screen.
-3. A Steam Input layout for the game, shipped in the repo, so the pad is on
+2. A Steam Input layout for the game, shipped in the repo, so the pad is on
    the Gamepad template without the player building one. Steam only defaults
    a layout the app owner publishes, so this is a file to import once, and
    Steam keeps the choice per player after that.
-4. LAN lobby extras: kick as a row on the host lobby, and the generated map
+3. LAN lobby extras: kick as a row on the host lobby, and the generated map
    once its setup has a console screen.
-5. A zoom setting for play: the render frame takes the panel's aspect and a
+4. A zoom setting for play: the render frame takes the panel's aspect and a
    zoom value picks its height, so no screen shows bars and each device tunes
    its own sprite size. A 32:9 panel at 2x felt right in testing.
-6. Later: the in-game control scheme, the sidebar, and the display work in
+5. Later: the in-game control scheme, the sidebar, and the display work in
    the direction notes.
 
 ## Parked
