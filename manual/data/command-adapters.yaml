@@ -328,13 +328,14 @@ fixed_controls:
     title: Dismiss multiplayer score
     description: Closes the multiplayer score screen after its prompt appears.
     audience: player
-    bindings: [Left mouse button, Escape, Space]
+    bindings: [Left mouse button, Escape, Space, Enter]
     context: Multiplayer score screen
     availability: *all
     sites:
       - { file: code/mpscore.cpp, function: MultiScore::User_Input, expression: VK_LBUTTON }
       - { file: code/mpscore.cpp, function: MultiScore::User_Input, expression: VK_ESCAPE }
       - { file: code/mpscore.cpp, function: MultiScore::User_Input, expression: VK_SPACE }
+      - { file: code/mpscore.cpp, function: MultiScore::User_Input, expression: VK_RETURN }
   - id: fixed:main-menu-version
     title: Open version information
     description: Opens the version dialog from the classic main menu.

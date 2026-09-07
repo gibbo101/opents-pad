@@ -2122,6 +2122,7 @@ fixed_controls:
   - Left mouse button
   - Escape
   - Space
+  - Enter
   context: Multiplayer score screen
   _provenance:
     source: code/mpscore.cpp
