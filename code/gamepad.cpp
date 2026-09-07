@@ -366,7 +366,6 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 		SendInput(1, &input, sizeof(input));
 	};
 	auto pressed = [&](bool now_down, bool was_down) { return(now_down && !was_down); };
-	static bool _right_posted = false;
 
 	// Triangle takes the pad to the sidebar and back. There the d-pad or stick moves the
 	// focus over the sections or the open section's grid, cross builds or opens, circle holds,
@@ -496,17 +495,15 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 		_cross_sent = false;
 		_cross_stage = 0;
 	}
+	// Circle is a right-button tap, pressed and released together, so holding it while the
+	// pointer moves never becomes the mouse's drag scroll: it only cancels or deselects.
 	if (pressed(pad.Back, previous.Back)) {
 		if (pad.RightShoulder) {
 			Execute_Command("RepeatLastBuilding");
 		} else {
 			click(MOUSEEVENTF_RIGHTDOWN, true);
-			_right_posted = true;
+			click(MOUSEEVENTF_RIGHTUP, false);
 		}
-	}
-	if (!pad.Back && previous.Back && _right_posted) {
-		click(MOUSEEVENTF_RIGHTUP, false);
-		_right_posted = false;
 	}
 
 	// The shapes with L2 make teams and with L1 select and centre on them; square alone
