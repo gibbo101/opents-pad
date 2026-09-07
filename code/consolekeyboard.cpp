@@ -66,10 +66,10 @@ enum {
 };
 
 static char const * const _rows[] = {
+	"1234567890",
 	"ABCDEFGHIJ",
 	"KLMNOPQRST",
-	"UVWXYZ0123",
-	"456789-_.'",
+	"UVWXYZ-_.'",
 };
 enum { LETTER_ROWS = 4, WIDE_ROW = LETTER_ROWS };
 enum WideKeyType { WIDE_SPACE, WIDE_DELETE, WIDE_CAPS, WIDE_DONE, WIDE_COUNT };
@@ -99,7 +99,7 @@ bool Console_Keyboard(char const * title, std::string & text, int max_length)
 	std::string edit = text;
 	if (max_length > 0 && int(edit.size()) > max_length) edit.resize(max_length);
 	bool upper = true;
-	int row = 0;
+	int row = 1;
 	int column = 0;
 	bool finished = false;
 	bool accepted = false;

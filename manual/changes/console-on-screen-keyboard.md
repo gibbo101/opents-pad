@@ -21,4 +21,4 @@ targets:
 credit: [gibbo101]
 ---
 
-Under the `Controller` control scheme the player name on the skirmish and LAN screens and the save name in the pause menu open an on-screen keyboard: a grid of letters, digits, and a few marks with Space, Delete, Caps, and Done beneath it, and a field showing the text. The d-pad or stick moves between keys, A types the focused one, X deletes, Y adds a space, and B backs out leaving the text as it was; a real keyboard types straight in, with Enter finishing and Escape backing out. The mouse can pick keys too.
+Under the `Controller` control scheme the player name on the skirmish and LAN screens and the save name in the pause menu open an on-screen keyboard: a row of digits over three rows of letters and a few marks, with Space, Delete, Caps, and Done beneath them, and a field showing the text. The d-pad or stick moves between keys, A types the focused one, X deletes, Y adds a space, and B backs out leaving the text as it was; a real keyboard types straight in, with Enter finishing and Escape backing out. The mouse can pick keys too.
