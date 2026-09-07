@@ -273,30 +273,32 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 		SetCursorPos(at.x, at.y);
 	}
 
-	auto post = [&](UINT message, WPARAM flags, bool down) {
-		POINT at;
-		GetCursorPos(&at);
-		ScreenToClient(MainWindow, &at);
+	// The buttons go in as real input rather than posted messages, since the engine reads a
+	// held button from the system's key state, which only real input sets.
+	auto click = [&](DWORD flag, bool down) {
+		INPUT input = {};
+		input.type = INPUT_MOUSE;
+		input.mi.dwFlags = flag;
 		if (down) _SyntheticClicks++;
-		PostMessage(MainWindow, message, flags, MAKELPARAM(at.x, at.y));
+		SendInput(1, &input, sizeof(input));
 	};
 	auto pressed = [&](bool now_down, bool was_down) { return(now_down && !was_down); };
 	static bool _right_posted = false;
 
 	// Cross is the left button. Circle is the right button, unless R1 holds it for the
 	// rebuild command.
-	if (pressed(pad.Accept, previous.Accept)) post(WM_LBUTTONDOWN, MK_LBUTTON, true);
-	if (!pad.Accept && previous.Accept) post(WM_LBUTTONUP, 0, false);
+	if (pressed(pad.Accept, previous.Accept)) click(MOUSEEVENTF_LEFTDOWN, true);
+	if (!pad.Accept && previous.Accept) click(MOUSEEVENTF_LEFTUP, false);
 	if (pressed(pad.Back, previous.Back)) {
 		if (pad.RightShoulder) {
 			Execute_Command("RepeatLastBuilding");
 		} else {
-			post(WM_RBUTTONDOWN, MK_RBUTTON, true);
+			click(MOUSEEVENTF_RIGHTDOWN, true);
 			_right_posted = true;
 		}
 	}
 	if (!pad.Back && previous.Back && _right_posted) {
-		post(WM_RBUTTONUP, 0, false);
+		click(MOUSEEVENTF_RIGHTUP, false);
 		_right_posted = false;
 	}
 
@@ -338,7 +340,11 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 		if (want == held) return;
 		held = want;
 		if (want) _SyntheticClicks++;
-		PostMessage(MainWindow, want ? WM_KEYDOWN : WM_KEYUP, vk, want ? 0 : 0xC0000000);
+		INPUT input = {};
+		input.type = INPUT_KEYBOARD;
+		input.ki.wVk = vk;
+		input.ki.dwFlags = want ? 0 : KEYEVENTF_KEYUP;
+		SendInput(1, &input, sizeof(input));
 	};
 	hold_key(_force_fire, pad.RightShoulder && pad.LeftShoulder, VK_CONTROL);
 	hold_key(_force_move, pad.RightShoulder && pad.LeftTrigger, VK_MENU);
