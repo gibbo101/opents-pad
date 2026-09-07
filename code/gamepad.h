@@ -43,6 +43,13 @@ GamepadStateType Gamepad_Read(void);
 void Gamepad_Pump(void * dialog);
 
 /// <summary>
+/// Fixes an Auto control scheme before the first shell screen: a pad that has appeared since
+/// launch selects the controller scheme, and with none yet the call waits up to the given
+/// time for one. After this the scheme no longer follows the pad.
+/// </summary>
+void Gamepad_Settle_Auto_Scheme(unsigned wait_ms);
+
+/// <summary>
 /// While on, the menu button is left to the screen that asked instead of pressing Escape,
 /// for a screen whose accept is Start.
 /// </summary>

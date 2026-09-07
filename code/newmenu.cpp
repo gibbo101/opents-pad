@@ -17,6 +17,7 @@
 #include "grphmenu.h"
 #include "init.h"
 #include "loaddlg.h"
+#include "mainopt.h"
 #include "mixfile.h"
 #include "movie.h"
 #include "vector.h"
@@ -118,6 +119,9 @@ __forceinline int NewMenuClass::Game_Select_Loop(NewMenuClass * menu)
 					item = GMENU_TIBSUN;
 				}
 				switch (item) {
+					case GMENU_RESTART:
+						continue;
+
 					case GMENU_TIBSUN:
 						menu->GameMode = 0;
 						if (CCFileClass("TS_Title.VQA").Is_Available()) {
@@ -150,6 +154,9 @@ __forceinline int NewMenuClass::Game_Select_Loop(NewMenuClass * menu)
 
 			case 0:
 				item = menu->Display_Tiberian_Sun_Menu();
+				if (item == GMENU_RESTART) {
+					continue;
+				}
 				if (item == GMENU_BACK) {
 					menu->GameMode = -1;
 					continue;
@@ -158,6 +165,9 @@ __forceinline int NewMenuClass::Game_Select_Loop(NewMenuClass * menu)
 
 			case 1:
 				item = menu->Display_Firestorm_Menu();
+				if (item == GMENU_RESTART) {
+					continue;
+				}
 				if (item == GMENU_BACK) {
 					menu->GameMode = -1;
 					continue;
@@ -233,6 +243,9 @@ int NewMenuClass::Display_Menu(char const * section, DynamicVectorClass<int> & o
 	bool console = Options.ControlScheme == CONTROL_CONTROLLER && stricmp(section, "MainMenu") != 0;
 	int result = console ? Console_Menu_Page(*menu, options) : menu->Presentation();
 	delete menu;
+	if (result == GMENU_RESTART) {
+		Shell_Display_Mode();
+	}
 	return((int)result);
 }
 

@@ -12,6 +12,7 @@
 #include "gamepad.h"
 
 #include "_keyboar.h"
+#include "dbgprint.h"
 #include "globals.h"
 #include "goptions.h"
 #include "options.h"
@@ -88,6 +89,24 @@ GamepadStateType Gamepad_Read(void)
 // a controller that is not there is slow.
 static bool _KeyboardMouseSeen = false;
 static bool _MenuStarts = false;
+static bool _AutoSettled = false;
+
+void Gamepad_Settle_Auto_Scheme(unsigned wait_ms)
+{
+	if (_AutoSettled) return;
+	if (Options.ControlSchemeAuto && Options.ControlScheme != CONTROL_CONTROLLER) {
+		unsigned long until = timeGetTime() + wait_ms;
+		while (timeGetTime() < until) {
+			if (Gamepad_Read().Connected) {
+				DebugString("ControlScheme is Controller (auto, pad found before the shell)\n");
+				Options.ControlScheme = CONTROL_CONTROLLER;
+				break;
+			}
+			Sleep(50);
+		}
+	}
+	_AutoSettled = true;
+}
 
 void Gamepad_Menu_Starts(bool on)
 {
@@ -160,6 +179,23 @@ void Gamepad_Pump(void * dialog)
 		}
 	} else {
 		_chord_since = 0;
+	}
+	// Steam hands a game its virtual pad a moment after the window exists, so an Auto scheme
+	// that found none at launch keeps looking through the startup movies until it is settled.
+	if (!controller && !_AutoSettled && Options.ControlSchemeAuto && pad.Connected) {
+		DebugString("ControlScheme is Controller (auto, pad appeared after launch)\n");
+		Options.ControlScheme = CONTROL_CONTROLLER;
+		controller = true;
+	}
+	// Once settled, a pad button pressed on a keyboard-scheme shell page is proof a pad is in
+	// the player's hands, so Auto switches to the controller scheme there and then.
+	bool pressed = (pad.Accept && !_previous.Accept) || (pad.Back && !_previous.Back) || (pad.Menu && !_previous.Menu)
+		|| (pad.Up && !_previous.Up) || (pad.Down && !_previous.Down) || (pad.Left && !_previous.Left) || (pad.Right && !_previous.Right);
+	if (!controller && _AutoSettled && Options.ControlSchemeAuto && !ScenarioActive && pressed) {
+		DebugString("ControlScheme is Controller (auto, pad pressed in the shell)\n");
+		Options.ControlScheme = CONTROL_CONTROLLER;
+		_previous = pad;
+		return;
 	}
 	if (!controller) {
 		_previous = pad;

@@ -114,6 +114,7 @@
 #include "fog.h"
 #include "gamedirs.h"
 #include "gamedlg.h"
+#include "gamepad.h"
 #include "getcpu.h"
 #include "globals.h"
 #include "houstype.h"
@@ -1285,6 +1286,9 @@ restart:
 			process = false;
 			Theme.Stop(true);
 		}
+
+		// A pad Steam attaches after launch must be known before the first screen.
+		Gamepad_Settle_Auto_Scheme(2000);
 
 		while (process) {
 

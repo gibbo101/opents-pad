@@ -15,6 +15,7 @@
 #include "_surface.h"
 #include "ccfile.h"
 #include "gamepad.h"
+#include "newmenu.h"
 #include "globals.h"
 #include "goptions.h"
 #include "grphmitm.h"
@@ -196,6 +197,8 @@ int GraphicMenu::Presentation(void)
 	Engine.Restore_And_Advance();
 
 	bool padded = Options.ControlScheme == CONTROL_CONTROLLER;
+	bool started_padded = padded;
+	bool restart = false;
 	Point2D last_mouse(Get_Mouse_X(), Get_Mouse_Y());
 	GamepadStateType previous = Gamepad_Read();
 	auto select = [&](GraphicMenuItem * temp, bool silent = false) {
@@ -256,6 +259,12 @@ int GraphicMenu::Presentation(void)
 
 	while (!done) {
 		padded = Options.ControlScheme == CONTROL_CONTROLLER;
+		// A pad press switched the scheme under this page, so it shows again as a console screen.
+		if (padded && !started_padded) {
+			restart = true;
+			item = NULL;
+			break;
+		}
 		Hide_Mouse();
 		Engine.Wait_For_Focus();
 		Show_Mouse();
@@ -306,6 +315,10 @@ int GraphicMenu::Presentation(void)
 	}
 
 	OwnerDraw::Release_Mouse();
+
+	if (restart) {
+		return(GMENU_RESTART);
+	}
 
 	Theme.Fade_Out();
 

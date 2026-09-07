@@ -32,7 +32,8 @@ enum {
 
 	GMENU_TIBSUN = 100,
 	GMENU_FIRESTORM = 101,
-	GMENU_BACK = 102
+	GMENU_BACK = 102,
+	GMENU_RESTART = 103		// The control scheme changed under the page; show it again.
 };
 
 class NewMenuClass

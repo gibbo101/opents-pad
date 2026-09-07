@@ -10,7 +10,7 @@ The setting names one of three schemes, in any capitalization:
 
 | Value | Result |
 | --- | --- |
-| `Auto` | `Controller` when an XInput controller is connected at launch, otherwise `KeyboardMouse` |
+| `Auto` | `Controller` when an XInput controller is connected by the time the first menu screen shows, with a wait of up to two seconds for one before that screen, otherwise `KeyboardMouse` until a controller button is pressed on a menu screen |
 | `KeyboardMouse` | The original dialogs, driven by the mouse |
 | `Controller` | Console-style screens: a list of rows, one in focus, driven by the arrow keys, Enter, and Escape, by the first connected XInput controller, or by the mouse |
 
