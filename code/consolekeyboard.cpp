@@ -98,7 +98,7 @@ bool Console_Keyboard(char const * title, std::string & text, int max_length)
 {
 	std::string edit = text;
 	if (max_length > 0 && int(edit.size()) > max_length) edit.resize(max_length);
-	bool upper = true;
+	bool upper = edit.empty() || edit.back() == ' ';
 	int row = 1;
 	int column = 0;
 	bool finished = false;
@@ -127,15 +127,25 @@ bool Console_Keyboard(char const * title, std::string & text, int max_length)
 		if (isalpha((unsigned char)letter)) letter = upper ? char(toupper((unsigned char)letter)) : char(tolower((unsigned char)letter));
 		return(std::string(1, letter));
 	};
+	// Capitals come on at the start of each word and go off after the first letter, as a
+	// phone keyboard does, unless the player has locked them with Caps.
+	bool caps_lock = false;
+	auto settle_case = [&](void) {
+		if (!caps_lock) {
+			upper = edit.empty() || edit.back() == ' ';
+		}
+	};
 	auto add = [&](char letter) {
 		if (max_length <= 0 || int(edit.size()) < max_length) {
 			edit += letter;
+			settle_case();
 			dirty = true;
 		}
 	};
 	auto erase = [&](void) {
 		if (!edit.empty()) {
 			edit.pop_back();
+			settle_case();
 			dirty = true;
 		}
 	};
@@ -144,7 +154,7 @@ bool Console_Keyboard(char const * title, std::string & text, int max_length)
 			switch (column) {
 				case WIDE_SPACE: add(' '); break;
 				case WIDE_DELETE: erase(); break;
-				case WIDE_CAPS: upper = !upper; dirty = true; break;
+				case WIDE_CAPS: caps_lock = !caps_lock; upper = caps_lock ? true : (edit.empty() || edit.back() == ' '); dirty = true; break;
 				case WIDE_DONE: finished = true; accepted = true; break;
 			}
 		} else {
