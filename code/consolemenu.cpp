@@ -546,6 +546,16 @@ void ConsoleMenuClass::Draw(void)
 	}
 	BackRect = prompt(BackPrompt, PAD_BUTTON_BACK, false);
 	AcceptRect = prompt(accept_text, PAD_BUTTON_ACCEPT, true);
+	// The start button's prompt sits in the middle on a screen that starts from it.
+	if (AcceptPrompt == "Start") {
+		int used = Resolved_Prompt_Style() == PROMPT_STYLE_TEXT ? 0 : glyph + GLYPH_GAP;
+		int total = used + width(AcceptPrompt);
+		int x = left + (MENU_WIDTH - total) / 2;
+		if (used > 0) {
+			Draw_Pad_Glyph(surface, PAD_BUTTON_MENU, x, top + PROMPT_Y - GLYPH_INSET, glyph);
+		}
+		print(AcceptPrompt, x + used, top + PROMPT_Y);
+	}
 
 	Update_Visible_Surface(&surface);
 	IsDirty = false;

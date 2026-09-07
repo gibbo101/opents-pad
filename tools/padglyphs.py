@@ -11,7 +11,7 @@ from PIL import Image
 
 GLYPH_SIZE = 32
 STYLES = ["xbox", "playstation", "deck"]
-BUTTONS = ["accept", "back", "third", "fourth"]
+BUTTONS = ["accept", "back", "third", "fourth", "menu"]
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "assets" / "input-prompts"

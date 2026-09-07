@@ -67,7 +67,7 @@ int Draw_Pad_Glyph(Surface & surface, PadButtonType button, int x, int y, int si
 	if (row < 0 || size < 4) {
 		return(0);
 	}
-	unsigned char const * pixels = PadGlyphPixels[row][int(button) & 3];
+	unsigned char const * pixels = PadGlyphPixels[row][std::clamp(int(button), 0, int(PAD_BUTTON_COUNT) - 1)];
 
 	// Each drawn pixel averages a grid of source samples, then blends in by its coverage.
 	float scale = float(PAD_GLYPH_SOURCE_SIZE) / float(size);

@@ -19,6 +19,8 @@ enum PadButtonType {
 	PAD_BUTTON_BACK,		// B, or circle.
 	PAD_BUTTON_THIRD,		// X, or square.
 	PAD_BUTTON_FOURTH,		// Y, or triangle.
+	PAD_BUTTON_MENU,		// Menu, Options, or Start.
+	PAD_BUTTON_COUNT,
 };
 
 /// <summary>
