@@ -344,25 +344,17 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 	auto pressed = [&](bool now_down, bool was_down) { return(now_down && !was_down); };
 	static bool _right_posted = false;
 
-	// Triangle takes the pad to the sidebar and back. There the d-pad or stick moves a
-	// highlight between the cameos and the mode buttons, the pointer sits on the highlight
-	// so cross and circle click it, and the map pointer waits.
+	// Triangle takes the pad to the sidebar and back. There the d-pad or stick moves the
+	// focus over the sections or the open section's grid, cross builds or opens, circle holds,
+	// cancels or steps back, and square opens or closes a section's grid.
 	enum { SIDEBAR_REPEAT_FIRST_MS = 350, SIDEBAR_REPEAT_NEXT_MS = 120 };
 	static unsigned long _sidebar_repeat_at = 0;
 	static bool _sidebar_held = false;
-	auto warp_to_focus = [&](void) {
-		Rect area = Map.Pad_Focus_Rect();
-		if (!area.Is_Valid()) return;
-		POINT at = {Map.Pad_Origin_X() + area.X + area.Width / 2, area.Y + area.Height / 2};
-		Game_Point_To_Screen(at);
-		SetCursorPos(at.x, at.y);
-	};
 	if (pressed(pad.Fourth, previous.Fourth) && !pad.LeftTrigger && !pad.LeftShoulder && !pad.RightShoulder) {
 		if (Map.PadFocus) {
 			Map.Pad_Leave();
 		} else {
 			Map.Pad_Enter();
-			warp_to_focus();
 		}
 	}
 	if (Map.PadFocus) {
@@ -370,14 +362,12 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 		bool fresh = pressed(pad.Up, previous.Up) || pressed(pad.Down, previous.Down) || pressed(pad.Left, previous.Left) || pressed(pad.Right, previous.Right);
 		if (any && (fresh || (_sidebar_held && now >= _sidebar_repeat_at))) {
 			Map.Pad_Move(pad.Left ? -1 : pad.Right ? 1 : 0, pad.Up ? -1 : pad.Down ? 1 : 0);
-			warp_to_focus();
 			_sidebar_repeat_at = now + (fresh ? SIDEBAR_REPEAT_FIRST_MS : SIDEBAR_REPEAT_NEXT_MS);
 		}
 		_sidebar_held = any;
-		if (pressed(pad.Accept, previous.Accept)) click(MOUSEEVENTF_LEFTDOWN, true);
-		if (!pad.Accept && previous.Accept) click(MOUSEEVENTF_LEFTUP, false);
-		if (pressed(pad.Back, previous.Back)) click(MOUSEEVENTF_RIGHTDOWN, true);
-		if (!pad.Back && previous.Back) click(MOUSEEVENTF_RIGHTUP, false);
+		if (pressed(pad.Accept, previous.Accept)) Map.Pad_Accept();
+		if (pressed(pad.Back, previous.Back)) Map.Pad_Back();
+		if (pressed(pad.Third, previous.Third) && !pad.LeftTrigger && !pad.LeftShoulder) Map.Pad_Toggle_Grid();
 		return;
 	}
 

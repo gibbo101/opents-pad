@@ -392,19 +392,37 @@ class SidebarClass : public PowerClass
 		bool IsToRedrawCredits;
 
 		/*
-		 * The pad's focus on the sidebar: one cameo cell, or one of the mode buttons on the
-		 * row above them, drawn with a highlight and moved between with the d-pad.
+		 * The pad's sidebar: a fixed grid of sections, the player's side in the left column
+		 * and the other side's in the right, structures, infantry, vehicles and aircraft by
+		 * row, then superweapons and a return cell. Opening a section shows its buildables
+		 * as a grid of their own. Above the sections sits the row of mode buttons.
 		 */
+		enum {
+			PAD_COLUMNS = 2,
+			PAD_SECTION_ROWS = 5,
+			PAD_MODE_BUTTONS = 4,
+			PAD_ROW_MODES = -1,
+		};
 		bool PadFocus = false;
-		int PadColumn = 0;
-		int PadSlot = 0;				// A visible slot, or -1 for the mode button row.
-		int PadMode = 0;				// Which mode button when on that row.
+		int PadRow = 0;					// PAD_ROW_MODES, or a row of the sections or of the open grid.
+		int PadCol = 0;					// A column, or the mode button when on that row.
+		int PadSection = -1;			// The open section as row * 2 + column, or -1 on the section grid.
+		int PadTop = 0;					// The first grid row shown while a section is open.
+		bool PadDirty = false;
+		struct PadItemType {
+			int Column;					// Which strip holds the buildable.
+			int Index;					// Its index in that strip.
+		};
+		int Pad_Items(int section, PadItemType * items, int max) const;
+		int Pad_Active_Item(int section, PadItemType & item) const;	// The item a factory is working on, if any.
 		void Pad_Enter(void);
 		void Pad_Leave(void);
 		void Pad_Move(int dx, int dy);
-		Rect Pad_Focus_Rect(void) const;	// Within the sidebar surface; invalid when there is no focus.
-		int Pad_Origin_X(void) const;		// Where the sidebar surface lands on the frame.
-		void Draw_Pad_Focus(void);
+		void Pad_Accept(void);
+		bool Pad_Back(void);				// False once it has left the sidebar.
+		void Pad_Toggle_Grid(void);
+		void Pad_Focus_Changed(void);
+		void Draw_Pad_View(void);
 
 		class SBGadgetClass: public GadgetClass {
 			public:

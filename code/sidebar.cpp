@@ -124,6 +124,7 @@
 #include "color.hh"
 
 #include <algorithm>
+#include <string>
 #include <compare>
 
 ShapeSet const * SidebarClass::SidebarShape = NULL;
@@ -968,7 +969,6 @@ void SidebarClass::Draw_It(bool complete)
 		Upgrade.Draw_Me(true);
 		Power.Draw_Me(true);
 		Waypoint.Draw_Me(true);
-		Draw_Pad_Focus();
 		IsToBlitSidebar = true;
 	}
 
@@ -976,8 +976,16 @@ void SidebarClass::Draw_It(bool complete)
 	**	Draw the side strip elements by calling their respective draw functions.
 	*/
 	if (IsSidebarActive) {
-		Column[0].Draw_It(complete);
-		Column[1].Draw_It(complete);
+		if (PadFocus) {
+			if (complete || PadDirty || Column[0].IsToRedraw || Column[1].IsToRedraw) {
+				Column[0].IsToRedraw = false;
+				Column[1].IsToRedraw = false;
+				Draw_Pad_View();
+			}
+		} else {
+			Column[0].Draw_It(complete);
+			Column[1].Draw_It(complete);
+		}
 	}
 	if (Repair.IsDrawn) {
 		IsToBlitSidebar = true;
@@ -1008,111 +1016,348 @@ void SidebarClass::Draw_It(bool complete)
 }
 
 
-int SidebarClass::Pad_Origin_X(void) const
+enum PadSectionKind { PAD_KIND_STRUCTURES, PAD_KIND_INFANTRY, PAD_KIND_VEHICLES, PAD_KIND_AIRCRAFT, PAD_KIND_SPECIAL };
+static char const * const _PadSectionNames[] = {"Structures", "Infantry", "Vehicles", "Aircraft", "Superweapons", "Return"};
+
+
+// The house whose things a section column holds: the player's own in the left column, the
+// other side's in the right.
+static HousesType Pad_Column_House(int column)
 {
-	return(Options.IsSidebarOnRight ? TacticalRect.Width : 0);
+	HousesType own = PlayerPtr != NULL ? PlayerPtr->ActLike : HOUSE_GOOD;
+	if (column == 0) return(own);
+	return(own == HOUSE_GOOD ? HOUSE_BAD : HOUSE_GOOD);
 }
 
 
-static void Pad_Focus_Changed(SidebarClass & sidebar)
+static bool Pad_Type_Belongs(TechnoTypeClass const * type, int column)
 {
-	sidebar.IsToRedraw = true;
-	sidebar.Column[0].IsToRedraw = true;
-	sidebar.Column[1].IsToRedraw = true;
-	sidebar.Flag_To_Redraw();
+	int mask = type->Get_Ownable();
+	bool own = (mask & (1 << Pad_Column_House(0))) != 0;
+	bool other = (mask & (1 << Pad_Column_House(1))) != 0;
+	if (column == 0) return(own || !other);
+	return(other && !own);
+}
+
+
+int SidebarClass::Pad_Items(int section, PadItemType * items, int max) const
+{
+	int row = section / PAD_COLUMNS;
+	int column = section % PAD_COLUMNS;
+	int count = 0;
+	if (row == PAD_SECTION_ROWS - 1) {
+		if (column != 0) return(0);
+		for (int index = 0; index < Column[1].BuildableCount && count < max; index++) {
+			if (Column[1].Buildables[index].BuildableType == RTTI_SPECIAL) {
+				items[count++] = {1, index};
+			}
+		}
+		return(count);
+	}
+	static RTTIType const _kinds[] = {RTTI_BUILDINGTYPE, RTTI_INFANTRYTYPE, RTTI_UNITTYPE, RTTI_AIRCRAFTTYPE};
+	RTTIType kind = _kinds[row];
+	for (int strip = 0; strip < COLUMNS; strip++) {
+		for (int index = 0; index < Column[strip].BuildableCount && count < max; index++) {
+			StripClass::BuildType const & entry = Column[strip].Buildables[index];
+			if (entry.BuildableType != kind) continue;
+			TechnoTypeClass const * type = Fetch_Techno_Type(entry.BuildableType, entry.BuildableID);
+			if (type == NULL || !Pad_Type_Belongs(type, column)) continue;
+			items[count++] = {strip, index};
+		}
+	}
+	return(count);
+}
+
+
+int SidebarClass::Pad_Active_Item(int section, PadItemType & item) const
+{
+	PadItemType items[StripClass::MAX_BUILDABLES];
+	int count = Pad_Items(section, items, StripClass::MAX_BUILDABLES);
+	for (int index = 0; index < count; index++) {
+		if (Column[items[index].Column].Buildables[items[index].Index].Factory != NULL) {
+			item = items[index];
+			return(1);
+		}
+	}
+	return(0);
+}
+
+
+void SidebarClass::Pad_Focus_Changed(void)
+{
+	PadDirty = true;
+	IsToRedraw = true;
+	IsForceCompleteRedraw = true;
+	Column[0].IsToRedraw = true;
+	Column[1].IsToRedraw = true;
+	Flag_To_Redraw();
 }
 
 
 void SidebarClass::Pad_Enter(void)
 {
 	PadFocus = true;
-	PadColumn = std::clamp(PadColumn, 0, int(COLUMNS) - 1);
-	if (PadSlot >= 0) {
-		int shown = std::min(Max_Visible(), Column[PadColumn].BuildableCount - Column[PadColumn].TopIndex);
-		if (shown <= 0) {
-			PadSlot = -1;
-			PadMode = 0;
-		} else {
-			PadSlot = std::clamp(PadSlot, 0, shown - 1);
-		}
-	}
-	Pad_Focus_Changed(*this);
+	PadSection = -1;
+	PadRow = 0;
+	PadCol = 0;
+	PadTop = 0;
+	Pad_Focus_Changed();
 }
 
 
 void SidebarClass::Pad_Leave(void)
 {
 	PadFocus = false;
-	Pad_Focus_Changed(*this);
+	Pad_Focus_Changed();
 }
 
 
 void SidebarClass::Pad_Move(int dx, int dy)
 {
-	enum { MODE_BUTTONS = 4 };
-	int visible = Max_Visible();
-	if (PadSlot < 0) {
-		if (dx != 0) {
-			PadMode = (PadMode + dx + MODE_BUTTONS) % MODE_BUTTONS;
-		}
+	if (PadRow == PAD_ROW_MODES) {
+		if (dx != 0) PadCol = (PadCol + dx + PAD_MODE_BUTTONS) % PAD_MODE_BUTTONS;
 		if (dy > 0) {
-			PadColumn = PadMode < MODE_BUTTONS / 2 ? 0 : 1;
-			int shown = std::min(visible, Column[PadColumn].BuildableCount - Column[PadColumn].TopIndex);
-			if (shown > 0) {
-				PadSlot = 0;
+			PadCol = PadCol < PAD_MODE_BUTTONS / 2 ? 0 : 1;
+			PadRow = 0;
+		}
+	} else if (PadSection < 0) {
+		if (dx != 0) PadCol = (PadCol + PAD_COLUMNS + dx) % PAD_COLUMNS;
+		if (dy < 0) {
+			if (PadRow > 0) {
+				PadRow--;
+			} else {
+				PadRow = PAD_ROW_MODES;
+				PadCol = PadCol * (PAD_MODE_BUTTONS / 2);
+			}
+		} else if (dy > 0 && PadRow + 1 < PAD_SECTION_ROWS) {
+			PadRow++;
+		}
+	} else {
+		PadItemType items[StripClass::MAX_BUILDABLES];
+		int count = Pad_Items(PadSection, items, StripClass::MAX_BUILDABLES);
+		int rows = (count + PAD_COLUMNS - 1) / PAD_COLUMNS;
+		if (dx != 0) PadCol = (PadCol + PAD_COLUMNS + dx) % PAD_COLUMNS;
+		if (dy < 0 && PadRow > 0) PadRow--;
+		if (dy > 0 && PadRow + 1 < rows) PadRow++;
+		if (PadRow * PAD_COLUMNS + PadCol >= count && count > 0) {
+			PadCol = (count - 1) % PAD_COLUMNS;
+		}
+		int visible = Max_Visible();
+		if (PadRow < PadTop) PadTop = PadRow;
+		if (PadRow >= PadTop + visible) PadTop = PadRow - visible + 1;
+	}
+	Pad_Focus_Changed();
+}
+
+
+void SidebarClass::Pad_Accept(void)
+{
+	if (PadRow == PAD_ROW_MODES) {
+		switch (PadCol) {
+			case 0: Repair_Mode_Control(-1); break;
+			case 1: Sell_Mode_Control(-1); break;
+			case 2: Power_Mode_Control(-1); break;
+			default: Waypoint_Mode_Control(-1, false); break;
+		}
+	} else if (PadSection < 0) {
+		int section = PadRow * PAD_COLUMNS + PadCol;
+		if (PadRow == PAD_SECTION_ROWS - 1 && PadCol != 0) {
+			Pad_Leave();
+			return;
+		}
+		PadItemType active;
+		if (Pad_Active_Item(section, active)) {
+			// A section already building takes cross as one more of the same, or the place.
+			Column[active.Column].Activate(active.Index, GadgetClass::LEFTPRESS);
+		} else {
+			Pad_Toggle_Grid();
+			return;
+		}
+	} else {
+		PadItemType items[StripClass::MAX_BUILDABLES];
+		int count = Pad_Items(PadSection, items, StripClass::MAX_BUILDABLES);
+		int at = PadRow * PAD_COLUMNS + PadCol;
+		if (at < count) {
+			Column[items[at].Column].Activate(items[at].Index, GadgetClass::LEFTPRESS);
+		}
+	}
+	Pad_Focus_Changed();
+}
+
+
+bool SidebarClass::Pad_Back(void)
+{
+	if (PadRow == PAD_ROW_MODES) {
+		Pad_Leave();
+		return(false);
+	}
+	if (PadSection < 0) {
+		int section = PadRow * PAD_COLUMNS + PadCol;
+		PadItemType active;
+		if (Pad_Active_Item(section, active)) {
+			Column[active.Column].Activate(active.Index, GadgetClass::RIGHTPRESS);
+			Pad_Focus_Changed();
+			return(true);
+		}
+		Pad_Leave();
+		return(false);
+	}
+	PadItemType items[StripClass::MAX_BUILDABLES];
+	int count = Pad_Items(PadSection, items, StripClass::MAX_BUILDABLES);
+	int at = PadRow * PAD_COLUMNS + PadCol;
+	if (at < count && Column[items[at].Column].Buildables[items[at].Index].Factory != NULL) {
+		Column[items[at].Column].Activate(items[at].Index, GadgetClass::RIGHTPRESS);
+	} else {
+		Pad_Toggle_Grid();
+	}
+	Pad_Focus_Changed();
+	return(true);
+}
+
+
+void SidebarClass::Pad_Toggle_Grid(void)
+{
+	if (PadRow == PAD_ROW_MODES) return;
+	if (PadSection < 0) {
+		int section = PadRow * PAD_COLUMNS + PadCol;
+		PadItemType items[1];
+		if (Pad_Items(section, items, 1) == 0) return;
+		PadSection = section;
+		PadRow = 0;
+		PadCol = 0;
+		PadTop = 0;
+	} else {
+		int section = PadSection;
+		PadSection = -1;
+		PadRow = section / PAD_COLUMNS;
+		PadCol = section % PAD_COLUMNS;
+		PadTop = 0;
+	}
+	Pad_Focus_Changed();
+}
+
+
+// The cameo standing for a section: the side's factory for that kind, or the first
+// superweapon; NULL leaves the cell blank.
+static ShapeSet const * Pad_Section_Icon(int row, int column)
+{
+	if (row >= 4) return(NULL);
+	HousesType house = Pad_Column_House(column);
+	for (int index = 0; index < BuildingTypes.Count(); index++) {
+		BuildingTypeClass const * type = BuildingTypes[index];
+		if ((type->Get_Ownable() & (1 << house)) == 0) continue;
+		bool match = false;
+		switch (row) {
+			case PAD_KIND_STRUCTURES: match = type->IsConstructionYard; break;
+			case PAD_KIND_INFANTRY: match = type->ToBuild == RTTI_INFANTRYTYPE; break;
+			case PAD_KIND_VEHICLES: match = type->ToBuild == RTTI_UNITTYPE; break;
+			case PAD_KIND_AIRCRAFT: match = type->ToBuild == RTTI_AIRCRAFTTYPE; break;
+		}
+		if (match) return((ShapeSet const *)type->Get_Cameo_Data());
+	}
+	return(NULL);
+}
+
+
+// Draws the pad's sidebar over the strip area: the section grid, or the open section's
+// buildables, with the focus outlined and the focused thing named beneath.
+void SidebarClass::Draw_Pad_View(void)
+{
+	PadDirty = false;
+	Rect cliprect = SidebarRect;
+	cliprect.X = 0;
+	int visible = Max_Visible();
+	int const cell_x[PAD_COLUMNS] = {COLUMN_ONE_X, COLUMN_TWO_X};
+	int color = DSurface::Build_Hicolor_Pixel(RGBClass(255, 72, 255));
+	std::string caption;
+
+	auto outline = [&](int x, int y) {
+		Rect area(x + 1, cliprect.Y + y + 1, StripClass::OBJECT_WIDTH - 2, StripClass::OBJECT_HEIGHT - 2);
+		SidebarSurface->Draw_Rect(area, color);
+		SidebarSurface->Draw_Rect(Rect(area.X + 1, area.Y + 1, area.Width - 2, area.Height - 2), color);
+	};
+
+	if (PadSection < 0) {
+		for (int row = 0; row < PAD_SECTION_ROWS && row < visible; row++) {
+			for (int column = 0; column < PAD_COLUMNS; column++) {
+				int section = row * PAD_COLUMNS + column;
+				int x = cell_x[column];
+				int y = COLUMN_ONE_Y + row * StripClass::OBJECT_HEIGHT;
+				bool is_return = row == PAD_SECTION_ROWS - 1 && column != 0;
+				PadItemType items[1];
+				bool has_items = !is_return && Pad_Items(section, items, 1) > 0;
+				PadItemType active;
+				if (has_items && Pad_Active_Item(section, active)) {
+					Column[active.Column].Draw_Cameo(active.Index, x, y, cliprect);
+				} else {
+					ShapeSet const * icon = NULL;
+					if (row == PAD_SECTION_ROWS - 1 && column == 0 && has_items) {
+						icon = Column[items[0].Column].Get_Special_Cameo(SuperWeaponType(Column[items[0].Column].Buildables[items[0].Index].BuildableID));
+					} else if (!is_return) {
+						icon = Pad_Section_Icon(row, column);
+					}
+					if (icon != NULL) {
+						Draw_Shape(*SidebarSurface, *CameoDrawer, icon, 0, Point2D(x, y), cliprect, ShapeFlags_Type(SHAPE_WIN_REL));
+					} else {
+						Draw_Shape(*SidebarSurface, *SidebarDrawer, StripClass::LogoShapes, 0, Point2D(x, y), cliprect, ShapeFlags_Type(SHAPE_WIN_REL));
+					}
+					if (!has_items && !is_return) {
+						Draw_Shape(*SidebarSurface, *SidebarDrawer, StripClass::DarkenShapes, 0, Point2D(x, y), cliprect, ShapeFlags_Type(SHAPE_WIN_REL|SHAPE_DARKEN));
+					}
+					char const * name = is_return ? _PadSectionNames[5] : _PadSectionNames[row];
+					Print_Cameo_Text(name, Point2D(x, y + StripClass::CAMEO_TEXT_Y_OFFSET), cliprect, StripClass::OBJECT_WIDTH - 2);
+				}
+				if (PadRow == row && PadCol == column) {
+					outline(x, y);
+					caption = is_return ? _PadSectionNames[5] : _PadSectionNames[row];
+				}
 			}
 		}
 	} else {
-		if (dx != 0) {
-			PadColumn = (PadColumn + 1) % COLUMNS;
-		}
-		StripClass & strip = Column[PadColumn];
-		int shown = std::min(visible, strip.BuildableCount - strip.TopIndex);
-		if (dy < 0) {
-			if (PadSlot > 0) {
-				PadSlot--;
-			} else if (!strip.Scroll(true)) {
-				PadSlot = -1;
-				PadMode = PadColumn * (MODE_BUTTONS / 2);
+		PadItemType items[StripClass::MAX_BUILDABLES];
+		int count = Pad_Items(PadSection, items, StripClass::MAX_BUILDABLES);
+		for (int slot = 0; slot < visible * PAD_COLUMNS; slot++) {
+			int at = PadTop * PAD_COLUMNS + slot;
+			int row = slot / PAD_COLUMNS;
+			int column = slot % PAD_COLUMNS;
+			int x = cell_x[column];
+			int y = COLUMN_ONE_Y + row * StripClass::OBJECT_HEIGHT;
+			if (at < count) {
+				Column[items[at].Column].Draw_Cameo(items[at].Index, x, y, cliprect);
 			}
-		} else if (dy > 0) {
-			if (PadSlot + 1 < shown) {
-				PadSlot++;
-			} else {
-				strip.Scroll(false);
+			if (PadRow == PadTop + row && PadCol == column) {
+				outline(x, y);
+				if (at < count) {
+					StripClass::BuildType const & entry = Column[items[at].Column].Buildables[items[at].Index];
+					if (entry.BuildableType == RTTI_SPECIAL) {
+						caption = SuperWeaponTypes[entry.BuildableID]->Full_Name();
+					} else {
+						TechnoTypeClass const * type = Fetch_Techno_Type(entry.BuildableType, entry.BuildableID);
+						if (type != NULL) {
+							char buffer[96];
+							sprintf(buffer, Fetch_String(TXT_MONEY_FORMAT_2), type->Full_Name(), type->Cost_Of(PlayerPtr));
+							caption = buffer;
+						}
+					}
+				}
 			}
-		}
-		if (PadSlot >= 0) {
-			PadSlot = std::clamp(PadSlot, 0, std::max(shown - 1, 0));
 		}
 	}
-	Pad_Focus_Changed(*this);
-}
 
-
-Rect SidebarClass::Pad_Focus_Rect(void) const
-{
-	if (!PadFocus) return(Rect());
-	if (PadSlot < 0) {
-		ShapeButtonClass const * buttons[4] = {&Repair, &Upgrade, &Power, &Waypoint};
-		ShapeButtonClass const & button = *buttons[std::clamp(PadMode, 0, 3)];
-		return(Rect(button.X + button.DrawOffsetX, button.Y + button.DrawOffsetY, button.Width, button.Height));
+	if (PadRow == PAD_ROW_MODES) {
+		ShapeButtonClass const * buttons[PAD_MODE_BUTTONS] = {&Repair, &Upgrade, &Power, &Waypoint};
+		ShapeButtonClass const & button = *buttons[std::clamp(PadCol, 0, int(PAD_MODE_BUTTONS) - 1)];
+		Rect area(button.X + button.DrawOffsetX + 1, button.Y + button.DrawOffsetY + 1, button.Width - 2, button.Height - 2);
+		SidebarSurface->Draw_Rect(area, color);
+		SidebarSurface->Draw_Rect(Rect(area.X + 1, area.Y + 1, area.Width - 2, area.Height - 2), color);
+		static char const * const _mode_names[PAD_MODE_BUTTONS] = {"Repair", "Sell", "Power", "Waypoint"};
+		caption = _mode_names[std::clamp(PadCol, 0, int(PAD_MODE_BUTTONS) - 1)];
 	}
-	StripClass const & strip = Column[PadColumn];
-	return(Rect(strip.X, strip.Y + PadSlot * StripClass::OBJECT_HEIGHT, StripClass::OBJECT_WIDTH, StripClass::OBJECT_HEIGHT));
-}
 
-
-// Outlines the pad's focus on the sidebar surface, inside the cell so the strip's own
-// redraw clears it when the focus moves on.
-void SidebarClass::Draw_Pad_Focus(void)
-{
-	if (!PadFocus) return;
-	Rect area = Pad_Focus_Rect();
-	if (!area.Is_Valid()) return;
-	int color = DSurface::Build_Hicolor_Pixel(RGBClass(255, 72, 255));
-	SidebarSurface->Draw_Rect(Rect(area.X + 1, area.Y + 1, area.Width - 2, area.Height - 2), color);
-	SidebarSurface->Draw_Rect(Rect(area.X + 2, area.Y + 2, area.Width - 4, area.Height - 4), color);
+	if (!caption.empty()) {
+		int y = COLUMN_ONE_Y + visible * StripClass::OBJECT_HEIGHT + 2;
+		Fancy_Text_Print(caption.c_str(), *SidebarSurface, cliprect, Point2D(SIDE_WIDTH / 2, y), Fetch_Scheme_By_Name("LightBlue"), TBLACK, TextPrintType(TPF_CENTER|TPF_FULLSHADOW|TPF_8POINT));
+	}
 	IsToBlitSidebar = true;
 }
 
