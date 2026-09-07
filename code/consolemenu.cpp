@@ -444,6 +444,11 @@ void ConsoleMenuClass::Draw(void)
 	if (First + visible < listed) {
 		print("..", left + (MENU_WIDTH - width("..")) / 2, top + ROWS_BOTTOM);
 	}
+	// Labels sit left-aligned in a column that ends where the values start.
+	int widest_label = 0;
+	for (ConsoleRowType const & row : Rows) {
+		if (row.Value) widest_label = std::max(widest_label, width(row.Label));
+	}
 	RowRects.assign(count, Rect());
 	int list_y = top + ROWS_TOP;
 	int order = 0;
@@ -461,7 +466,7 @@ void ConsoleMenuClass::Draw(void)
 		if (!row.Value) {
 			print(row.Label, left + (MENU_WIDTH - width(row.Label)) / 2, y, focused);
 		} else {
-			print(row.Label, left + LABEL_RIGHT - width(row.Label), y, focused);
+			print(row.Label, left + LABEL_RIGHT - widest_label, y, focused);
 		}
 		if (row.Value) {
 			std::string value = row.Value();
