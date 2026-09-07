@@ -17,6 +17,7 @@
 #include "dbgprint.h"
 #include "globals.h"
 #include "goptions.h"
+#include "house.h"
 #include "infantry.h"
 #include "infatype.h"
 #include "init.h"
@@ -228,24 +229,44 @@ bool Gamepad_Claim_Synthetic_Click(void)
 }
 
 
-// Selects every unit on screen that fights: the harvesters, engineers, and vehicles that
-// deploy into buildings are left out.
+// Whether a unit fights: harvesters, engineers, and vehicles that deploy into buildings do not.
+static bool Is_Combat(ObjectClass const * object)
+{
+	if (object->RTTI == RTTI_UNIT) {
+		UnitClass const * unit = (UnitClass const *)object;
+		return(!unit->Class->IsToHarvest && !unit->Class->IsToVeinHarvest && unit->Class->DeploysInto == NULL);
+	}
+	if (object->RTTI == RTTI_INFANTRY) {
+		return(!((InfantryClass const *)object)->Class->IsEngineer);
+	}
+	return(false);
+}
+
+
+// Selects every combat unit on screen, through the engine's own select-in-view command.
 static void Select_Combat_On_Screen(void)
 {
 	Execute_Command("SelectView");
 	for (int index = CurrentObject.Count() - 1; index >= 0; index--) {
 		ObjectClass * object = CurrentObject[index];
-		bool drop = false;
-		if (object->RTTI == RTTI_UNIT) {
-			UnitClass * unit = (UnitClass *)object;
-			drop = unit->Class->IsToHarvest || unit->Class->IsToVeinHarvest || unit->Class->DeploysInto != NULL;
-		} else if (object->RTTI == RTTI_INFANTRY) {
-			drop = ((InfantryClass *)object)->Class->IsEngineer;
-		}
-		if (drop) {
+		if (!Is_Combat(object)) {
 			object->Unselect();
 		}
 	}
+}
+
+
+// Selects every combat unit the player controls anywhere on the map.
+static void Select_Combat_On_Map(void)
+{
+	auto take = [](ObjectClass * object) {
+		HouseClass * house = object->Owner_HouseClass();
+		if (house == NULL || !house->Is_Player_Control() || object->IsInLimbo) return;
+		if (!object->Class_Of()->IsSelectable || !Is_Combat(object)) return;
+		if (!object->IsSelected) object->Select();
+	};
+	for (int index = 0; index < Units.Count(); index++) take(Units[index]);
+	for (int index = 0; index < Infantry.Count(); index++) take(Infantry[index]);
 }
 
 
@@ -315,51 +336,64 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 	// press is: movement makes it a band box, release makes it a click, and a still hold
 	// selects the combat units on screen. With L1 it selects every unit of the type under
 	// the pointer, widening to the whole map on a second press.
-	enum { HOLD_MS = 500, DRAG_PIXELS = 3 };
+	// A still hold on one of the player's units selects every unit of its type on screen,
+	// and holding on widens that to the whole map; a still hold on the ground selects the
+	// combat units on screen.
+	enum { HOLD_MS = 500, WIDEN_MS = 400, DRAG_PIXELS = 3 };
 	static unsigned long _cross_since = 0;
 	static POINT _cross_at = {0, 0};
 	static bool _cross_sent = false;
-	static bool _cross_done = false;
+	static int _cross_stage = 0;		// 0 undecided, 1 type on screen, 3 combat on screen, 2 done.
 	static bool _select_type_pending = false;
 	if (_select_type_pending) {
 		_select_type_pending = false;
 		Execute_Command("SelectType");
 	}
 	if (pressed(pad.Accept, previous.Accept)) {
-		if (pad.LeftShoulder && !pad.RightShoulder) {
-			click(MOUSEEVENTF_LEFTDOWN, true);
-			click(MOUSEEVENTF_LEFTUP, false);
-			_select_type_pending = true;
-			_cross_done = true;
-		} else {
-			_cross_since = now;
-			GetCursorPos(&_cross_at);
-			_cross_sent = false;
-			_cross_done = false;
-		}
-	} else if (pad.Accept && previous.Accept && !_cross_sent && !_cross_done) {
+		_cross_since = now;
+		GetCursorPos(&_cross_at);
+		_cross_sent = false;
+		_cross_stage = 0;
+	} else if (pad.Accept && previous.Accept && !_cross_sent && _cross_stage != 2) {
 		POINT at;
 		GetCursorPos(&at);
 		int moved_x = at.x - _cross_at.x;
 		int moved_y = at.y - _cross_at.y;
 		if (moved_x < 0) moved_x = -moved_x;
 		if (moved_y < 0) moved_y = -moved_y;
-		if (moved_x > DRAG_PIXELS || moved_y > DRAG_PIXELS) {
+		if (_cross_stage == 0 && (moved_x > DRAG_PIXELS || moved_y > DRAG_PIXELS)) {
 			click(MOUSEEVENTF_LEFTDOWN, true);
 			_cross_sent = true;
-		} else if (now - _cross_since >= HOLD_MS) {
-			Select_Combat_On_Screen();
-			_cross_done = true;
+		} else if (_cross_stage == 0 && now - _cross_since >= HOLD_MS) {
+			ObjectClass * over = Map.HoverObject;
+			bool own = over != NULL && over->Owner_HouseClass() != NULL && over->Owner_HouseClass()->Is_Player_Control();
+			if (own) {
+				click(MOUSEEVENTF_LEFTDOWN, true);
+				click(MOUSEEVENTF_LEFTUP, false);
+				_select_type_pending = true;
+				_cross_since = now;
+				_cross_stage = 1;
+			} else {
+				Select_Combat_On_Screen();
+				_cross_since = now;
+				_cross_stage = 3;
+			}
+		} else if (_cross_stage == 1 && now - _cross_since >= WIDEN_MS) {
+			Execute_Command("SelectType");
+			_cross_stage = 2;
+		} else if (_cross_stage == 3 && now - _cross_since >= WIDEN_MS) {
+			Select_Combat_On_Map();
+			_cross_stage = 2;
 		}
 	} else if (!pad.Accept && previous.Accept) {
 		if (_cross_sent) {
 			click(MOUSEEVENTF_LEFTUP, false);
-		} else if (!_cross_done) {
+		} else if (_cross_stage == 0) {
 			click(MOUSEEVENTF_LEFTDOWN, true);
 			click(MOUSEEVENTF_LEFTUP, false);
 		}
 		_cross_sent = false;
-		_cross_done = false;
+		_cross_stage = 0;
 	}
 	if (pressed(pad.Back, previous.Back)) {
 		if (pad.RightShoulder) {
