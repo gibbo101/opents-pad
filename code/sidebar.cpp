@@ -1363,13 +1363,13 @@ void SidebarClass::Draw_Pad_View(void)
 					} else if (!bottom) {
 						icon = Pad_Section_Icon(row, column);
 					}
+					// The strip's blank-slot shape is never drawn by the engine and may be
+					// missing, so a cell without an icon shows the frame alone.
 					if (icon != NULL) {
 						Draw_Shape(*SidebarSurface, *CameoDrawer, icon, 0, Point2D(x, y), cliprect, ShapeFlags_Type(SHAPE_WIN_REL));
-					} else {
-						Draw_Shape(*SidebarSurface, *SidebarDrawer, StripClass::LogoShapes, 0, Point2D(x, y), cliprect, ShapeFlags_Type(SHAPE_WIN_REL));
 					}
 					bool dark = bottom ? (column == 0 ? super_count == 0 : super_count < 2) : !has_items;
-					if (dark) {
+					if (dark && icon != NULL && StripClass::DarkenShapes != NULL) {
 						Draw_Shape(*SidebarSurface, *SidebarDrawer, StripClass::DarkenShapes, 0, Point2D(x, y), cliprect, ShapeFlags_Type(SHAPE_WIN_REL|SHAPE_DARKEN));
 					}
 					char const * name = bottom && column != 0 ? _PadSectionNames[5] : _PadSectionNames[row];
