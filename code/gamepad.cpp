@@ -14,6 +14,7 @@
 #include "_keyboar.h"
 #include "_map.h"
 #include "_rect.h"
+#include "_rules.h"
 #include "dbgprint.h"
 #include "globals.h"
 #include "goptions.h"
@@ -22,6 +23,8 @@
 #include "infatype.h"
 #include "init.h"
 #include "options.h"
+#include "rules.h"
+#include "session.h"
 #include "unit.h"
 #include "unittype.h"
 #include "vidscale.h"
@@ -230,6 +233,14 @@ bool Gamepad_Claim_Synthetic_Click(void)
 }
 
 
+// Tells the player what a held cross just selected, in the message list at the top left.
+static void Announce(char const * text)
+{
+	Session.Messages.Add_Message(NULL, 0, text, PlayerPtr->Scheme, TextPrintType(TPF_6PT_GRAD|TPF_USE_GRAD_PAL|TPF_FULLSHADOW), int(Rule->MessageDelay * TICKS_PER_MINUTE));
+	Map.Flag_To_Redraw();
+}
+
+
 // Whether a unit fights: harvesters, engineers, and vehicles that deploy into buildings do not.
 static bool Is_Combat(ObjectClass const * object)
 {
@@ -409,18 +420,22 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 				click(MOUSEEVENTF_LEFTDOWN, true);
 				click(MOUSEEVENTF_LEFTUP, false);
 				_select_type_pending = true;
+				Announce("All units of this type on screen selected");
 				_cross_since = now;
 				_cross_stage = 1;
 			} else {
 				Select_Combat_On_Screen();
+				Announce("All combat units on screen selected");
 				_cross_since = now;
 				_cross_stage = 3;
 			}
 		} else if (_cross_stage == 1 && now - _cross_since >= WIDEN_MS) {
 			Execute_Command("SelectType");
+			Announce("All units of this type on the map selected");
 			_cross_stage = 2;
 		} else if (_cross_stage == 3 && now - _cross_since >= WIDEN_MS) {
 			Select_Combat_On_Map();
+			Announce("All combat units on the map selected");
 			_cross_stage = 2;
 		}
 	} else if (!pad.Accept && previous.Accept) {
