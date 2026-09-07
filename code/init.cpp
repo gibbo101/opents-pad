@@ -907,7 +907,6 @@ static CampaignType Console_Campaign_Screen(void)
 	enum { SIDE_ROW = 0, DIFFICULTY_ROW = 1, ACT_Y = 38, EMBLEM_Y = 180, NAME_Y = 290, ROW_Y = 332, BIG = 200, SMALL = 144 };
 
 	menu.Set_Backdrop_Panel([&](ConsoleCanvas & canvas) {
-		bool picking = menu.Get_Focus() == SIDE_ROW;
 		for (int index = 0; index < 2; index++) {
 			bool chosen = index == side;
 			int size = chosen ? BIG : SMALL;
@@ -922,7 +921,7 @@ static CampaignType Console_Campaign_Screen(void)
 			int x = cx - canvas.Width(name) / 2;
 			int y = canvas.Box.Y + NAME_Y;
 			if (chosen) {
-				canvas.PrintColor(name, x, y, picking ? RGBClass(48, 224, 248) : _colors[index]);
+				canvas.PrintColor(name, x, y, _colors[index]);
 			} else {
 				canvas.Print(name, x, y, false);
 			}
