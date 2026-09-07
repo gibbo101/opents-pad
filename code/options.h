@@ -43,7 +43,7 @@ enum ControlSchemeType {
 
 // How the console screens draw their button prompts.
 enum PromptStyleType {
-	PROMPT_STYLE_AUTO,			// Xbox while a controller is connected, otherwise text.
+	PROMPT_STYLE_AUTO,			// Deck on a Steam Deck, Xbox while a controller is connected, otherwise text.
 	PROMPT_STYLE_TEXT,
 	PROMPT_STYLE_XBOX,
 	PROMPT_STYLE_PLAYSTATION,

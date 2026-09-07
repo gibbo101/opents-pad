@@ -16,7 +16,6 @@
 #include "globals.h"
 #include "goptions.h"
 #include "msfont.h"
-#include "point.h"
 #include "rect.h"
 #include "rgb.h"
 #include "surface.h"
@@ -37,10 +36,26 @@ static RGBClass const _playstation[4] = {RGBClass(110, 160, 240), RGBClass(240, 
 static char const _letters[4] = {'A', 'B', 'X', 'Y'};
 
 
+// Steam marks a game running on a Steam Deck with this variable, and Proton passes it through.
+static bool On_Steam_Deck(void)
+{
+	static int _answer = -1;
+	if (_answer < 0) {
+		char value[8] = "";
+		GetEnvironmentVariableA("SteamDeck", value, sizeof(value));
+		_answer = strcmp(value, "1") == 0;
+	}
+	return(_answer != 0);
+}
+
+
 int Resolved_Prompt_Style(void)
 {
 	if (Options.PromptStyle != PROMPT_STYLE_AUTO) {
 		return(Options.PromptStyle);
+	}
+	if (On_Steam_Deck()) {
+		return(PROMPT_STYLE_DECK);
 	}
 	return(Gamepad_Read().Connected ? PROMPT_STYLE_XBOX : PROMPT_STYLE_TEXT);
 }
@@ -52,20 +67,46 @@ static int Pixel(RGBClass const & color)
 }
 
 
-static void Fill_Disc(Surface & surface, int cx, int cy, int radius, int color)
+enum { SAMPLES = 4 };
+
+// Paints a shape with edge coverage from a sample grid per pixel, blending the colour in
+// by coverage, so a small glyph keeps round edges at the shell's 640x400 size.
+template<typename InsideType>
+static void Paint(Surface & surface, Rect const & box, RGBClass const & color, InsideType inside)
 {
-	for (int dy = -radius; dy <= radius; dy++) {
-		int half = int(std::sqrt(float(radius * radius - dy * dy)) + 0.5f);
-		surface.Fill_Rect(Rect(cx - half, cy + dy, 2 * half + 1, 1), color);
+	for (int y = box.Y; y < box.Y + box.Height; y++) {
+		for (int x = box.X; x < box.X + box.Width; x++) {
+			int hits = 0;
+			for (int sy = 0; sy < SAMPLES; sy++) {
+				for (int sx = 0; sx < SAMPLES; sx++) {
+					if (inside(x + (sx + 0.5f) / SAMPLES, y + (sy + 0.5f) / SAMPLES)) hits++;
+				}
+			}
+			if (hits == 0) continue;
+			int opacity = hits * 100 / (SAMPLES * SAMPLES);
+			if (opacity >= 100) {
+				surface.Fill_Rect(Rect(x, y, 1, 1), Pixel(color));
+			} else {
+				surface.Fill_Rect_Trans(Rect(x, y, 1, 1), color, opacity);
+			}
+		}
 	}
 }
 
 
-static void Thick_Line(Surface & surface, Point2D from, Point2D to, int color)
+static float Distance(float x, float y, float cx, float cy)
 {
-	surface.Draw_Line(from, to, color);
-	surface.Draw_Line(from + Point2D(1, 0), to + Point2D(1, 0), color);
-	surface.Draw_Line(from + Point2D(0, 1), to + Point2D(0, 1), color);
+	return(std::sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy)));
+}
+
+
+static float Segment_Distance(float x, float y, float ax, float ay, float bx, float by)
+{
+	float dx = bx - ax;
+	float dy = by - ay;
+	float length = dx * dx + dy * dy;
+	float t = length > 0.0f ? std::clamp(((x - ax) * dx + (y - ay) * dy) / length, 0.0f, 1.0f) : 0.0f;
+	return(Distance(x, y, ax + t * dx, ay + t * dy));
 }
 
 
@@ -101,28 +142,39 @@ static void Draw_Letter(Surface & surface, char letter, int cx, int cy, RGBClass
 }
 
 
-static void Draw_Shape(Surface & surface, PadButtonType button, int cx, int cy, int radius, RGBClass const & color)
+static void Draw_Shape(Surface & surface, PadButtonType button, Rect const & box, float cx, float cy, float radius, RGBClass const & color)
 {
-	int s = std::max(radius / 2, 2);
-	int pixel = Pixel(color);
+	float s = std::max(radius * 0.55f, 2.0f);
+	float half = SHAPE_WIDTH * 0.5f;
 	switch (button) {
 		case PAD_BUTTON_ACCEPT:
-			Thick_Line(surface, Point2D(cx - s, cy - s), Point2D(cx + s, cy + s), pixel);
-			Thick_Line(surface, Point2D(cx - s, cy + s), Point2D(cx + s, cy - s), pixel);
+			Paint(surface, box, color, [&](float x, float y) {
+				return(Segment_Distance(x, y, cx - s, cy - s, cx + s, cy + s) <= half || Segment_Distance(x, y, cx - s, cy + s, cx + s, cy - s) <= half);
+			});
 			break;
 		case PAD_BUTTON_BACK:
-			Fill_Disc(surface, cx, cy, s + 1, pixel);
-			Fill_Disc(surface, cx, cy, s + 1 - SHAPE_WIDTH, Pixel(_dark));
+			Paint(surface, box, color, [&](float x, float y) {
+				float d = Distance(x, y, cx, cy);
+				return(d <= s + half && d > s - half);
+			});
 			break;
 		case PAD_BUTTON_THIRD:
-			surface.Draw_Rect(Rect(cx - s, cy - s, 2 * s + 1, 2 * s + 1), pixel);
-			surface.Draw_Rect(Rect(cx - s + 1, cy - s + 1, 2 * s - 1, 2 * s - 1), pixel);
+			Paint(surface, box, color, [&](float x, float y) {
+				float d = std::max(std::fabs(x - cx), std::fabs(y - cy));
+				return(d <= s + half && d > s - half);
+			});
 			break;
-		case PAD_BUTTON_FOURTH:
-			Thick_Line(surface, Point2D(cx, cy - s - 1), Point2D(cx - s - 1, cy + s), pixel);
-			Thick_Line(surface, Point2D(cx, cy - s - 1), Point2D(cx + s + 1, cy + s), pixel);
-			Thick_Line(surface, Point2D(cx - s - 1, cy + s), Point2D(cx + s + 1, cy + s), pixel);
+		case PAD_BUTTON_FOURTH: {
+			float top = cy - s - 1.0f;
+			float base = cy + s * 0.8f;
+			float wide = s * 1.15f;
+			Paint(surface, box, color, [&](float x, float y) {
+				return(Segment_Distance(x, y, cx, top, cx - wide, base) <= half
+					|| Segment_Distance(x, y, cx, top, cx + wide, base) <= half
+					|| Segment_Distance(x, y, cx - wide, base, cx + wide, base) <= half);
+			});
 			break;
+		}
 	}
 }
 
@@ -133,24 +185,25 @@ int Draw_Pad_Glyph(Surface & surface, PadButtonType button, int x, int y, int si
 	if (style == PROMPT_STYLE_TEXT || size < 6) {
 		return(0);
 	}
-	int radius = size / 2 - 1;
-	int cx = x + size / 2;
-	int cy = y + size / 2;
+	Rect box(x, y, size, size);
+	float radius = size * 0.5f - 0.5f;
+	float cx = x + size * 0.5f;
+	float cy = y + size * 0.5f;
 	int index = int(button) & 3;
 
 	RGBClass const & ring = style == PROMPT_STYLE_XBOX ? _xbox[index] : _pale;
-	Fill_Disc(surface, cx, cy, radius, Pixel(ring));
-	Fill_Disc(surface, cx, cy, radius - RING_WIDTH, Pixel(_dark));
+	Paint(surface, box, ring, [&](float px, float py) { return(Distance(px, py, cx, cy) <= radius); });
+	Paint(surface, box, _dark, [&](float px, float py) { return(Distance(px, py, cx, cy) <= radius - RING_WIDTH); });
 
 	switch (style) {
 		case PROMPT_STYLE_XBOX:
-			Draw_Letter(surface, _letters[index], cx, cy, _xbox[index]);
+			Draw_Letter(surface, _letters[index], int(cx), int(cy), _xbox[index]);
 			break;
 		case PROMPT_STYLE_DECK:
-			Draw_Letter(surface, _letters[index], cx, cy, _white);
+			Draw_Letter(surface, _letters[index], int(cx), int(cy), _white);
 			break;
 		case PROMPT_STYLE_PLAYSTATION:
-			Draw_Shape(surface, button, cx, cy, radius - RING_WIDTH, _playstation[index]);
+			Draw_Shape(surface, button, box, cx, cy, radius - RING_WIDTH, _playstation[index]);
 			break;
 	}
 	return(size);
