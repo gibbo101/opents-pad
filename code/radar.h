@@ -133,6 +133,8 @@ class RadarClass: public DisplayClass
 		Point2D Coord_To_Radar_Pixel(Coord const & coord, bool clip);
 		bool Cell_On_Radar(Cell const & cell);
 		bool Is_Radar_Active(void);
+		Rect Radar_Rect(void) const { return(RadarRect); }	// The radar image's area, sidebar-relative in X.
+		void Jump_To_Radar_Cell(Cell cell);
 		bool Is_Radar_Tactical(void);
 		bool Is_Radar_Existing(void);
 

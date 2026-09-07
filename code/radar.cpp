@@ -480,6 +480,58 @@ void RadarClass::AI(KeyNumType & input, Point2D const & xy)
 }
 
 
+/// <summary>
+/// Moves the tactical view to the cell a radar point names, keeping the view on the map.
+/// </summary>
+void RadarClass::Jump_To_Radar_Cell(Cell cell)
+{
+	if (cell.X == 0 && cell.Y == 0) return;
+
+	/*
+	 * The tactical map is isometric, so the click is kept on the playable
+	 * area by clamping the diagonal coordinates rather than X and Y directly:
+	 * (cell.X - cell.Y) is the horizontal screen axis (side_edge) and
+	 * (cell.X + cell.Y) is the vertical axis (top_edge/bottom_edge). Each
+	 * limit is the play area pulled in by half the tactical view, so the view
+	 * stays on the map.
+	 */
+	int side_edge = Map.PlayRect.Width - (TacticalRect.Width / ISO_TILE_PIXEL_W + 2) / 2 - 1;
+	int half_view_height = TacticalRect.Height / (2 * ISO_TILE_PIXEL_H);
+	int top_edge = half_view_height + Map.PlayRect.Width + 1;
+	int bottom_edge = 2 * Map.PlayRect.Height - half_view_height + Map.PlayRect.Width - 1;
+
+	int adjust;
+
+	if ((cell.Y - cell.X) > side_edge) {
+		adjust = (cell.Y - cell.X) - side_edge;
+		cell.Y -= adjust;
+		cell.X += adjust;
+	}
+
+	if ((cell.X - cell.Y) > side_edge - 1) {
+		adjust = (cell.X - cell.Y) - side_edge + 1;
+		cell.Y += adjust;
+		cell.X -= adjust;
+	}
+
+	if ((cell.X + cell.Y) < top_edge) {
+		adjust = top_edge - cell.Y - cell.X;
+		cell.X += adjust;
+		cell.Y += adjust;
+	}
+
+	if ((cell.X + cell.Y) > bottom_edge) {
+		adjust = (cell.X + cell.Y) - bottom_edge;
+		cell.X -= adjust;
+		cell.Y -= adjust;
+	}
+
+	Coord coord = Map[cell].Cell_Coord();
+	Map.Set_Tactical_Position(coord);
+	Map.Flag_To_Redraw(GS_REDRAW_TACTICAL);
+}
+
+
 /***********************************************************************************************
  * RadarClass::RTacticalClass::Action -- I/O function for the radar map.                       *
  *                                                                                             *
@@ -613,52 +665,7 @@ int RadarClass::RTacticalClass::Action(unsigned flags, KeyNumType & key)
 			Map.Set_Default_Mouse(MOUSE_NORMAL, true);
 
 			if (flags & LEFTPRESS) {
-
-				if (cell.X != 0 || cell.Y != 0) {
-
-					/*
-					 * The tactical map is isometric, so the click is kept on the playable
-					 * area by clamping the diagonal coordinates rather than X and Y directly:
-					 * (cell.X - cell.Y) is the horizontal screen axis (side_edge) and
-					 * (cell.X + cell.Y) is the vertical axis (top_edge/bottom_edge). Each
-					 * limit is the play area pulled in by half the tactical view, so the view
-					 * stays on the map.
-					 */
-					int side_edge = Map.PlayRect.Width - (TacticalRect.Width / ISO_TILE_PIXEL_W + 2) / 2 - 1;
-					int half_view_height = TacticalRect.Height / (2 * ISO_TILE_PIXEL_H);
-					int top_edge = half_view_height + Map.PlayRect.Width + 1;
-					int bottom_edge = 2 * Map.PlayRect.Height - half_view_height + Map.PlayRect.Width - 1;
-
-					int adjust;
-
-					if ((cell.Y - cell.X) > side_edge) {
-						adjust = (cell.Y - cell.X) - side_edge;
-						cell.Y -= adjust;
-						cell.X += adjust;
-					}
-
-					if ((cell.X - cell.Y) > side_edge - 1) {
-						adjust = (cell.X - cell.Y) - side_edge + 1;
-						cell.Y += adjust;
-						cell.X -= adjust;
-					}
-
-					if ((cell.X + cell.Y) < top_edge) {
-						adjust = top_edge - cell.Y - cell.X;
-						cell.X += adjust;
-						cell.Y += adjust;
-					}
-
-					if ((cell.X + cell.Y) > bottom_edge) {
-						adjust = (cell.X + cell.Y) - bottom_edge;
-						cell.X -= adjust;
-						cell.Y -= adjust;
-					}
-
-					Coord coord = Map[cell].Cell_Coord();
-					Map.Set_Tactical_Position(coord);
-					Map.Flag_To_Redraw(GS_REDRAW_TACTICAL);
-				}
+				Map.Jump_To_Radar_Cell(cell);
 			}
 		}
 	}
