@@ -84,10 +84,32 @@ GamepadStateType Gamepad_Read(void)
 // The menu button is Escape everywhere: it skips a movie, opens the in-game menu, and
 // backs out of a screen. Polling is held to once per frame because asking XInput about
 // a controller that is not there is slow.
+static bool _KeyboardMouseSeen = false;
+
+bool Keyboard_Mouse_Seen(void)
+{
+	return(_KeyboardMouseSeen);
+}
+
+
+void Note_Keyboard_Mouse_Use(void)
+{
+	_KeyboardMouseSeen = true;
+}
+
+
+void Note_Keyboard_Mouse_Reset(void)
+{
+	_KeyboardMouseSeen = false;
+}
+
+
 void Gamepad_Pump(void * dialog)
 {
 	enum {
 		POLL_MS = 16,
+		SLOW_POLL_MS = 250,
+		CHORD_MS = 1000,
 		REPEAT_FIRST_MS = 350,
 		REPEAT_NEXT_MS = 90,
 	};
@@ -95,16 +117,45 @@ void Gamepad_Pump(void * dialog)
 	static unsigned long _next_poll = 0;
 	static unsigned long _repeat_at = 0;
 
-	if (Options.ControlScheme != CONTROL_CONTROLLER || Keyboard == NULL) {
+	static unsigned long _chord_since = 0;
+
+	if (Keyboard == NULL) {
 		return;
 	}
 	unsigned long now = timeGetTime();
 	if (now < _next_poll) {
 		return;
 	}
-	_next_poll = now + POLL_MS;
+	bool controller = Options.ControlScheme == CONTROL_CONTROLLER;
+	// Under the keyboard scheme the pad is only watched for the way back, and slowly,
+	// since asking XInput about a controller that is not there is slow.
+	_next_poll = now + (controller ? POLL_MS : SLOW_POLL_MS);
 
 	GamepadStateType pad = Gamepad_Read();
+	// Menu and back held together for a second switch to the controller scheme from
+	// anywhere, so a pad-only player who chose the keyboard scheme is never locked out.
+	if (pad.Menu && pad.Back) {
+		if (_chord_since == 0) {
+			_chord_since = now;
+		} else if (now - _chord_since >= CHORD_MS && !controller) {
+			Options.ControlScheme = CONTROL_CONTROLLER;
+			Options.ControlSchemeAuto = false;
+			Options.Save_Settings();
+			if (dialog != NULL) {
+				PostMessage((HWND)dialog, WM_KEYDOWN, VK_ESCAPE, 0);
+				PostMessage((HWND)dialog, WM_KEYUP, VK_ESCAPE, 0xC0000000);
+			}
+			Keyboard->Put(KN_ESC);
+			Keyboard->Put(KN_ESC | WWKEY_RLS_BIT);
+			_chord_since = now;
+		}
+	} else {
+		_chord_since = 0;
+	}
+	if (!controller) {
+		_previous = pad;
+		return;
+	}
 	if (pad.Menu && !_previous.Menu) {
 		Keyboard->Put(KN_ESC);
 		Keyboard->Put(KN_ESC | WWKEY_RLS_BIT);

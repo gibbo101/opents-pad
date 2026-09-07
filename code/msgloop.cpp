@@ -115,6 +115,12 @@ void Windows_Message_Handler(void)
 			ToolTips->Message_Handler(&msg);
 		}
 
+		// Keys and clicks aimed at the game window itself come from a real keyboard or
+		// mouse; the pad's stand-in keys are posted to dialogs, never here.
+		if (msg.hwnd == MainWindow && (msg.message == WM_KEYDOWN || msg.message == WM_LBUTTONDOWN || msg.message == WM_RBUTTONDOWN)) {
+			Note_Keyboard_Mouse_Use();
+		}
+
 		/*
 		**	Pass the windows message through any modeless dialogs that may
 		**	be active. If one of the dialogs processes the message, then

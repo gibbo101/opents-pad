@@ -75,6 +75,34 @@ static int Volume_Steps(float volume)
 }
 
 
+// Asks for a key press or a mouse click within a few seconds and reports whether one came.
+static bool Confirm_Keyboard_Mouse(void)
+{
+	enum { CONFIRM_SECONDS = 10 };
+	Note_Keyboard_Mouse_Reset();
+	unsigned long started = timeGetTime();
+	bool confirmed = false;
+	ConsoleMenuClass menu("Keyboard & Mouse");
+	menu.Set_Prompts("", "Cancel");
+	menu.Add_Row({"Press a key or click the mouse to confirm", nullptr, nullptr, nullptr});
+	menu.Add_Row({"", [&]{
+		int left = std::max(0, int(CONFIRM_SECONDS - (timeGetTime() - started) / 1000));
+		return("Reverting in " + std::to_string(left) + " seconds");
+	}, nullptr, nullptr});
+	menu.Set_Idle([&]{
+		if (Keyboard_Mouse_Seen()) {
+			confirmed = true;
+			menu.Finish(CONSOLE_MENU_ACCEPT);
+		} else if (timeGetTime() - started >= CONFIRM_SECONDS * 1000) {
+			menu.Finish(CONSOLE_MENU_BACK);
+		}
+		menu.Refresh();
+	});
+	menu.Process();
+	return(confirmed);
+}
+
+
 /// <summary>
 /// Runs the console-style options screen. Sound volumes change as they are stepped so the
 /// player hears them; everything else applies when the player accepts, and backing out
@@ -149,6 +177,11 @@ bool Console_Options_Screen(void)
 		return(false);
 	}
 
+	// Leaving the controller scheme for the keyboard one is confirmed with a real key or
+	// click first, so a pad-only player cannot lock themselves out.
+	if (scheme == 1 && Options.ControlScheme == CONTROL_CONTROLLER && !Confirm_Keyboard_Mouse()) {
+		scheme = Options.ControlSchemeAuto ? 0 : 2;
+	}
 	Options.ControlSchemeAuto = scheme == 0;
 	if (scheme == 0) {
 		Options.ControlScheme = Gamepad_Read().Connected ? CONTROL_CONTROLLER : CONTROL_KEYBOARD_MOUSE;

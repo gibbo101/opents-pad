@@ -148,6 +148,15 @@ GraphicMenu::~GraphicMenu(void)
 /// </summary>
 /// <param name="id">The identifier of the items to change.</param>
 /// <param name="enabled">Should the items be enabled?</param>
+GraphicMenuItem * GraphicMenu::Find_Item(int id) const
+{
+	for (GraphicMenuItem * item : Items) {
+		if (item->Get_ID() == id) return(item);
+	}
+	return(NULL);
+}
+
+
 void GraphicMenu::Set_Item_Enabled(int id, bool enabled)
 {
 	for (GraphicMenuItem * item : Items) {
@@ -246,6 +255,7 @@ int GraphicMenu::Presentation(void)
 	};
 
 	while (!done) {
+		padded = Options.ControlScheme == CONTROL_CONTROLLER;
 		Hide_Mouse();
 		Engine.Wait_For_Focus();
 		Show_Mouse();

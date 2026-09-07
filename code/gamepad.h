@@ -39,3 +39,12 @@ GamepadStateType Gamepad_Read(void);
 /// </summary>
 /// <param name="dialog">The topmost open dialog, or NULL when none is open.</param>
 void Gamepad_Pump(void * dialog);
+
+/// <summary>
+/// Has a real keyboard key or mouse button been pressed on the game window since launch?
+/// Steam presents a mouse and keyboard whether or not the player has one, so use is the
+/// only evidence.
+/// </summary>
+bool Keyboard_Mouse_Seen(void);
+void Note_Keyboard_Mouse_Use(void);
+void Note_Keyboard_Mouse_Reset(void);

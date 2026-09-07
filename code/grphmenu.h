@@ -103,6 +103,7 @@ class GraphicMenu
 		void Add_Item(GraphicMenuItem * item);
 
 		void Set_Item_Enabled(int item_id, bool enabled);
+		GraphicMenuItem * Find_Item(int item_id) const;
 		void Set_Back_Item(int item_id) { BackID = item_id; }
 		int Presentation(void);
 		GraphicMenuItem * Get_Item_Under_Mouse(Point2D const & mouse);
