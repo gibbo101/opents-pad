@@ -83,6 +83,7 @@ class ConsoleMenuClass
 		void Set_Idle(std::function<void()> idle) { Idle = idle; }
 		void Set_Panel(Rect const & panel) { Panel = panel; IsDirty = true; }	// The dark panel's area within the box; invalid means the whole box.
 		void Set_Panel_Opacity(int percent) { PanelOpacity = percent; IsDirty = true; }	// Zero leaves the backdrop bare.
+		void Set_Row_Colors(RGBClass const & idle, RGBClass const & focus);		// Replaces the white idle and teal focus text.
 		int Text_Width(char const * text);		// Runs once per pass of Process, for screens that must service something.
 
 		/// <summary>
@@ -118,6 +119,8 @@ class ConsoleMenuClass
 		std::vector<Rect> RowRects;			// Where each row was last drawn, in frame coordinates; invalid when not drawn.
 		Rect Panel;
 		int PanelOpacity;
+		MSFont * IdleFont;				// Replaces Font for row text when a screen sets its own colours.
+		MSFont * FocusOverride;
 		Rect BackRect;
 		Rect AcceptRect;
 		Point2D LastMouse;

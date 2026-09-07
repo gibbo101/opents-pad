@@ -68,6 +68,8 @@ ConsoleMenuClass::ConsoleMenuClass(char const * title) :
 	FocusFont(NULL),
 	Click(NULL),
 	PanelOpacity(PANEL_OPACITY),
+	IdleFont(NULL),
+	FocusOverride(NULL),
 	Backdrop(NULL),
 	PreviousPad(),
 	Focus(0),
@@ -149,6 +151,14 @@ int ConsoleMenuClass::Text_Width(char const * text)
 		FocusFont->Set_Color(RGBClass(48, 224, 248));
 	}
 	return(Font->Get_String_Width(text));
+}
+
+
+void ConsoleMenuClass::Set_Row_Colors(RGBClass const & idle, RGBClass const & focus)
+{
+	IdleFont = Font_For(idle);
+	FocusOverride = Font_For(focus);
+	IsDirty = true;
 }
 
 
@@ -364,7 +374,8 @@ void ConsoleMenuClass::Draw(void)
 	}
 	int height = Font->Get_Font_Height();
 	auto print = [&](std::string const & text, int x, int y, bool focused = false) {
-		(focused ? FocusFont : Font)->Draw_String(&surface, (unsigned char const *)text.c_str(), x, y, FRAME_NORMAL);
+		MSFont * font = focused ? (FocusOverride != NULL ? FocusOverride : FocusFont) : (IdleFont != NULL ? IdleFont : Font);
+		font->Draw_String(&surface, (unsigned char const *)text.c_str(), x, y, FRAME_NORMAL);
 	};
 	auto width = [&](std::string const & text) {
 		return(Font->Get_String_Width(text.c_str()));

@@ -28,6 +28,7 @@
 #include "msanim.h"
 #include "surface.h"
 #include "xsurface.h"
+#include "rgb.h"
 
 #include <algorithm>
 #include <vector>
@@ -297,6 +298,7 @@ int NewMenuClass::Console_Menu_Page(GraphicMenu & page, DynamicVectorClass<int> 
 	int chosen = GMENU_BACK;
 	ConsoleMenuClass menu("");
 	menu.Set_Prompts("", "");
+	menu.Set_Row_Colors(RGBClass(96, 208, 248), RGBClass(255, 255, 255));
 
 	// The intro and exit buttons keep their artwork where the page puts it. Each is a row
 	// with no text, so the focus can land on it and its strip lights instead: intro is the
