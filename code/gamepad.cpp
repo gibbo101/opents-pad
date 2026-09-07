@@ -20,6 +20,7 @@
 
 #include <Xinput.h>
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -28,6 +29,8 @@ typedef DWORD (WINAPI * XInputGetStateType)(DWORD index, XINPUT_STATE * state);
 
 enum {
 	STICK_DEADZONE = 16000,
+	POINTER_DEADZONE = 7000,
+	TRIGGER_THRESHOLD = 64,
 	PAD_COUNT = 4,
 };
 
@@ -91,6 +94,18 @@ static bool Kind_From_Linux_Devices(GamepadKindType & kind, bool log)
 	}
 	fclose(file);
 	return(true);
+}
+
+
+// A stick axis as -1 to 1 with the dead zone removed and the rest rescaled to fill the range.
+static float Stick_Axis(SHORT raw)
+{
+	float value = raw < 0 ? -float(-int(raw)) : float(raw);
+	float size = value < 0 ? -value : value;
+	if (size <= POINTER_DEADZONE) return(0.0f);
+	float scaled = (size - POINTER_DEADZONE) / (32767.0f - POINTER_DEADZONE);
+	if (scaled > 1.0f) scaled = 1.0f;
+	return(value < 0 ? -scaled : scaled);
 }
 
 
@@ -159,16 +174,31 @@ GamepadStateType Gamepad_Read(void)
 		}
 		XINPUT_GAMEPAD const & pad = state.Gamepad;
 		result.Connected = true;
-		result.Up = (pad.wButtons & XINPUT_GAMEPAD_DPAD_UP) != 0 || pad.sThumbLY > STICK_DEADZONE;
-		result.Down = (pad.wButtons & XINPUT_GAMEPAD_DPAD_DOWN) != 0 || pad.sThumbLY < -STICK_DEADZONE;
-		result.Left = (pad.wButtons & XINPUT_GAMEPAD_DPAD_LEFT) != 0 || pad.sThumbLX < -STICK_DEADZONE;
-		result.Right = (pad.wButtons & XINPUT_GAMEPAD_DPAD_RIGHT) != 0 || pad.sThumbLX > STICK_DEADZONE;
+		result.PadUp = (pad.wButtons & XINPUT_GAMEPAD_DPAD_UP) != 0;
+		result.PadDown = (pad.wButtons & XINPUT_GAMEPAD_DPAD_DOWN) != 0;
+		result.PadLeft = (pad.wButtons & XINPUT_GAMEPAD_DPAD_LEFT) != 0;
+		result.PadRight = (pad.wButtons & XINPUT_GAMEPAD_DPAD_RIGHT) != 0;
+		result.Up = result.PadUp || pad.sThumbLY > STICK_DEADZONE;
+		result.Down = result.PadDown || pad.sThumbLY < -STICK_DEADZONE;
+		result.Left = result.PadLeft || pad.sThumbLX < -STICK_DEADZONE;
+		result.Right = result.PadRight || pad.sThumbLX > STICK_DEADZONE;
 		result.Accept = (pad.wButtons & XINPUT_GAMEPAD_A) != 0;
 		result.Back = (pad.wButtons & XINPUT_GAMEPAD_B) != 0;
 		result.Third = (pad.wButtons & XINPUT_GAMEPAD_X) != 0;
 		result.Fourth = (pad.wButtons & XINPUT_GAMEPAD_Y) != 0;
-		result.Fast = (pad.wButtons & (XINPUT_GAMEPAD_RIGHT_SHOULDER|XINPUT_GAMEPAD_LEFT_SHOULDER)) != 0;
+		result.LeftShoulder = (pad.wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER) != 0;
+		result.RightShoulder = (pad.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER) != 0;
+		result.Fast = result.LeftShoulder || result.RightShoulder;
+		result.LeftTrigger = pad.bLeftTrigger > TRIGGER_THRESHOLD;
+		result.RightTrigger = pad.bRightTrigger > TRIGGER_THRESHOLD;
+		result.LeftThumb = (pad.wButtons & XINPUT_GAMEPAD_LEFT_THUMB) != 0;
+		result.RightThumb = (pad.wButtons & XINPUT_GAMEPAD_RIGHT_THUMB) != 0;
 		result.Menu = (pad.wButtons & XINPUT_GAMEPAD_START) != 0;
+		result.View = (pad.wButtons & XINPUT_GAMEPAD_BACK) != 0;
+		result.StickX = Stick_Axis(pad.sThumbLX);
+		result.StickY = Stick_Axis(pad.sThumbLY);
+		result.RightStickX = Stick_Axis(pad.sThumbRX);
+		result.RightStickY = Stick_Axis(pad.sThumbRY);
 		break;
 	}
 	return(result);
@@ -181,6 +211,78 @@ GamepadStateType Gamepad_Read(void)
 static bool _KeyboardMouseSeen = false;
 static bool _MenuStarts = false;
 static bool _AutoSettled = false;
+static int _SyntheticClicks = 0;
+
+bool Gamepad_Claim_Synthetic_Click(void)
+{
+	if (_SyntheticClicks <= 0) return(false);
+	_SyntheticClicks--;
+	return(true);
+}
+
+
+// The pad in play: the left stick and the d-pad move the pointer, a shoulder button speeds
+// it, and cross and circle are the mouse buttons, posted as the messages a mouse would send
+// so every tactical behaviour follows.
+static void Play_Input(GamepadStateType const & pad, GamepadStateType const & previous, unsigned long now)
+{
+	enum { STEP_CAP_MS = 50 };
+	const float POINTER_RATE = 0.9f;		// Screen heights per second at full stick.
+	const float PAD_RATE = 0.6f;			// The d-pad's steady rate.
+	const float FAST_FACTOR = 2.2f;
+	static unsigned long _last = 0;
+	static float _carry_x = 0.0f;
+	static float _carry_y = 0.0f;
+
+	float dt = (_last == 0 ? 16 : std::min<unsigned long>(now - _last, STEP_CAP_MS)) / 1000.0f;
+	_last = now;
+
+	// The stick's response is squared for fine control near the centre.
+	float vx = pad.StickX * (pad.StickX < 0 ? -pad.StickX : pad.StickX) * POINTER_RATE;
+	float vy = -pad.StickY * (pad.StickY < 0 ? -pad.StickY : pad.StickY) * POINTER_RATE;
+	if (pad.PadLeft) vx -= PAD_RATE;
+	if (pad.PadRight) vx += PAD_RATE;
+	if (pad.PadUp) vy -= PAD_RATE;
+	if (pad.PadDown) vy += PAD_RATE;
+	if (pad.Fast) {
+		vx *= FAST_FACTOR;
+		vy *= FAST_FACTOR;
+	}
+
+	RECT client;
+	GetClientRect(MainWindow, &client);
+	POINT origin = {client.left, client.top};
+	POINT corner = {client.right, client.bottom};
+	ClientToScreen(MainWindow, &origin);
+	ClientToScreen(MainWindow, &corner);
+	float height = float(corner.y - origin.y);
+
+	_carry_x += vx * dt * height;
+	_carry_y += vy * dt * height;
+	int dx = int(_carry_x);
+	int dy = int(_carry_y);
+	_carry_x -= dx;
+	_carry_y -= dy;
+	if (dx != 0 || dy != 0) {
+		POINT at;
+		GetCursorPos(&at);
+		at.x = std::clamp<long>(at.x + dx, origin.x, corner.x - 1);
+		at.y = std::clamp<long>(at.y + dy, origin.y, corner.y - 1);
+		SetCursorPos(at.x, at.y);
+	}
+
+	auto post = [&](UINT message, WPARAM flags, bool down) {
+		POINT at;
+		GetCursorPos(&at);
+		ScreenToClient(MainWindow, &at);
+		if (down) _SyntheticClicks++;
+		PostMessage(MainWindow, message, flags, MAKELPARAM(at.x, at.y));
+	};
+	if (pad.Accept && !previous.Accept) post(WM_LBUTTONDOWN, MK_LBUTTON, true);
+	if (!pad.Accept && previous.Accept) post(WM_LBUTTONUP, 0, false);
+	if (pad.Back && !previous.Back) post(WM_RBUTTONDOWN, MK_RBUTTON, true);
+	if (!pad.Back && previous.Back) post(WM_RBUTTONUP, 0, false);
+}
 
 void Gamepad_Settle_Auto_Scheme(unsigned wait_ms)
 {
@@ -295,6 +397,12 @@ void Gamepad_Pump(void * dialog)
 	if (pad.Menu && !_previous.Menu && !_MenuStarts) {
 		Keyboard->Put(KN_ESC);
 		Keyboard->Put(KN_ESC | WWKEY_RLS_BIT);
+	}
+
+	if (dialog == NULL && ScenarioActive && !IgnoreInput && GameInFocus) {
+		Play_Input(pad, _previous, now);
+		_previous = pad;
+		return;
 	}
 
 	HWND window = (HWND)dialog;

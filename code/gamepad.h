@@ -24,8 +24,23 @@ struct GamepadStateType
 	bool Back;
 	bool Third;		// X, or square.
 	bool Fourth;	// Y, or triangle.
-	bool Fast;
+	bool Fast;		// Either shoulder button.
 	bool Menu;
+	bool View;		// Back, or select.
+	bool LeftShoulder;
+	bool RightShoulder;
+	bool LeftTrigger;
+	bool RightTrigger;
+	bool LeftThumb;		// The left stick pressed in.
+	bool RightThumb;
+	bool PadUp;			// The d-pad alone, apart from the stick.
+	bool PadDown;
+	bool PadLeft;
+	bool PadRight;
+	float StickX;		// The left stick, -1 to 1, zero within the dead zone.
+	float StickY;		// Up is positive.
+	float RightStickX;
+	float RightStickY;
 };
 
 // What make of controller the system reports, from its device list.
@@ -55,6 +70,12 @@ GamepadStateType Gamepad_Read(void);
 /// </summary>
 /// <param name="dialog">The topmost open dialog, or NULL when none is open.</param>
 void Gamepad_Pump(void * dialog);
+
+/// <summary>
+/// Claims one mouse button message the pad posted to the game window, so the message loop
+/// does not count it as a real mouse. Returns false when the message came from a real mouse.
+/// </summary>
+bool Gamepad_Claim_Synthetic_Click(void);
 
 /// <summary>
 /// Fixes an Auto control scheme before the first shell screen: a pad that has appeared since

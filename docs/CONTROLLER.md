@@ -41,6 +41,7 @@ target.
 | Select Campaign | `code/init.cpp` | Side select in the manner of Remastered: the backdrop's own GDI and Nod discs enlarged at left and right, both dim until a side is picked, then the picked one lit and grown with its campaign named under the title; names beneath in faction colours, difficulty along the bottom. Left and right pick the side, or the act when a side has two, with the shell's hover click; A or a click on the lit emblem starts. Writes the difficulty option like the dialog. |
 | Load Mission | `code/loaddlg.cpp` | Console list of the save games, newest first, date at the left and description at the right, a star for multiplayer saves; long lists scroll. |
 | On-screen keyboard | `code/consolekeyboard.cpp` | A console screen with a text field and a row of digits, three rows of letters and marks, then Space, Delete, Caps, and Done. D-pad or stick moves, A types, X deletes, Y adds a space, B backs out with the text untouched; letters are capitals at the start of each word and lower case after, with Caps locking them on; a real keyboard types straight in, Enter finishes, Escape backs out; the mouse picks keys. Opened by A on the Name row of the skirmish and LAN screens and the Save As row of the pause menu. |
+| Play, pointer | `code/gamepad.cpp` | Under the controller scheme in play the left stick and the d-pad move the pointer, the stick with a squared response and the d-pad at a steady rate, a shoulder button speeding either; edge scroll follows the pointer as with a mouse. Cross and circle post the left and right mouse button messages at the pointer, so selecting, ordering, deploying, placing, band boxing and cancelling all follow the mouse paths. The message loop does not count these clicks as a real mouse. The rest of the play scheme, in PlayStation terms: triangle sidebar, square cycling the sidebar modes, L3 deploy, R3 home, L2 and L1 with the shapes for teams, R1 as the modifier, R2 scatter, is next. |
 | Dialogs | `code/gamepad.cpp`, `code/msgloop.cpp` | While any dialog is open the pad drives it through key messages: d-pad as arrows with repeat, A as Enter, B as Escape. Covers the message boxes, Version, and the multiplayer lobby for now. |
 | In-game menu | `code/consoleingame.cpp` | Under the controller scheme the Escape menu in play is a console screen of its own, like the main menus: the render size drops to 640x400 on entry and returns to the play size on exit, so the text and artwork match the shell on every panel. "Game Paused" above a box sized to its rows, in the menu pages' colours, on the mission's briefing plate rather than the shell backdrop, focus starting on Return To Mission. Game Options opens the console options screen without its display rows or the campaign difficulty, which the original in-game dialog never applied either; Audio Options opens the audio screen; Controls lists the bindings; Mission Briefing restates; Save Game offers the save in a box under a suggested name, the mission's side and number from its map file ahead of its name for a campaign, and on Save writes a fresh slot, reports beneath the pause box, and posts the message the quick save posts for when play resumes; Load Game opens the console load list; Restart Mission and Abort Mission ask as one row whose value flips between No and Yes, No to begin with, as the C&C pause menu does. In a LAN game Save and Load go through the multiplayer paths and Restart becomes Surrender. The menu loop's pause, resume, restart and exit handling is shared with the dialog. |
 | Mission briefing | `code/restate.cpp` | Under the controller scheme the page renders at the shell's 640x400 size so it fills the panel like the console screens, then the size it was opened at returns. The buttons give way to console prompts: A continues or turns the page, B plays the mission video when there is one. Before the mission starts the last page closes with OK; restated from the pause menu it reads Resume Mission. |
@@ -65,17 +66,17 @@ target.
 
 ## Next
 
-1. A Steam Input layout for the game, shipped in the repo, so the pad is on
+1. The rest of the play scheme: sidebar focus on triangle with a highlight over the cameos, square cycling repair, sell, power and waypoint, L3 deploy, R3 home, L2 and L1 with the shapes for three teams, R1 with circle for rebuild last, R1 with triangle to pin the sidebar, R1 with L1 or L2 then cross for force fire or force move, R1 with R2 for guard, R2 scatter; cross double tap for all of a type on screen and triple for the map, a still hold on cross for all combat units on screen; snap to units; a Controls screen diagram in the manner of Retaliation's.
+2. A Steam Input layout for the game, shipped in the repo, so the pad is on
    the Gamepad template without the player building one. Steam only defaults
    a layout the app owner publishes, so this is a file to import once, and
    Steam keeps the choice per player after that.
-2. LAN lobby extras: kick as a row on the host lobby, and the generated map
+3. LAN lobby extras: kick as a row on the host lobby, and the generated map
    once its setup has a console screen.
-3. A zoom setting for play: the render frame takes the panel's aspect and a
+4. A zoom setting for play, on the right stick: the render frame takes the panel's aspect and a
    zoom value picks its height, so no screen shows bars and each device tunes
    its own sprite size. A 32:9 panel at 2x felt right in testing.
-4. Later: the in-game control scheme, the sidebar, and the display work in
-   the direction notes.
+5. Later: the sidebar look and the display work in the direction notes.
 
 ## Parked
 
