@@ -144,7 +144,7 @@ bool Console_Skirmish_Screen(void)
 	int tech = BuildLevel;
 	int difficulty = int(Session.Options.AIDifficulty);
 	int ai_players = std::max(Session.Options.AIPlayers, 1);
-	int speed = 6 - Session.Options.GameSpeed;
+	int speed = std::clamp(6 - Options.GameSpeed, 0, 6);
 	int credits = Session.Options.Credits;
 	bool bases = Session.Options.Bases;
 	bool crates = Session.Options.Goodies;

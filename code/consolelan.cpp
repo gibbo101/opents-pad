@@ -407,6 +407,7 @@ static bool Console_Host_Screen(std::string & notice)
 	Session.NetOpen = true;
 	Session.NetStealth = false;
 	Session.Options.ScenarioIndex = 0;
+	Session.Options.GameSpeed = std::clamp(Options.GameSpeed, 0, 6);
 	Session.PlayingAgainstVersion = VerNum.Version_Number();
 	Set_Scenario_Info_From_Index(0);
 	Clear_Vector(&Session.Players);
