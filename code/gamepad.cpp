@@ -17,8 +17,12 @@
 #include "dbgprint.h"
 #include "globals.h"
 #include "goptions.h"
+#include "infantry.h"
+#include "infatype.h"
 #include "init.h"
 #include "options.h"
+#include "unit.h"
+#include "unittype.h"
 #include "win.h"
 
 #include <Xinput.h>
@@ -224,6 +228,27 @@ bool Gamepad_Claim_Synthetic_Click(void)
 }
 
 
+// Selects every unit on screen that fights: the harvesters, engineers, and vehicles that
+// deploy into buildings are left out.
+static void Select_Combat_On_Screen(void)
+{
+	Execute_Command("SelectView");
+	for (int index = CurrentObject.Count() - 1; index >= 0; index--) {
+		ObjectClass * object = CurrentObject[index];
+		bool drop = false;
+		if (object->RTTI == RTTI_UNIT) {
+			UnitClass * unit = (UnitClass *)object;
+			drop = unit->Class->IsToHarvest || unit->Class->IsToVeinHarvest || unit->Class->DeploysInto != NULL;
+		} else if (object->RTTI == RTTI_INFANTRY) {
+			drop = ((InfantryClass *)object)->Class->IsEngineer;
+		}
+		if (drop) {
+			object->Unselect();
+		}
+	}
+}
+
+
 // The pad in play: the left stick and the d-pad move the pointer, a shoulder button speeds
 // it, and cross and circle are the mouse buttons, posted as the messages a mouse would send
 // so every tactical behaviour follows.
@@ -286,10 +311,56 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 	auto pressed = [&](bool now_down, bool was_down) { return(now_down && !was_down); };
 	static bool _right_posted = false;
 
-	// Cross is the left button. Circle is the right button, unless R1 holds it for the
-	// rebuild command.
-	if (pressed(pad.Accept, previous.Accept)) click(MOUSEEVENTF_LEFTDOWN, true);
-	if (!pad.Accept && previous.Accept) click(MOUSEEVENTF_LEFTUP, false);
+	// Cross is the left button, but its press is held back until it is known what the
+	// press is: movement makes it a band box, release makes it a click, and a still hold
+	// selects the combat units on screen. With L1 it selects every unit of the type under
+	// the pointer, widening to the whole map on a second press.
+	enum { HOLD_MS = 500, DRAG_PIXELS = 3 };
+	static unsigned long _cross_since = 0;
+	static POINT _cross_at = {0, 0};
+	static bool _cross_sent = false;
+	static bool _cross_done = false;
+	static bool _select_type_pending = false;
+	if (_select_type_pending) {
+		_select_type_pending = false;
+		Execute_Command("SelectType");
+	}
+	if (pressed(pad.Accept, previous.Accept)) {
+		if (pad.LeftShoulder && !pad.RightShoulder) {
+			click(MOUSEEVENTF_LEFTDOWN, true);
+			click(MOUSEEVENTF_LEFTUP, false);
+			_select_type_pending = true;
+			_cross_done = true;
+		} else {
+			_cross_since = now;
+			GetCursorPos(&_cross_at);
+			_cross_sent = false;
+			_cross_done = false;
+		}
+	} else if (pad.Accept && previous.Accept && !_cross_sent && !_cross_done) {
+		POINT at;
+		GetCursorPos(&at);
+		int moved_x = at.x - _cross_at.x;
+		int moved_y = at.y - _cross_at.y;
+		if (moved_x < 0) moved_x = -moved_x;
+		if (moved_y < 0) moved_y = -moved_y;
+		if (moved_x > DRAG_PIXELS || moved_y > DRAG_PIXELS) {
+			click(MOUSEEVENTF_LEFTDOWN, true);
+			_cross_sent = true;
+		} else if (now - _cross_since >= HOLD_MS) {
+			Select_Combat_On_Screen();
+			_cross_done = true;
+		}
+	} else if (!pad.Accept && previous.Accept) {
+		if (_cross_sent) {
+			click(MOUSEEVENTF_LEFTUP, false);
+		} else if (!_cross_done) {
+			click(MOUSEEVENTF_LEFTDOWN, true);
+			click(MOUSEEVENTF_LEFTUP, false);
+		}
+		_cross_sent = false;
+		_cross_done = false;
+	}
 	if (pressed(pad.Back, previous.Back)) {
 		if (pad.RightShoulder) {
 			Execute_Command("RepeatLastBuilding");
