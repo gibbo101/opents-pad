@@ -596,7 +596,8 @@ void RestateMission::Draw_Prompts(Surface * surface)
 	int y = CenterY + 368;
 	int glyph = PromptFont->Get_Font_Height() + 4;
 	int used = Resolved_Prompt_Style() == PROMPT_STYLE_TEXT ? 0 : glyph + 6;
-	char const * accept = Prompt == PROMPT_MORE ? Fetch_String(TXT_MORE) : Fetch_String(TXT_RESUME_MISSION);
+	// Before the mission starts there is nothing to resume, so the last page just closes.
+	char const * accept = Fetch_String(Prompt == PROMPT_MORE ? TXT_MORE : ScenarioActive ? TXT_RESUME_MISSION : TXT_OK);
 	int x = CenterX + 640 - 24 - used - PromptFont->Get_String_Width(accept);
 	Draw_Pad_Glyph(*surface, PAD_BUTTON_ACCEPT, x, y - 2, glyph);
 	PromptFont->Draw_String(surface, (unsigned char const *)accept, x + used, y, 2);
