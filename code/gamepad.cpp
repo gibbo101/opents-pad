@@ -350,6 +350,11 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 	enum { SIDEBAR_REPEAT_FIRST_MS = 350, SIDEBAR_REPEAT_NEXT_MS = 120 };
 	static unsigned long _sidebar_repeat_at = 0;
 	static bool _sidebar_held = false;
+	enum { HOLD_MS = 500, WIDEN_MS = 400, DRAG_PIXELS = 3 };
+	static unsigned long _cross_since = 0;
+	static POINT _cross_at = {0, 0};
+	static bool _cross_sent = false;
+	static int _cross_stage = 0;		// 0 undecided, 1 type on screen, 3 combat on screen, 2 done.
 	if (pressed(pad.Fourth, previous.Fourth) && !pad.LeftTrigger && !pad.LeftShoulder && !pad.RightShoulder) {
 		if (Map.PadFocus) {
 			Map.Pad_Leave();
@@ -358,6 +363,12 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 		}
 	}
 	if (Map.PadFocus) {
+		// A cross press spent on the sidebar must not become a click on the map when it is
+		// let go after the sidebar hands the pointer back.
+		if (pad.Accept) {
+			_cross_stage = 2;
+			_cross_sent = false;
+		}
 		// On the radar, cross held turns the stick and d-pad into a marker over the map, and
 		// letting go jumps the view there.
 		if (Map.PadRow == SidebarClass::PAD_ROW_RADAR && pad.Accept) {
@@ -401,11 +412,6 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 	// A still hold on one of the player's units selects every unit of its type on screen,
 	// and holding on widens that to the whole map; a still hold on the ground selects the
 	// combat units on screen.
-	enum { HOLD_MS = 500, WIDEN_MS = 400, DRAG_PIXELS = 3 };
-	static unsigned long _cross_since = 0;
-	static POINT _cross_at = {0, 0};
-	static bool _cross_sent = false;
-	static int _cross_stage = 0;		// 0 undecided, 1 type on screen, 3 combat on screen, 2 done.
 	static bool _select_type_pending = false;
 	if (_select_type_pending) {
 		_select_type_pending = false;
