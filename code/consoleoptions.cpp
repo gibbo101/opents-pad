@@ -176,6 +176,59 @@ bool Console_Audio_Screen(bool in_game)
 
 
 /// <summary>
+/// Lists what the controller's buttons do, each with its glyph, and notes that the bindings
+/// are not final while the in-game scheme is still to come.
+/// </summary>
+void Console_Controls_Screen(void)
+{
+	enum { FIRST_Y = 48, PITCH = 24, GLYPH_GAP = 8, NOTE_Y = 336 };
+	struct BindingType {
+		char const * Action;
+		char const * Button;
+		int Glyph;			// A PadButtonType, or -1 for none.
+	};
+	static BindingType const _bindings[] = {
+		{"Move", "D-pad or left stick", -1},
+		{"Change a value", "Left or Right", -1},
+		{"Step by five", "LB or RB with Left or Right", -1},
+		{"Accept, select", "A", PAD_BUTTON_ACCEPT},
+		{"Back", "B", PAD_BUTTON_BACK},
+		{"Start the game", "Start, on a setup screen", PAD_BUTTON_MENU},
+		{"Pause menu", "Start, in play", PAD_BUTTON_MENU},
+		{"Keyboard delete", "X", PAD_BUTTON_THIRD},
+		{"Keyboard space", "Y", PAD_BUTTON_FOURTH},
+		{"Switch to controller", "Start and B held together", -1},
+	};
+
+	ConsoleMenuClass menu("Controls");
+	menu.Set_Prompts("", "Back");
+	int y = FIRST_Y;
+	for (BindingType const & binding : _bindings) {
+		ConsoleRowType row = {binding.Action, [&binding]{ return(std::string(binding.Button)); }, nullptr, nullptr};
+		row.Y = y;
+		menu.Add_Row(row);
+		y += PITCH;
+	}
+	ConsoleRowType note = {"Controls are not final yet: the in-game scheme is still to come", nullptr, nullptr, nullptr};
+	note.Y = NOTE_Y;
+	note.Quiet = true;
+	menu.Add_Row(note);
+	menu.Set_Backdrop_Panel([&](ConsoleCanvas & canvas) {
+		int glyph = canvas.LineHeight + 4;
+		int row_y = FIRST_Y;
+		for (BindingType const & binding : _bindings) {
+			if (binding.Glyph >= 0) {
+				int x = canvas.Box.X + ConsoleMenuClass::Value_Left() + canvas.Width(binding.Button) + GLYPH_GAP;
+				Draw_Pad_Glyph(canvas.Frame, PadButtonType(binding.Glyph), x, canvas.Box.Y + row_y - 2, glyph);
+			}
+			row_y += PITCH;
+		}
+	});
+	menu.Process();
+}
+
+
+/// <summary>
 /// Runs the console-style options screen. Everything applies when the player accepts, and
 /// accepting saves the settings file; the Audio row opens the audio screen, which keeps its
 /// own changes.
@@ -238,6 +291,8 @@ bool Console_Options_Screen(bool in_game)
 	menu.Add_Row({"Tool Tips", [&]{ return(On_Off(tooltips)); }, [&](int) { tooltips = !tooltips; }, nullptr});
 	int audio_row = menu.Add_Row({"Audio", nullptr, nullptr, [&]{ Console_Audio_Screen(in_game); menu.Refresh(); }});
 	menu.Set_Row_Prompt(audio_row, "Open");
+	int controls_row = menu.Add_Row({"Controls", nullptr, nullptr, [&]{ Console_Controls_Screen(); menu.Refresh(); }});
+	menu.Set_Row_Prompt(controls_row, "Open");
 
 	int const old_prompts = Options.PromptStyle;
 	bool accepted = menu.Process() == CONSOLE_MENU_ACCEPT;

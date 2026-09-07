@@ -161,7 +161,7 @@ static std::string Save_Box(void)
 
 ConsoleIngameResult Console_Ingame_Menu(void)
 {
-	enum { ACTION_NONE, ACTION_RESUME, ACTION_OPTIONS, ACTION_AUDIO, ACTION_BRIEFING, ACTION_SAVE, ACTION_LOAD, ACTION_RESTART, ACTION_ABORT };
+	enum { ACTION_NONE, ACTION_RESUME, ACTION_OPTIONS, ACTION_AUDIO, ACTION_CONTROLS, ACTION_BRIEFING, ACTION_SAVE, ACTION_LOAD, ACTION_RESTART, ACTION_ABORT };
 
 	IgnoreInput = true;
 	Keyboard->Clear();
@@ -185,6 +185,7 @@ ConsoleIngameResult Console_Ingame_Menu(void)
 		};
 		add("Game Options", ACTION_OPTIONS);
 		add("Audio Options", ACTION_AUDIO);
+		add("Controls", ACTION_CONTROLS);
 		if (Session.Type == GAME_NORMAL) {
 			add("Mission Briefing", ACTION_BRIEFING);
 		}
@@ -222,6 +223,10 @@ ConsoleIngameResult Console_Ingame_Menu(void)
 
 			case ACTION_AUDIO:
 				Console_Audio_Screen(true);
+				break;
+
+			case ACTION_CONTROLS:
+				Console_Controls_Screen();
 				break;
 
 			case ACTION_BRIEFING:
