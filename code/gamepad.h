@@ -72,8 +72,8 @@ GamepadStateType Gamepad_Read(void);
 void Gamepad_Pump(void * dialog);
 
 /// <summary>
-/// Claims one mouse button message the pad posted to the game window, so the message loop
-/// does not count it as a real mouse. Returns false when the message came from a real mouse.
+/// Claims one button or key press message the pad posted to the game window, so the message
+/// loop does not count it as a real mouse or keyboard. Returns false for a real one.
 /// </summary>
 bool Gamepad_Claim_Synthetic_Click(void);
 

@@ -12,9 +12,11 @@
 #include "gamepad.h"
 
 #include "_keyboar.h"
+#include "_map.h"
 #include "dbgprint.h"
 #include "globals.h"
 #include "goptions.h"
+#include "init.h"
 #include "options.h"
 #include "win.h"
 
@@ -278,10 +280,73 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 		if (down) _SyntheticClicks++;
 		PostMessage(MainWindow, message, flags, MAKELPARAM(at.x, at.y));
 	};
-	if (pad.Accept && !previous.Accept) post(WM_LBUTTONDOWN, MK_LBUTTON, true);
+	auto pressed = [&](bool now_down, bool was_down) { return(now_down && !was_down); };
+	static bool _right_posted = false;
+
+	// Cross is the left button. Circle is the right button, unless R1 holds it for the
+	// rebuild command.
+	if (pressed(pad.Accept, previous.Accept)) post(WM_LBUTTONDOWN, MK_LBUTTON, true);
 	if (!pad.Accept && previous.Accept) post(WM_LBUTTONUP, 0, false);
-	if (pad.Back && !previous.Back) post(WM_RBUTTONDOWN, MK_RBUTTON, true);
-	if (!pad.Back && previous.Back) post(WM_RBUTTONUP, 0, false);
+	if (pressed(pad.Back, previous.Back)) {
+		if (pad.RightShoulder) {
+			Execute_Command("RepeatLastBuilding");
+		} else {
+			post(WM_RBUTTONDOWN, MK_RBUTTON, true);
+			_right_posted = true;
+		}
+	}
+	if (!pad.Back && previous.Back && _right_posted) {
+		post(WM_RBUTTONUP, 0, false);
+		_right_posted = false;
+	}
+
+	// The shapes with L2 make teams and with L1 select and centre on them; square alone
+	// cycles the sidebar modes.
+	static char const * const _make[3] = {"TeamCreate_1", "TeamCreate_2", "TeamCreate_3"};
+	static char const * const _pick[3] = {"TeamCenter_1", "TeamCenter_2", "TeamCenter_3"};
+	bool shapes[3] = {pressed(pad.Third, previous.Third), pressed(pad.Fourth, previous.Fourth), pressed(pad.Back, previous.Back)};
+	for (int index = 0; index < 3; index++) {
+		if (!shapes[index]) continue;
+		if (pad.LeftTrigger) {
+			Execute_Command(_make[index]);
+		} else if (pad.LeftShoulder) {
+			Execute_Command(_pick[index]);
+		}
+	}
+	if (pressed(pad.Third, previous.Third) && !pad.LeftTrigger && !pad.LeftShoulder) {
+		if (Map.IsRepairMode) {
+			Map.Repair_Mode_Control(0);
+			Map.Sell_Mode_Control(1);
+		} else if (Map.IsSellMode) {
+			Map.Sell_Mode_Control(0);
+			Map.Power_Mode_Control(1);
+		} else if (Map.IsPowerMode) {
+			Map.Power_Mode_Control(0);
+			Map.Waypoint_Mode_Control(1);
+		} else if (Map.IsWaypointMode) {
+			Map.Waypoint_Mode_Control(0);
+		} else {
+			Map.Repair_Mode_Control(1);
+		}
+	}
+
+	// R1 with L1 holds the force fire key and R1 with L2 the force move key, so the next
+	// cross press orders as a Ctrl or Alt click would.
+	static bool _force_fire = false;
+	static bool _force_move = false;
+	auto hold_key = [&](bool & held, bool want, WORD vk) {
+		if (want == held) return;
+		held = want;
+		if (want) _SyntheticClicks++;
+		PostMessage(MainWindow, want ? WM_KEYDOWN : WM_KEYUP, vk, want ? 0 : 0xC0000000);
+	};
+	hold_key(_force_fire, pad.RightShoulder && pad.LeftShoulder, VK_CONTROL);
+	hold_key(_force_move, pad.RightShoulder && pad.LeftTrigger, VK_MENU);
+
+	if (pressed(pad.LeftThumb, previous.LeftThumb)) Execute_Command("DeployObject");
+	if (pressed(pad.RightThumb, previous.RightThumb)) Execute_Command("CenterBase");
+	if (pressed(pad.RightTrigger, previous.RightTrigger)) Execute_Command(pad.RightShoulder ? "GuardObject" : "ScatterObject");
+	if (pressed(pad.View, previous.View)) Execute_Command("ToggleAlliance");
 }
 
 void Gamepad_Settle_Auto_Scheme(unsigned wait_ms)

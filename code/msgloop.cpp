@@ -118,7 +118,7 @@ void Windows_Message_Handler(void)
 		// Keys and clicks aimed at the game window itself come from a real keyboard or
 		// mouse; the pad's stand-in keys are posted to dialogs, never here.
 		if (msg.hwnd == MainWindow && (msg.message == WM_KEYDOWN || msg.message == WM_LBUTTONDOWN || msg.message == WM_RBUTTONDOWN)) {
-			if (msg.message == WM_KEYDOWN || !Gamepad_Claim_Synthetic_Click()) {
+			if (!Gamepad_Claim_Synthetic_Click()) {
 				Note_Keyboard_Mouse_Use();
 			}
 		}
