@@ -2666,7 +2666,10 @@ void HouseClass::Special_Weapon_AI(SuperWeaponType id)
  *=============================================================================================*/
 bool HouseClass::Place_Special_Blast(SuperWeaponType id, Cell const & cell)
 {
-	SuperWeapon[id]->Discharged(this == PlayerPtr, cell);
+	// A spent one-shot weapon has left the house, so the sidebar must drop its cell.
+	if (SuperWeapon[id]->Discharged(this == PlayerPtr, cell)) {
+		IsRecalcNeeded = true;
+	}
 
 	return(true);
 }

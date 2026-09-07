@@ -15,6 +15,7 @@
 #include "_map.h"
 #include "_rect.h"
 #include "_rules.h"
+#include "builtype.h"
 #include "cell.h"
 #include "dbgprint.h"
 #include "globals.h"
@@ -261,10 +262,14 @@ static void Cheat_Superweapon(SuperWeaponType type, char const * name)
 			super->Enable(true, true, false);
 			Map.Add(RTTI_SPECIAL, index);
 		}
+		DebugString("Cheat: %s (super %d, present %d, ready %d)\n", name, index, super->Is_Present(), super->Can_Place());
 		Map.Column[1].Flag_To_Redraw();
 		Announce(name);
 		return;
 	}
+	// The rules in play define the weapons a house can hold, so one they leave out cannot be given.
+	DebugString("Cheat: %s, no such weapon in this game\n", name);
+	Announce("That weapon is not in this game");
 }
 
 
@@ -346,6 +351,7 @@ static void Enter_Cheat_Symbol(int symbol)
 				Restore_Explored();
 				if (_radar_given) Scen->IsFreeRadar = false;
 				_radar_given = false;
+				PlayerPtr->Recalc_Radar_Availability();
 				Announce("Map shrouded");
 			} else {
 				Remember_Explored();
@@ -355,6 +361,7 @@ static void Enter_Cheat_Symbol(int symbol)
 					Scen->IsFreeRadar = true;
 					_radar_given = true;
 				}
+				PlayerPtr->Recalc_Radar_Availability();
 				Announce("Map revealed");
 			}
 		}},
@@ -384,17 +391,16 @@ static void Enter_Cheat_Symbol(int symbol)
 }
 
 
-// Whether a unit fights: harvesters, engineers, and vehicles that deploy into buildings do not.
+// Whether a unit fights: one armed as it stands, or one that arms by deploying, so tick
+// tanks and artillery count while harvesters, engineers, sensor arrays and the construction
+// vehicle stay out.
 static bool Is_Combat(ObjectClass const * object)
 {
-	if (object->RTTI == RTTI_UNIT) {
-		UnitClass const * unit = (UnitClass const *)object;
-		return(!unit->Class->IsToHarvest && !unit->Class->IsToVeinHarvest && unit->Class->DeploysInto == NULL);
-	}
-	if (object->RTTI == RTTI_INFANTRY) {
-		return(!((InfantryClass const *)object)->Class->IsEngineer);
-	}
-	return(false);
+	if (object->RTTI != RTTI_UNIT && object->RTTI != RTTI_INFANTRY) return(false);
+	TechnoTypeClass const * type = ((TechnoClass const *)object)->Techno_Type_Class();
+	if (type == NULL) return(false);
+	if (type->Weapons[0].Weapon != NULL) return(true);
+	return(type->DeploysInto != NULL && type->DeploysInto->Weapons[0].Weapon != NULL);
 }
 
 
@@ -431,11 +437,14 @@ static void Select_Combat_On_Map(void)
 static void Play_Input(GamepadStateType const & pad, GamepadStateType const & previous, unsigned long now)
 {
 	enum { STEP_CAP_MS = 50 };
+	const float PAD_RAMP_MS = 500.0f;		// How long a d-pad hold takes to reach its rate.
 	// The paces at the default setting, each scaled by the player's setting over the default.
 	const float POINTER_RATE = 0.9f * Options.PadPointerSpeed / OptionsClass::PAD_SPEED_DEFAULT;		// Screen heights per second at full stick.
-	const float PAD_RATE = 0.6f * Options.PadPointerSpeed / OptionsClass::PAD_SPEED_DEFAULT;			// The d-pad's steady rate.
+	const float PAD_RATE = 0.6f * Options.PadPointerSpeed / OptionsClass::PAD_SPEED_DEFAULT;			// The d-pad's rate once a hold has ramped up.
+	const float PAD_START = 0.2f;		// The share of that rate a press starts at, so a tap nudges.
 	const float FAST_FACTOR = 1.0f + 1.2f * Options.PadFastSpeed / OptionsClass::PAD_SPEED_DEFAULT;
 	static unsigned long _last = 0;
+	static unsigned long _pad_since = 0;
 	static float _carry_x = 0.0f;
 	static float _carry_y = 0.0f;
 
@@ -445,10 +454,19 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 	// The stick's response is squared for fine control near the centre.
 	float vx = pad.StickX * (pad.StickX < 0 ? -pad.StickX : pad.StickX) * POINTER_RATE;
 	float vy = -pad.StickY * (pad.StickY < 0 ? -pad.StickY : pad.StickY) * POINTER_RATE;
-	if (pad.PadLeft) vx -= PAD_RATE;
-	if (pad.PadRight) vx += PAD_RATE;
-	if (pad.PadUp) vy -= PAD_RATE;
-	if (pad.PadDown) vy += PAD_RATE;
+
+	// The d-pad ramps from a nudge to its rate over the first half second held.
+	bool pad_held = pad.PadLeft || pad.PadRight || pad.PadUp || pad.PadDown;
+	if (!pad_held) {
+		_pad_since = 0;
+	} else if (_pad_since == 0) {
+		_pad_since = now;
+	}
+	float pad_rate = pad_held ? PAD_RATE * std::min(1.0f, PAD_START + (1.0f - PAD_START) * float(now - _pad_since) / PAD_RAMP_MS) : 0.0f;
+	if (pad.PadLeft) vx -= pad_rate;
+	if (pad.PadRight) vx += pad_rate;
+	if (pad.PadUp) vy -= pad_rate;
+	if (pad.PadDown) vy += pad_rate;
 	if (pad.RightShoulder) {
 		vx *= FAST_FACTOR;
 		vy *= FAST_FACTOR;
@@ -587,7 +605,7 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 				Map.Pad_Back();
 			}
 		}
-		if (pressed(pad.Third, previous.Third) && !pad.LeftTrigger && !pad.LeftShoulder) Map.Pad_Toggle_Grid();
+		if (pressed(pad.Third, previous.Third) && !pad.LeftTrigger && !pad.LeftShoulder) Map.Pad_Toggle_Grid(true);
 		return;
 	}
 
@@ -712,24 +730,38 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 	}
 
 	// R1 with L1 orders a force fire at the pointer and R1 with L2 a force move, as a Ctrl or
-	// Alt click would, the moment the two are held together; no cross is needed.
-	auto force_click = [&](WORD vk) {
-		INPUT input[4] = {};
-		input[0].type = INPUT_KEYBOARD;
-		input[0].ki.wVk = vk;
+	// Alt click would, the moment the two are held together; no cross is needed. The engine
+	// reads the modifier from the live key state when it acts on the click, later than the
+	// click itself, so the key stays down until the chord lets go.
+	static WORD _force_vk = 0;
+	static bool _force_with_shoulder = false;
+	auto send_key = [](WORD vk, bool down) {
+		INPUT input = {};
+		input.type = INPUT_KEYBOARD;
+		input.ki.wVk = vk;
+		input.ki.dwFlags = down ? 0 : KEYEVENTF_KEYUP;
+		SendInput(1, &input, sizeof(input));
+	};
+	auto force_click = [&](WORD vk, bool with_shoulder) {
+		if (_force_vk != 0 && _force_vk != vk) send_key(_force_vk, false);
+		_force_vk = vk;
+		_force_with_shoulder = with_shoulder;
+		send_key(vk, true);
+		INPUT input[2] = {};
+		input[0].type = INPUT_MOUSE;
+		input[0].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
 		input[1].type = INPUT_MOUSE;
-		input[1].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
-		input[2].type = INPUT_MOUSE;
-		input[2].mi.dwFlags = MOUSEEVENTF_LEFTUP;
-		input[3].type = INPUT_KEYBOARD;
-		input[3].ki.wVk = vk;
-		input[3].ki.dwFlags = KEYEVENTF_KEYUP;
+		input[1].mi.dwFlags = MOUSEEVENTF_LEFTUP;
 		_SyntheticClicks += 2;
-		SendInput(4, input, sizeof(INPUT));
+		SendInput(2, input, sizeof(INPUT));
 	};
 	auto chord = [&](bool a, bool a_was, bool b, bool b_was) { return((pressed(a, a_was) && b) || (pressed(b, b_was) && a)); };
-	if (chord(pad.RightShoulder, previous.RightShoulder, pad.LeftShoulder, previous.LeftShoulder)) force_click(VK_CONTROL);
-	if (chord(pad.RightShoulder, previous.RightShoulder, pad.LeftTrigger, previous.LeftTrigger)) force_click(VK_MENU);
+	if (chord(pad.RightShoulder, previous.RightShoulder, pad.LeftShoulder, previous.LeftShoulder)) force_click(VK_CONTROL, true);
+	if (chord(pad.RightShoulder, previous.RightShoulder, pad.LeftTrigger, previous.LeftTrigger)) force_click(VK_MENU, false);
+	if (_force_vk != 0 && (!pad.RightShoulder || !(_force_with_shoulder ? pad.LeftShoulder : pad.LeftTrigger))) {
+		send_key(_force_vk, false);
+		_force_vk = 0;
+	}
 
 	// The right stick scrolls the map at the pad's own pace, apart from the mouse scroll
 	// settings: a full push crosses a few view heights a second, and the squared response
@@ -783,6 +815,12 @@ void Gamepad_Settle_Auto_Scheme(unsigned wait_ms)
 void Gamepad_Menu_Starts(bool on)
 {
 	_MenuStarts = on;
+}
+
+
+bool Gamepad_Menu_Starting(void)
+{
+	return(_MenuStarts);
 }
 
 

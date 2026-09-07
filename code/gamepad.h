@@ -89,6 +89,7 @@ void Gamepad_Settle_Auto_Scheme(unsigned wait_ms);
 /// for a screen whose accept is Start.
 /// </summary>
 void Gamepad_Menu_Starts(bool on);
+bool Gamepad_Menu_Starting(void);
 
 /// <summary>
 /// Has a real keyboard key or mouse button been pressed on the game window since launch?
