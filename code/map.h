@@ -44,6 +44,7 @@
 #include "passblty.hh"
 #include "speed.hh"
 #include "zone.hh"
+#include <vector>
 
 class AbstractClass;
 class ObjectClass;
@@ -57,6 +58,11 @@ class SaveStreamClass;
 template<typename K, typename V>
 class HashTableClass;
 
+
+// While the reveal cheat shows the whole map, each cell the player's own sight would have
+// opened is marked here, indexed as the cell array is, so the shroud can return with them
+// open. Empty when no reveal is in force.
+extern std::vector<unsigned char> RevealSighted;
 
 class MapClass: public GScreenClass
 {

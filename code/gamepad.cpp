@@ -15,6 +15,7 @@
 #include "_map.h"
 #include "_rect.h"
 #include "_rules.h"
+#include "cell.h"
 #include "dbgprint.h"
 #include "globals.h"
 #include "goptions.h"
@@ -25,7 +26,10 @@
 #include "misc.h"
 #include "options.h"
 #include "rules.h"
+#include "scenario.h"
 #include "session.h"
+#include "super.h"
+#include "suprtype.h"
 #include "unit.h"
 #include "unittype.h"
 #include "vidscale.h"
@@ -39,6 +43,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <vector>
 
 typedef DWORD (WINAPI * XInputGetStateType)(DWORD index, XINPUT_STATE * state);
 
@@ -244,6 +249,141 @@ static void Announce(char const * text)
 }
 
 
+// Grants the player a charged shot of a superweapon, or charges it when the player holds it.
+static void Cheat_Superweapon(SuperWeaponType type, char const * name)
+{
+	for (int index = 0; index < PlayerPtr->SuperWeapon.Count(); index++) {
+		SuperClass * super = PlayerPtr->SuperWeapon[index];
+		if (super->Class->Type != type) continue;
+		if (super->Is_Present()) {
+			super->Forced_Charge(true);
+		} else {
+			super->Enable(true, true, false);
+			Map.Add(RTTI_SPECIAL, index);
+		}
+		Map.Column[1].Flag_To_Redraw();
+		Announce(name);
+		return;
+	}
+}
+
+
+// What the player had explored before the reveal cheat, a flag byte per cell indexed as the
+// cell array is, with bit 16 marking a cell the map holds.
+static std::vector<unsigned char> _ExploredBeforeReveal;
+
+static std::size_t Cell_Index(Cell const & cell)
+{
+	return(cell.X + cell.Y * MAP_CELL_H);
+}
+
+static void Remember_Explored(void)
+{
+	_ExploredBeforeReveal.assign(Map.Array.Length(), 0);
+	Map.Reset_Iterator();
+	for (CellClass * cell = Map.Iterate(); cell != NULL; cell = Map.Iterate()) {
+		_ExploredBeforeReveal[Cell_Index(cell->CellID)] = 16 | (cell->IsMapped ? 1 : 0) | (cell->IsVisible ? 2 : 0) | (cell->IsFogMapped ? 4 : 0) | (cell->IsFogVisible ? 8 : 0);
+	}
+	RevealSighted.assign(Map.Array.Length(), 0);
+}
+
+// Puts the shroud back as it stood before the reveal, opens what the player's sight reached
+// while the map was shown, then lets units look again. Without a matching record the whole
+// map is shrouded.
+static void Restore_Explored(void)
+{
+	bool matched = _ExploredBeforeReveal.size() == std::size_t(Map.Array.Length()) && RevealSighted.size() == _ExploredBeforeReveal.size();
+	if (matched) {
+		Map.Reset_Iterator();
+		for (CellClass * cell = Map.Iterate(); cell != NULL; cell = Map.Iterate()) {
+			unsigned char flags = _ExploredBeforeReveal[Cell_Index(cell->CellID)];
+			if (!(flags & 16)) continue;
+			cell->IsMapped = (flags & 1) != 0;
+			cell->IsVisible = (flags & 2) != 0;
+			cell->IsFogMapped = (flags & 4) != 0;
+			cell->IsFogVisible = (flags & 8) != 0;
+		}
+		Map.Reset_Iterator();
+		for (CellClass * cell = Map.Iterate(); cell != NULL; cell = Map.Iterate()) {
+			if (RevealSighted[Cell_Index(cell->CellID)]) {
+				Map.Map_Cell(cell->CellID, PlayerPtr);
+			}
+		}
+	}
+	_ExploredBeforeReveal.clear();
+	RevealSighted.clear();
+	if (!matched) {
+		Map.Shroud_The_Map();
+		return;
+	}
+	Map.All_To_Look();
+	PlayerPtr->IsVisionary = false;
+	Map.Complete_Radar_Refresh();
+	Map.Flag_To_Redraw(GS_REDRAW_ALL);
+}
+
+
+// The cheat codes of Retaliation, keyed in on the sidebar's four mode buttons with circle:
+// each press plays the click and enters the button as a symbol, and the last six symbols
+// entered are matched against the codes. Only a solo game takes them.
+static void Enter_Cheat_Symbol(int symbol)
+{
+	enum { CODE_LENGTH = 6, CHEAT_CREDITS = 5000 };
+	enum { REPAIR, SELL, POWER, WAYPOINT };
+	struct CheatType {
+		int Code[CODE_LENGTH];
+		void (*Apply)(void);
+	};
+	// Retaliation keys its codes on a glyph row reading cross, circle, triangle, square, so
+	// the mode buttons stand in for those in the same order.
+	static CheatType const _cheats[] = {
+		{{REPAIR, REPAIR, WAYPOINT, SELL, SELL, SELL}, []{ PlayerPtr->Refund_Money(CHEAT_CREDITS); Announce("Credits added"); }},
+		{{POWER, POWER, REPAIR, SELL, POWER, WAYPOINT}, []{
+			// The revealed map brings the radar with it, and the shroud takes back only the
+			// radar the cheat gave.
+			static bool _radar_given = false;
+			if (PlayerPtr->IsVisionary) {
+				Restore_Explored();
+				if (_radar_given) Scen->IsFreeRadar = false;
+				_radar_given = false;
+				Announce("Map shrouded");
+			} else {
+				Remember_Explored();
+				Map.Reveal_The_Map(true);
+				Map.Flag_To_Redraw(GS_REDRAW_ALL);
+				if (!Scen->IsFreeRadar) {
+					Scen->IsFreeRadar = true;
+					_radar_given = true;
+				}
+				Announce("Map revealed");
+			}
+		}},
+		{{SELL, SELL, POWER, REPAIR, REPAIR, WAYPOINT}, []{ PlayerPtr->Flag_To_Win(); Announce("Mission won"); }},
+		{{SELL, REPAIR, SELL, SELL, REPAIR, WAYPOINT}, []{ Cheat_Superweapon(SUPER_ION_CANNON, "Ion cannon ready"); }},
+		{{WAYPOINT, SELL, POWER, REPAIR, SELL, SELL}, []{ Cheat_Superweapon(SUPER_MULTI_MISSILE, "Multi missile ready"); }},
+		{{WAYPOINT, REPAIR, SELL, REPAIR, POWER, POWER}, []{ Cheat_Superweapon(SUPER_CHEM_MISSILE, "Chemical missile ready"); }},
+		{{REPAIR, REPAIR, REPAIR, SELL, POWER, WAYPOINT}, []{ Cheat_Superweapon(SUPER_HUNTER_SEEKER, "Hunter seeker ready"); }},
+		{{WAYPOINT, WAYPOINT, SELL, SELL, POWER, POWER}, []{ Cheat_Superweapon(SUPER_DROP_PODS, "Drop pods ready"); }},
+	};
+	static int _entered[CODE_LENGTH] = {-1, -1, -1, -1, -1, -1};
+
+	if (Session.Type != GAME_NORMAL && Session.Type != GAME_SKIRMISH) return;
+	Sound_Effect(Rule->GenericClick);
+	for (int index = 1; index < CODE_LENGTH; index++) {
+		_entered[index - 1] = _entered[index];
+	}
+	_entered[CODE_LENGTH - 1] = symbol;
+	for (CheatType const & cheat : _cheats) {
+		if (std::equal(std::begin(cheat.Code), std::end(cheat.Code), std::begin(_entered))) {
+			for (int & entry : _entered) entry = -1;
+			Sound_Effect(Rule->OptionsChanged);
+			cheat.Apply();
+			return;
+		}
+	}
+}
+
+
 // Whether a unit fights: harvesters, engineers, and vehicles that deploy into buildings do not.
 static bool Is_Combat(ObjectClass const * object)
 {
@@ -440,7 +580,13 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 		}
 		_sidebar_held = any;
 		if (pressed(pad.Accept, previous.Accept)) Map.Pad_Accept();
-		if (pressed(pad.Back, previous.Back)) Map.Pad_Back();
+		if (pressed(pad.Back, previous.Back)) {
+			if (Map.PadRow == SidebarClass::PAD_ROW_MODES) {
+				Enter_Cheat_Symbol(Map.PadCol);
+			} else {
+				Map.Pad_Back();
+			}
+		}
 		if (pressed(pad.Third, previous.Third) && !pad.LeftTrigger && !pad.LeftShoulder) Map.Pad_Toggle_Grid();
 		return;
 	}

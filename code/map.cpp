@@ -1032,6 +1032,9 @@ void MapClass::Set_Local_Dimensions(Rect const & size)
  *   03/08/1994 JLB : Updated to use sight table and incremental flag.                         *
  *   05/18/1994 JLB : Converted to member function.                                            *
  *=============================================================================================*/
+std::vector<unsigned char> RevealSighted;
+
+
 void MapClass::Sight_From(Coord const & xcoord, int sightrange, HouseClass * house, bool incremental, bool dont_map, bool unfog, bool byheight)
 {
 	int xx;				// Center cell X coordinate (bounds checking).
@@ -1129,6 +1132,10 @@ void MapClass::Sight_From(Coord const & xcoord, int sightrange, HouseClass * hou
 		}
 
 		if (ok) {
+			if (!unfog && !dont_map && house == PlayerPtr && !RevealSighted.empty()) {
+				std::size_t index = newcell.X + newcell.Y * MAP_CELL_H;
+				if (index < RevealSighted.size()) RevealSighted[index] = 1;
+			}
 			cellptr->IsToFog = false;
 			if (unfog) {
 				if ((!cellptr->IsFogVisible || !cellptr->IsFogMapped) && cellptr->IsMapped) {
