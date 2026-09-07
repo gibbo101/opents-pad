@@ -22,6 +22,7 @@
 #include "infantry.h"
 #include "infatype.h"
 #include "init.h"
+#include "misc.h"
 #include "options.h"
 #include "rules.h"
 #include "session.h"
@@ -327,9 +328,32 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 	if ((dx != 0 || dy != 0) && !Map.PadFocus) {
 		POINT at;
 		GetCursorPos(&at);
-		at.x = std::clamp<long>(at.x + dx, origin.x, corner.x - 1);
-		at.y = std::clamp<long>(at.y + dy, origin.y, corner.y - 1);
+		long wanted_x = at.x + dx;
+		long wanted_y = at.y + dy;
+		at.x = std::clamp<long>(wanted_x, origin.x, corner.x - 1);
+		at.y = std::clamp<long>(wanted_y, origin.y, corner.y - 1);
 		SetCursorPos(at.x, at.y);
+
+		// What the pointer could not travel past the screen's edge scrolls the map instead, so
+		// the view moves at the pointer's own pace and the shoulder speeds both alike.
+		float scale_x = float(VideoModeWidth) / float(corner.x - origin.x);
+		float scale_y = float(VideoModeHeight) / float(corner.y - origin.y);
+		static float _edge_x = 0.0f;
+		static float _edge_y = 0.0f;
+		_edge_x += float(wanted_x - at.x) * scale_x;
+		_edge_y += float(wanted_y - at.y) * scale_y;
+		int ex = int(_edge_x);
+		int ey = int(_edge_y);
+		_edge_x -= ex;
+		_edge_y -= ey;
+		if (ex != 0) {
+			int distance = ex < 0 ? -ex : ex;
+			Map.Scroll_Map(ex < 0 ? FACING_W : FACING_E, distance, true);
+		}
+		if (ey != 0) {
+			int distance = ey < 0 ? -ey : ey;
+			Map.Scroll_Map(ey < 0 ? FACING_N : FACING_S, distance, true);
+		}
 	}
 
 	// The buttons go in as real input rather than posted messages, since the engine reads a

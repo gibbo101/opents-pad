@@ -516,7 +516,11 @@ void ScrollClass::Scroll_Edge(Point2D const & point)
 					double scaled = step * _ScrollFraction + _EdgeScrollRemainder;
 					distance = int(scaled);
 					_EdgeScrollRemainder = scaled - distance;
-					Scroll_Map(facing, distance, true);
+					// Under the controller scheme the pad scrolls the edge at the pointer's own
+					// pace, and only the arrow cursor is wanted here.
+					if (Options.ControlScheme != CONTROL_CONTROLLER) {
+						Scroll_Map(facing, distance, true);
+					}
 
 					if (Counter == 0 && player_scrolled) {
 						Counter = SCROLL_DELAY;
