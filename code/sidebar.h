@@ -428,6 +428,7 @@ class SidebarClass : public PowerClass
 		void Pad_Remember(int section, PadItemType const & item);
 		void Pad_Enter(void);
 		void Pad_Leave(void);
+		void Pad_Repeat(void);			// Builds, queues or places what the sidebar's cell holds without taking focus.
 		void Pad_Move(int dx, int dy);
 		void Pad_Accept(void);
 		bool Pad_Back(void);				// False once it has left the sidebar.

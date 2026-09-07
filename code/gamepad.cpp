@@ -417,7 +417,12 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 		_select_type_pending = false;
 		Execute_Command("SelectType");
 	}
-	if (pressed(pad.Accept, previous.Accept)) {
+	if (pressed(pad.Accept, previous.Accept) && pad.RightShoulder) {
+		// R1 with cross works the sidebar's cell from the map: place, build again, or queue.
+		Map.Pad_Repeat();
+		_cross_sent = false;
+		_cross_stage = 2;
+	} else if (pressed(pad.Accept, previous.Accept)) {
 		_cross_since = now;
 		GetCursorPos(&_cross_at);
 		_cross_sent = false;

@@ -124,7 +124,6 @@
 #include "color.hh"
 
 #include <algorithm>
-#include <climits>
 #include <string>
 #include <compare>
 
@@ -1123,10 +1122,6 @@ void SidebarClass::Pad_Focus_Changed(void)
 void SidebarClass::Pad_Enter(void)
 {
 	PadFocus = true;
-	PadSection = -1;
-	PadRow = 0;
-	PadCol = 0;
-	PadTop = 0;
 	Pad_Focus_Changed();
 }
 
@@ -1134,7 +1129,34 @@ void SidebarClass::Pad_Enter(void)
 void SidebarClass::Pad_Leave(void)
 {
 	PadFocus = false;
-	PadSection = -1;
+	Pad_Focus_Changed();
+}
+
+
+void SidebarClass::Pad_Repeat(void)
+{
+	if (PadRow < 0) return;
+	PadItemType item;
+	if (PadSection < 0) {
+		int section = PadRow * PAD_COLUMNS + PadCol;
+		if (PadRow == PAD_SECTION_ROWS - 1) {
+			PadItemType supers[StripClass::MAX_BUILDABLES];
+			int count = Pad_Items((PAD_SECTION_ROWS - 1) * PAD_COLUMNS, supers, StripClass::MAX_BUILDABLES);
+			if (count > 0 && PadCol == 0) {
+				Column[supers[PadSuper % count].Column].Activate(supers[PadSuper % count].Index, GadgetClass::LEFTPRESS);
+			}
+		} else if (Pad_Active_Item(section, item) || Pad_Last_Item(section, item)) {
+			Column[item.Column].Activate(item.Index, GadgetClass::LEFTPRESS);
+		}
+	} else {
+		PadItemType items[StripClass::MAX_BUILDABLES];
+		int count = Pad_Items(PadSection, items, StripClass::MAX_BUILDABLES);
+		int at = PadRow * PAD_COLUMNS + PadCol;
+		if (at < count) {
+			Column[items[at].Column].Activate(items[at].Index, GadgetClass::LEFTPRESS);
+			Pad_Remember(PadSection, items[at]);
+		}
+	}
 	Pad_Focus_Changed();
 }
 
@@ -1411,7 +1433,7 @@ void SidebarClass::Draw_Pad_View(void)
 	cliprect.X = 0;
 	int visible = Max_Visible();
 	int const cell_x[PAD_COLUMNS] = {COLUMN_ONE_X, COLUMN_TWO_X};
-	int color = DSurface::Build_Hicolor_Pixel(RGBClass(255, 72, 255));
+	int color = DSurface::Build_Hicolor_Pixel(PadFocus ? RGBClass(255, 72, 255) : RGBClass(120, 40, 120));
 	std::string caption;
 
 	auto outline = [&](int x, int y) {
@@ -1420,7 +1442,7 @@ void SidebarClass::Draw_Pad_View(void)
 		SidebarSurface->Draw_Rect(Rect(area.X + 1, area.Y + 1, area.Width - 2, area.Height - 2), color);
 	};
 
-	int const focus_row = PadFocus ? PadRow : INT_MIN;
+	int const focus_row = PadRow;
 	if (PadSection < 0) {
 		for (int row = 0; row < PAD_SECTION_ROWS && row < visible; row++) {
 			for (int column = 0; column < PAD_COLUMNS; column++) {
@@ -1528,7 +1550,7 @@ void SidebarClass::Draw_Pad_View(void)
 		caption = _mode_names[std::clamp(PadCol, 0, int(PAD_MODE_BUTTONS) - 1)];
 	}
 
-	if (!caption.empty()) {
+	if (!caption.empty() && PadFocus) {
 		int y = COLUMN_ONE_Y + visible * StripClass::OBJECT_HEIGHT + 2;
 		Fancy_Text_Print(caption.c_str(), *SidebarSurface, cliprect, Point2D(SIDE_WIDTH / 2, y), Fetch_Scheme_By_Name("LightBlue"), TBLACK, TextPrintType(TPF_CENTER|TPF_FULLSHADOW|TPF_8POINT));
 	}
