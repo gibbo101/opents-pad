@@ -36,9 +36,9 @@ enum GamepadKindType {
 };
 
 /// <summary>
-/// Reports the make of the connected controller from the vendor of the game controllers in
-/// the system's device list, rechecked every few seconds. Steam's virtual pad reports as
-/// Xbox whatever is in the player's hands.
+/// Reports the make of the connected controller from the vendor of the game controllers the
+/// system lists, rechecked every few seconds. Under Proton the host kernel's list is read,
+/// which still names the real pad when Steam Input has replaced it with its virtual one.
 /// </summary>
 GamepadKindType Gamepad_Kind(void);
 

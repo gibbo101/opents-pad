@@ -20,6 +20,10 @@
 
 #include <Xinput.h>
 
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+
 typedef DWORD (WINAPI * XInputGetStateType)(DWORD index, XINPUT_STATE * state);
 
 enum {
@@ -52,9 +56,47 @@ static XInputGetStateType Get_State_Function(void)
 }
 
 
+enum { VENDOR_SONY = 0x054C, VENDOR_MICROSOFT = 0x045E };
+
+// Under Proton the Linux kernel's own device list is at hand through drive Z, and it still
+// names the real pad after Steam Input has hidden it from the Windows side. Returns false
+// where there is no such list.
+static bool Kind_From_Linux_Devices(GamepadKindType & kind, bool log)
+{
+	FILE * file = fopen("Z:\\proc\\bus\\input\\devices", "r");
+	if (file == NULL) return(false);
+	kind = GAMEPAD_KIND_UNKNOWN;
+	char line[512];
+	unsigned vendor = 0;
+	unsigned product = 0;
+	while (fgets(line, sizeof(line), file) != NULL) {
+		if (line[0] == 'I') {
+			vendor = product = 0;
+			char const * v = strstr(line, "Vendor=");
+			char const * p = strstr(line, "Product=");
+			if (v != NULL) vendor = strtoul(v + 7, NULL, 16);
+			if (p != NULL) product = strtoul(p + 8, NULL, 16);
+		} else if (line[0] == 'N') {
+			// Only game controllers count, not the pad's touchpad or motion sensors.
+			bool pad = strstr(line, "Controller") != NULL || strstr(line, "pad") != NULL || strstr(line, "Gamepad") != NULL || strstr(line, "Joystick") != NULL;
+			bool extra = strstr(line, "Touchpad") != NULL || strstr(line, "Motion") != NULL;
+			if (!pad || extra) continue;
+			if (log) DebugString("Game controller (host): vendor %04X product %04X %s", vendor, product, line + 3);
+			if (vendor == VENDOR_SONY) {
+				kind = GAMEPAD_KIND_PLAYSTATION;
+			} else if (vendor == VENDOR_MICROSOFT && kind == GAMEPAD_KIND_UNKNOWN) {
+				kind = GAMEPAD_KIND_XBOX;
+			}
+		}
+	}
+	fclose(file);
+	return(true);
+}
+
+
 GamepadKindType Gamepad_Kind(void)
 {
-	enum { RECHECK_MS = 3000, VENDOR_SONY = 0x054C, VENDOR_MICROSOFT = 0x045E, USAGE_PAGE_DESKTOP = 1, USAGE_JOYSTICK = 4, USAGE_GAMEPAD = 5 };
+	enum { RECHECK_MS = 3000, USAGE_PAGE_DESKTOP = 1, USAGE_JOYSTICK = 4, USAGE_GAMEPAD = 5 };
 	static GamepadKindType _kind = GAMEPAD_KIND_UNKNOWN;
 	static unsigned long _checked = 0;
 	static bool _logged = false;
@@ -64,6 +106,11 @@ GamepadKindType Gamepad_Kind(void)
 		return(_kind);
 	}
 	_checked = now;
+
+	if (Kind_From_Linux_Devices(_kind, !_logged)) {
+		_logged = true;
+		return(_kind);
+	}
 
 	UINT count = 0;
 	if (GetRawInputDeviceList(NULL, &count, sizeof(RAWINPUTDEVICELIST)) != 0 || count == 0) {
