@@ -1269,8 +1269,9 @@ bool SidebarClass::Pad_Back(void)
 			Pad_Focus_Changed();
 			return(true);
 		}
-		Pad_Leave();
-		return(false);
+		// An idle section opens on circle as it does on square.
+		Pad_Toggle_Grid();
+		return(true);
 	}
 	PadItemType items[StripClass::MAX_BUILDABLES];
 	int count = Pad_Items(PadSection, items, StripClass::MAX_BUILDABLES);
@@ -1327,7 +1328,7 @@ static BuildingTypeClass const * Pad_Owned_Factory(HousesType house, int row)
 		BuildingClass const * building = Buildings[index];
 		if (building == NULL || building->IsInLimbo || building->House != PlayerPtr) continue;
 		BuildingTypeClass const * type = building->Class;
-		if ((type->Get_Ownable() & (1 << house)) == 0) continue;
+		if (!Pad_Type_Belongs(type, house == Pad_Column_House(0) ? 0 : 1)) continue;
 		if (Pad_Kind_Matches(type, row)) return(type);
 	}
 	return(NULL);
