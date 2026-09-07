@@ -18,8 +18,9 @@ target.
 - Console-style screens are focus based. Moving a mouse pointer with a stick
   is not acceptable anywhere in menus. A pointer stays right for the tactical
   map, with snapping to units.
-- Button prompts must show the connected pad's glyphs: Xbox, PlayStation, or
-  Steam Deck styles, with plain text as the fallback.
+- Button prompts show the pad's glyphs: Xbox, PlayStation, or Steam Deck
+  styles, with plain text as the fallback. Under Proton every pad arrives as
+  an Xbox pad, so the style is a setting rather than a detection.
 
 ## What exists
 
@@ -32,7 +33,8 @@ target.
 | Game select page | `code/grphmenu.cpp`, `code/grphmimg.cpp` | Original artwork kept. Spatial d-pad navigation over the buttons, Tiberian Sun selected on entry, unselected discs darkened 70 percent, B or Escape takes the page's Back button. A button still held from the previous screen is not a press. |
 | Menu pages | `code/newmenu.cpp` | Under the controller scheme the Tiberian Sun and Firestorm pages are console screens on their own backdrops: New Campaign, Load Mission, LAN, Skirmish, Options and Game Select as rows in the menu font, no box, the page theme playing. Intro and Exit keep their artwork at the corners and light when reached: Up or Right for Intro, Down or Left for Exit. Internet and the tour are left out. Keyboard & Mouse keeps the artwork pages. |
 | LAN | `code/consolelan.cpp` | Console screens running the dialogs' discovery and join protocol unchanged. Game list: your name, Host New Game, one row per game found, the lobby count, a joining line while a request is out, and the reason when a join fails. Host lobby: the skirmish rows live, the joined players under the map preview in their colours with faction icon and host or ready mark, Start checks for a second player, everyone ready, and room on the map. Guest lobby: the host's rows read only, own side and colour requested from the host, Ready as the accept, Leave signs off. No chat, no kick, and the generated map is skipped in the map list. The Keyboard & Mouse dialogs are untouched; the packet handler only skips the guest dialog and message boxes while the console screens are up. |
-| Options | `code/consoleoptions.cpp` | Console screen: control scheme, resolution from the display's mode list, scale mode, integer scaling, stretch movies, game speed, scroll rate and coasting, detail, campaign difficulty, cameo text, action lines, tool tips, three volumes stepped live. Accept saves; back restores the volumes. |
+| Button prompts | `code/padglyph.cpp` | The accept and back prompts on every console screen and the briefing carry the button's glyph, drawn in code: Xbox as a coloured ring and letter, Steam Deck as a pale ring and white letter, PlayStation as the four shapes. `PromptStyle` in `SUN.INI` picks the set or plain text; Auto is Xbox while a pad is connected. The XInput reader cannot tell a Deck or a DualSense from an Xbox pad, so the other sets are chosen on the options screen. |
+| Options | `code/consoleoptions.cpp` | Console screen: control scheme, button prompts, resolution from the display's mode list, scale mode, integer scaling, stretch movies, game speed, scroll rate and coasting, detail, campaign difficulty, cameo text, action lines, tool tips, three volumes stepped live. Accept saves; back restores the volumes. |
 | Select Campaign | `code/init.cpp` | Side select in the manner of Remastered: the backdrop's own GDI and Nod discs enlarged at left and right, both dim until a side is picked, then the picked one lit and grown with its campaign named under the title; names beneath in faction colours, difficulty along the bottom. Left and right pick the side, or the act when a side has two, with the shell's hover click; A or a click on the lit emblem starts. Writes the difficulty option like the dialog. |
 | Load Mission | `code/loaddlg.cpp` | Console list of the save games, newest first, date at the left and description at the right, a star for multiplayer saves; long lists scroll. |
 | Dialogs | `code/gamepad.cpp`, `code/msgloop.cpp` | While any dialog is open the pad drives it through key messages: d-pad as arrows with repeat, A as Enter, B as Escape. Covers the message boxes, Version, and the multiplayer lobby for now. |
@@ -58,19 +60,17 @@ target.
 
 ## Next
 
-1. LAN lobby extras: kick as a row on the host lobby, chat once the
-   on-screen keyboard exists, and the generated map once its setup has a
-   console screen.
-2. A zoom setting for play: the render frame takes the panel's aspect and a
-   zoom value picks its height, so no screen shows bars and each device tunes
-   its own sprite size. A 32:9 panel at 2x felt right in testing.
-3. Glyph sets for prompts and a `PromptStyle` option (Auto, Xbox,
-   PlayStation, Deck) with pad type detection.
-4. An on-screen keyboard for the player name.
-5. A Steam Input layout for the game, shipped in the repo, so the pad is on
+1. An on-screen keyboard for the player name, then LAN chat.
+2. The in-game menu as a console screen.
+3. A Steam Input layout for the game, shipped in the repo, so the pad is on
    the Gamepad template without the player building one. Steam only defaults
    a layout the app owner publishes, so this is a file to import once, and
    Steam keeps the choice per player after that.
+4. LAN lobby extras: kick as a row on the host lobby, and the generated map
+   once its setup has a console screen.
+5. A zoom setting for play: the render frame takes the panel's aspect and a
+   zoom value picks its height, so no screen shows bars and each device tunes
+   its own sprite size. A 32:9 panel at 2x felt right in testing.
 6. Later: the in-game control scheme, the sidebar, and the display work in
    the direction notes.
 

@@ -19,6 +19,7 @@
 #include "goptions.h"
 #include "language/language.h"
 #include "options.h"
+#include "padglyph.h"
 #include "techno.h"
 #include "video.h"
 
@@ -113,6 +114,7 @@ bool Console_Options_Screen(void)
 {
 	// 0 follows the connected controller, 1 is keyboard and mouse, 2 is controller.
 	int scheme = Options.ControlSchemeAuto ? 0 : (Options.ControlScheme == CONTROL_CONTROLLER ? 2 : 1);
+	int prompts = std::clamp(Options.PromptStyle, 0, int(PROMPT_STYLE_DECK));
 	std::vector<std::pair<int, int>> modes = Display_Modes(Options.ScreenWidth, Options.ScreenHeight);
 	int mode = int(std::find(modes.begin(), modes.end(), std::make_pair(Options.ScreenWidth, Options.ScreenHeight)) - modes.begin());
 	bool stretch = Options.StretchMovies;
@@ -143,6 +145,9 @@ bool Console_Options_Screen(void)
 	static char const * const _scheme_names[] = {"Auto", "Keyboard & Mouse", "Controller"};
 	menu.Add_Row({"Control Scheme", [&]{ return(std::string(_scheme_names[scheme])); },
 		[&](int step) { scheme = Wrap(scheme + step, 0, 2); }, nullptr});
+	static char const * const _prompt_names[] = {"Auto", "Text", "Xbox", "PlayStation", "Steam Deck"};
+	menu.Add_Row({"Button Prompts", [&]{ return(std::string(_prompt_names[prompts])); },
+		[&](int step) { prompts = Wrap(prompts + step, 0, int(PROMPT_STYLE_DECK)); Options.PromptStyle = prompts; }, nullptr});
 	menu.Add_Row({"Resolution", [&]{ return(std::to_string(modes[mode].first) + " x " + std::to_string(modes[mode].second)); },
 		[&](int step) { mode = Wrap(mode + step, 0, int(modes.size()) - 1); }, nullptr});
 	menu.Add_Row({"Scale Mode", [&]{ return(std::string(_scale_names[std::clamp(scale_mode, 0, 2)])); },
@@ -168,9 +173,11 @@ bool Console_Options_Screen(void)
 	menu.Add_Row({"Voice Volume", [&]{ return(std::to_string(voice)); },
 		[&](int step) { voice = std::clamp(voice + step, 0, int(VOLUME_STEPS)); Options.Set_Voice_Volume(voice / float(VOLUME_STEPS), true); }, nullptr});
 
+	int const old_prompts = Options.PromptStyle;
 	bool accepted = menu.Process() == CONSOLE_MENU_ACCEPT;
 
 	if (!accepted) {
+		Options.PromptStyle = old_prompts;
 		Options.Set_Score_Volume(old_score, false);
 		Options.Set_Sound_Volume(old_sound, false);
 		Options.Set_Voice_Volume(old_voice, false);

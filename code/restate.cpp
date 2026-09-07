@@ -17,6 +17,7 @@
 #include "gamepad.h"
 #include "goptions.h"
 #include "options.h"
+#include "padglyph.h"
 
 #include "_keyboar.h"
 #include "_palette.h"
@@ -593,10 +594,15 @@ void RestateMission::Draw_Prompts(Surface * surface)
 		return;
 	}
 	int y = CenterY + 368;
+	int glyph = PromptFont->Get_Font_Height() + 4;
+	int used = Resolved_Prompt_Style() == PROMPT_STYLE_TEXT ? 0 : glyph + 6;
 	char const * accept = Prompt == PROMPT_MORE ? Fetch_String(TXT_MORE) : Fetch_String(TXT_RESUME_MISSION);
-	PromptFont->Draw_String(surface, (unsigned char const *)accept, CenterX + 640 - 24 - PromptFont->Get_String_Width(accept), y, 2);
+	int x = CenterX + 640 - 24 - used - PromptFont->Get_String_Width(accept);
+	Draw_Pad_Glyph(*surface, PAD_BUTTON_ACCEPT, x, y - 2, glyph);
+	PromptFont->Draw_String(surface, (unsigned char const *)accept, x + used, y, 2);
 	if (Prompt == PROMPT_FINAL && Scenario != NULL && Scenario->BriefMovie != VQ_NONE) {
-		PromptFont->Draw_String(surface, (unsigned char const *)Fetch_String(TXT_VIDEO), CenterX + 24, y, 2);
+		Draw_Pad_Glyph(*surface, PAD_BUTTON_BACK, CenterX + 24, y - 2, glyph);
+		PromptFont->Draw_String(surface, (unsigned char const *)Fetch_String(TXT_VIDEO), CenterX + 24 + used, y, 2);
 	}
 }
 

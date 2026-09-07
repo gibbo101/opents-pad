@@ -114,6 +114,7 @@ OptionsClass::OptionsClass(void) :
 	ScrollRate(3),
 	ControlScheme(CONTROL_KEYBOARD_MOUSE),
 	ControlSchemeAuto(true),
+	PromptStyle(PROMPT_STYLE_AUTO),
 	SoundVolume(.7f),
 	VoiceVolume(1.0f),
 	ScoreVolume(.5f),
@@ -331,6 +332,30 @@ static char const * Control_Scheme_Name(int scheme)
 }
 
 
+static char const * const _prompt_style_names[] = {"Auto", "Text", "Xbox", "PlayStation", "Deck"};
+
+/// <summary>
+/// Turns the name of a prompt style into the style itself.
+/// </summary>
+/// <param name="name">The name as it appears in the settings file.</param>
+/// <param name="fallback">What to return when the name is not one of them.</param>
+/// <returns>int; One of the PromptStyleType values.</returns>
+static int Prompt_Style_From_Name(char const * name, int fallback)
+{
+	for (int index = 0; index < int(sizeof(_prompt_style_names) / sizeof(_prompt_style_names[0])); index++) {
+		if (stricmp(name, _prompt_style_names[index]) == 0) return(index);
+	}
+	return(fallback);
+}
+
+
+static char const * Prompt_Style_Name(int style)
+{
+	if (style < 0 || style >= int(sizeof(_prompt_style_names) / sizeof(_prompt_style_names[0]))) return(_prompt_style_names[0]);
+	return(_prompt_style_names[style]);
+}
+
+
 /// <summary>
 /// Turns the name of a frame filter into the filter itself.
 /// </summary>
@@ -438,6 +463,11 @@ void OptionsClass::Load_Settings(void)
 	}
 	DebugString("ControlScheme is %s%s\n", Control_Scheme_Name(ControlScheme), ControlSchemeAuto ? " (auto)" : "");
 
+	char stylename[32];
+	ConfigINI.Get_String("Options", "PromptStyle", "Auto", stylename, sizeof(stylename));
+	PromptStyle = Prompt_Style_From_Name(stylename, PromptStyle);
+	DebugString("PromptStyle is %s\n", Prompt_Style_Name(PromptStyle));
+
 	TextBackgroundColor = ConfigINI.Get_Int("Options", "TextBackgroundColor", TextBackgroundColor);
 	DebugString("TextBackgroundColor = %d\n", TextBackgroundColor);
 
@@ -514,6 +544,7 @@ void OptionsClass::Save_Settings (void)
 	ConfigINI.Put_Bool("Options", "UnitActionLines", ActionLines);
 	ConfigINI.Put_Bool("Options", "ToolTips", ToolTips);
 	ConfigINI.Put_String("Options", "ControlScheme", (char *)(ControlSchemeAuto ? "Auto" : Control_Scheme_Name(ControlScheme)));
+	ConfigINI.Put_String("Options", "PromptStyle", (char *)Prompt_Style_Name(PromptStyle));
 	ConfigINI.Put_Int("Options", "TextBackgroundColor", TextBackgroundColor);
 	ConfigINI.Put_Int("Options", "AutoSaveInterval", AutoSaveInterval);
 	ConfigINI.Put_Int("Video", "ScreenWidth", ScreenWidth);

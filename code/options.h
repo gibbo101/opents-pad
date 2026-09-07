@@ -41,6 +41,15 @@ enum ControlSchemeType {
 	CONTROL_CONTROLLER,
 };
 
+// How the console screens draw their button prompts.
+enum PromptStyleType {
+	PROMPT_STYLE_AUTO,			// Xbox while a controller is connected, otherwise text.
+	PROMPT_STYLE_TEXT,
+	PROMPT_STYLE_XBOX,
+	PROMPT_STYLE_PLAYSTATION,
+	PROMPT_STYLE_DECK,
+};
+
 class OptionsClass {
 	public:
 		enum {
@@ -102,6 +111,7 @@ class OptionsClass {
 		 */
 		int ControlScheme;
 		bool ControlSchemeAuto;			// The scheme follows whether a controller is connected at launch.
+		int PromptStyle;				// One of the PromptStyleType values.
 
 		/*
 		 * This is how much detail the renderer is allowed to draw (0 - 2). Animations, particle

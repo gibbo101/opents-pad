@@ -24,6 +24,7 @@
 #include "msfont.h"
 #include "msgloop.h"
 #include "newmenu.h"
+#include "padglyph.h"
 #include "rgb.h"
 #include "srfcache.h"
 #include "surface.h"
@@ -50,6 +51,8 @@ enum {
 	SIDE_HEIGHT = 176,
 	PROMPT_Y = 368,
 	PROMPT_INSET = 24,
+	GLYPH_INSET = 2,
+	GLYPH_GAP = 6,
 	SWATCH_GAP = 10,
 	SWATCH_INSET = 2,
 	PANEL_OPACITY = 80,
@@ -486,10 +489,21 @@ void ConsoleMenuClass::Draw(void)
 		}
 	}
 
-	print(BackPrompt, left + PROMPT_INSET, top + PROMPT_Y);
-	print(AcceptPrompt, left + MENU_WIDTH - PROMPT_INSET - width(AcceptPrompt), top + PROMPT_Y);
-	BackRect = Rect(left + PROMPT_INSET - 8, top + PROMPT_Y - 4, width(BackPrompt) + 16, height + 8);
-	AcceptRect = Rect(left + MENU_WIDTH - PROMPT_INSET - width(AcceptPrompt) - 8, top + PROMPT_Y - 4, width(AcceptPrompt) + 16, height + 8);
+	// A prompt is its button's glyph, when the style has one, then its text.
+	int glyph = height + 2 * GLYPH_INSET;
+	auto prompt = [&](std::string const & text, PadButtonType button, bool at_right) -> Rect {
+		if (text.empty()) return(Rect());
+		int used = Resolved_Prompt_Style() == PROMPT_STYLE_TEXT ? 0 : glyph + GLYPH_GAP;
+		int total = used + width(text);
+		int x = at_right ? left + MENU_WIDTH - PROMPT_INSET - total : left + PROMPT_INSET;
+		if (used > 0) {
+			Draw_Pad_Glyph(surface, button, x, top + PROMPT_Y - GLYPH_INSET, glyph);
+		}
+		print(text, x + used, top + PROMPT_Y);
+		return(Rect(x - 8, top + PROMPT_Y - 4, total + 16, height + 8));
+	};
+	BackRect = prompt(BackPrompt, PAD_BUTTON_BACK, false);
+	AcceptRect = prompt(AcceptPrompt, PAD_BUTTON_ACCEPT, true);
 
 	Update_Visible_Surface(&surface);
 	IsDirty = false;

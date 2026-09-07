@@ -16534,6 +16534,24 @@ ProjectileRange:
       source: code/weapon.cpp
       guard: null
     level: WeaponTypeClass
+PromptStyle:
+  key: PromptStyle
+  scopes:
+  - applies_to:
+    - client settings
+    file: sun.ini
+    section:
+      kind: literal
+      name: Options
+    value_type: string
+    status: generated
+    _provenance:
+      default_candidate: Auto
+      declared_in: OptionsClass
+      member: null
+      source: code/options.cpp
+      guard: null
+    level: OptionsClass
 ProneDamage:
   key: ProneDamage
   scopes:
