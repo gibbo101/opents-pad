@@ -312,7 +312,6 @@ int NewMenuClass::Console_Menu_Page(GraphicMenu & page, DynamicVectorClass<int> 
 		MSPCXAnim * lit = item != NULL ? dynamic_cast<MSPCXAnim *>(item->HighlightImage) : NULL;
 		if (idle == NULL || idle->Image == NULL) return(-1);
 		int row = menu.Add_Row({"", nullptr, nullptr, [&, id]{ chosen = id; menu.Finish(CONSOLE_MENU_ACCEPT); }});
-		menu.Set_Row_Quiet(row);
 		menu.Add_Hit_Area(idle->Get_Rect(), [&, row]{ menu.Set_Focus(row); }, [&, id]{ chosen = id; menu.Finish(CONSOLE_MENU_ACCEPT); });
 		art.push_back({row, idle, lit});
 		return(row);
@@ -345,7 +344,10 @@ int NewMenuClass::Console_Menu_Page(GraphicMenu & page, DynamicVectorClass<int> 
 		if (is_art) continue;
 		menu.Set_Row_Step(index, [&, intro_row, exit_row](int step) {
 			int target = step > 0 ? intro_row : exit_row;
-			if (target >= 0) menu.Set_Focus(target);
+			if (target >= 0) {
+				menu.Set_Focus(target);
+				menu.Play_Click_Public();
+			}
 		});
 	}
 	if (intro_row >= 0) {
