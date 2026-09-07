@@ -604,7 +604,7 @@ bool Net2Console_Remote_Connect(void)
 
 		ConsoleMenuClass menu("LAN Games");
 		menu.Set_Prompts("Select", "Back");
-		menu.Add_Row({"Name", [&]{ return(std::string(Session.Handle)); }, nullptr, [&]{
+		int name_row = menu.Add_Row({"Name", [&]{ return(std::string(Session.Handle)); }, nullptr, [&]{
 			if (joining) return;
 			std::string handle = Session.Handle;
 			if (Console_Keyboard("Name", handle, MPLAYER_NAME_MAX - 1) && !handle.empty() && handle != Session.Handle) {
@@ -616,6 +616,7 @@ bool Net2Console_Remote_Connect(void)
 			rebuild = true;
 			menu.Finish(CONSOLE_MENU_BACK);
 		}});
+		menu.Set_Row_Prompt(name_row, "Edit");
 		menu.Add_Row({"Host New Game", nullptr, nullptr, [&]{ if (!joining) { action = ACTION_HOST; menu.Finish(CONSOLE_MENU_ACCEPT); } }});
 		for (int index = 1; index < Session.Games.Count(); index++) {
 			menu.Add_Row({std::string(Session.Games[index]->Name) + (Session.Games[index]->Game.IsOpen ? "" : " (closed)"), nullptr, nullptr,

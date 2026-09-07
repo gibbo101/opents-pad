@@ -169,13 +169,14 @@ bool Console_Skirmish_Screen(void)
 	menu.Set_Side_Panel(Console_Draw_Map_Preview);
 	menu.Set_Prompts("Start", "Back");
 
-	menu.Add_Row({"Name", [&]{ return(std::string(Session.Handle)); }, nullptr, [&]{
+	int name_row = menu.Add_Row({"Name", [&]{ return(std::string(Session.Handle)); }, nullptr, [&]{
 		std::string handle = Session.Handle;
 		if (Console_Keyboard("Name", handle, MPLAYER_NAME_MAX - 1) && !handle.empty()) {
 			strcpy(Session.Handle, handle.c_str());
 			Session.Write_MultiPlayer_Settings();
 		}
 	}});
+	menu.Set_Row_Prompt(name_row, "Edit");
 	menu.Add_Row({"Side", [&]{ return(sides.empty() ? std::string() : std::string(HouseTypes[sides[side]]->GivenName)); },
 		[&](int step) { side = Console_Wrap(side + step, 0, int(sides.size()) - 1); }, nullptr,
 		[&]{ return(Console_Side_Icon(!sides.empty() && sides[side] == HOUSE_GOOD)); }});

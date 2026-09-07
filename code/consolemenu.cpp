@@ -533,8 +533,13 @@ void ConsoleMenuClass::Draw(void)
 		print(text, x + used, top + PROMPT_Y);
 		return(Rect(x - 8, top + PROMPT_Y - 4, total + 16, height + 8));
 	};
+	// A row with an action of its own takes the accept button, so the prompt says what it does.
+	std::string accept_text = AcceptPrompt;
+	if (Focus >= 0 && Focus < count && Rows[Focus].Activate && !AcceptPrompt.empty()) {
+		accept_text = Rows[Focus].Prompt.empty() ? "Select" : Rows[Focus].Prompt;
+	}
 	BackRect = prompt(BackPrompt, PAD_BUTTON_BACK, false);
-	AcceptRect = prompt(AcceptPrompt, PAD_BUTTON_ACCEPT, true);
+	AcceptRect = prompt(accept_text, PAD_BUTTON_ACCEPT, true);
 
 	Update_Visible_Surface(&surface);
 	IsDirty = false;

@@ -53,6 +53,7 @@ struct ConsoleRowType
 	std::function<int()> Selected;
 	int Y = 0;									// A fixed line within the box for this row, or 0 to follow the list.
 	bool Quiet = false;							// No click when the focus lands here.
+	std::string Prompt;							// What the accept prompt reads while this row has focus, when the row has its own action.
 };
 
 /// <summary>
@@ -90,6 +91,7 @@ class ConsoleMenuClass
 		void Play_Click_Public(void) { Play_Click(); }
 		void Set_Row_Quiet(int row) { if (row >= 0 && row < int(Rows.size())) Rows[row].Quiet = true; }
 		void Set_Row_Y(int row, int y) { if (row >= 0 && row < int(Rows.size())) Rows[row].Y = y; }
+		void Set_Row_Prompt(int row, char const * prompt) { if (row >= 0 && row < int(Rows.size())) Rows[row].Prompt = prompt; }
 		std::string const & Row_Label(int row) const { static std::string const _none; return(row >= 0 && row < int(Rows.size()) ? Rows[row].Label : _none); }
 		void Set_Prompts(char const * accept, char const * back);
 		void Set_Side_Panel(std::function<void(Surface &, Rect const &)> draw);

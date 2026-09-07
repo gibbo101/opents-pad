@@ -158,6 +158,7 @@ bool Console_Audio_Screen(bool in_game)
 				},
 				[&](int step) { track = Wrap(track + step, 0, int(tracks.size()) - 1); },
 				[&]{ Theme.Stop(); Theme.Queue_Song(tracks[track]); menu.Refresh(); }});
+			menu.Set_Row_Prompt(int(menu.Row_Count()) - 1, "Play");
 			menu.Add_Row({"Stop Music", nullptr, nullptr, [&]{ Theme.Queue_Song(THEME_QUIET); menu.Refresh(); }});
 		}
 	}
@@ -235,7 +236,8 @@ bool Console_Options_Screen(bool in_game)
 	menu.Add_Row({"Sidebar Cameo Text", [&]{ return(On_Off(cameo_text)); }, [&](int) { cameo_text = !cameo_text; }, nullptr});
 	menu.Add_Row({"Action Lines", [&]{ return(On_Off(action_lines)); }, [&](int) { action_lines = !action_lines; }, nullptr});
 	menu.Add_Row({"Tool Tips", [&]{ return(On_Off(tooltips)); }, [&](int) { tooltips = !tooltips; }, nullptr});
-	menu.Add_Row({"Audio", nullptr, nullptr, [&]{ Console_Audio_Screen(in_game); menu.Refresh(); }});
+	int audio_row = menu.Add_Row({"Audio", nullptr, nullptr, [&]{ Console_Audio_Screen(in_game); menu.Refresh(); }});
+	menu.Set_Row_Prompt(audio_row, "Open");
 
 	int const old_prompts = Options.PromptStyle;
 	bool accepted = menu.Process() == CONSOLE_MENU_ACCEPT;
