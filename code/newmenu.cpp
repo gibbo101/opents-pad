@@ -356,7 +356,6 @@ int NewMenuClass::Console_Menu_Page(GraphicMenu & page, DynamicVectorClass<int> 
 
 	int panel_width = widest + 2 * PANEL_PAD;
 	menu.Set_Panel(Rect((640 - panel_width) / 2, FIRST_ROW_Y - PANEL_PAD, panel_width, (y - FIRST_ROW_Y) + PANEL_PAD));
-	menu.Set_Panel_Opacity(0);
 	menu.Set_Focus(std::max(first_list_row, 0));
 	if (menu.Process() != CONSOLE_MENU_ACCEPT) {
 		return(GMENU_BACK);
