@@ -20,6 +20,17 @@
 #include "mixfile.h"
 #include "movie.h"
 #include "vector.h"
+#include "consolemenu.h"
+#include "goptions.h"
+#include "options.h"
+#include "theme.h"
+#include "grphmimg.h"
+#include "msanim.h"
+#include "surface.h"
+#include "xsurface.h"
+
+#include <algorithm>
+#include <vector>
 
 
 /// <summary>
@@ -217,7 +228,9 @@ int NewMenuClass::Display_Menu(char const * section, DynamicVectorClass<int> & o
 	}
 	menu->Set_Back_Item(GMENU_BACK);
 
-	int result = menu->Presentation();
+	// Game select keeps its artwork under the pad; the two menu pages become console screens.
+	bool console = Options.ControlScheme == CONTROL_CONTROLLER && stricmp(section, "MainMenu") != 0;
+	int result = console ? Console_Menu_Page(*menu, options) : menu->Presentation();
 	delete menu;
 	return((int)result);
 }
@@ -262,6 +275,93 @@ int NewMenuClass::Select_Game_Type(void)
 
 	Session.Read_Scenario_Descriptions();
 	return(result);
+}
+
+
+// The console-style menu page: the page's backdrop and theme with the choices as rows in
+// the menu font, the dead services left out, and B returning to game select.
+int NewMenuClass::Console_Menu_Page(GraphicMenu & page, DynamicVectorClass<int> const & disabled)
+{
+	enum { FIRST_ROW_Y = 168, ROW_PITCH = 26, PANEL_PAD = 20 };
+	static struct { int ID; char const * Label; } const _rows[] = {
+		{NSEL_START_NEW_GAME, "New Campaign"},
+		{NSEL_LOAD_MISSION, "Load Mission"},
+		{NSEL_LAN, "LAN"},
+		{NSEL_SKIRMISH, "Skirmish"},
+		{NSEL_OPTIONS, "Options"},
+		{GMENU_BACK, "Game Select"},
+	};
+
+	Theme.Play_Song(Theme.From_Name(page.ThemeName.Peek()));
+
+	int chosen = GMENU_BACK;
+	ConsoleMenuClass menu("");
+	menu.Set_Prompts("", "");
+
+	// The intro and exit buttons keep their artwork where the page puts it. Each is a row
+	// with no text, so the focus can land on it and its strip lights instead: intro is the
+	// first row, above the list and also reached with Right; exit is the last, below the
+	// list and also reached with Left.
+	struct ArtType { int Row; MSPCXAnim * Idle; MSPCXAnim * Lit; };
+	std::vector<ArtType> art;
+	auto add_art = [&](int id) {
+		GraphicMenuImageItem * item = dynamic_cast<GraphicMenuImageItem *>(page.Find_Item(id));
+		MSPCXAnim * idle = item != NULL ? dynamic_cast<MSPCXAnim *>(item->Image) : NULL;
+		MSPCXAnim * lit = item != NULL ? dynamic_cast<MSPCXAnim *>(item->HighlightImage) : NULL;
+		if (idle == NULL || idle->Image == NULL) return(-1);
+		int row = menu.Add_Row({"", nullptr, nullptr, [&, id]{ chosen = id; menu.Finish(CONSOLE_MENU_ACCEPT); }});
+		menu.Add_Hit_Area(idle->Get_Rect(), [&, row]{ menu.Set_Focus(row); }, [&, id]{ chosen = id; menu.Finish(CONSOLE_MENU_ACCEPT); });
+		art.push_back({row, idle, lit});
+		return(row);
+	};
+	int intro_row = add_art(NSEL_INTRO);
+
+	int y = FIRST_ROW_Y;
+	int widest = 0;
+	int first_list_row = -1;
+	for (auto const & entry : _rows) {
+		bool off = false;
+		for (int index = 0; index < disabled.Count(); index++) {
+			if (disabled[index] == entry.ID) off = true;
+		}
+		if (off) continue;
+		ConsoleRowType row = {entry.Label, nullptr, nullptr, [&, id = entry.ID]{ chosen = id; menu.Finish(CONSOLE_MENU_ACCEPT); }};
+		row.Y = y;
+		int index = menu.Add_Row(row);
+		if (first_list_row < 0) first_list_row = index;
+		widest = std::max(widest, menu.Text_Width(entry.Label));
+		y += ROW_PITCH;
+	}
+	int exit_row = add_art(NSEL_EXIT);
+
+	// Left and Right on a list row jump to the exit and intro artwork.
+	for (int index = 0; index < int(menu.Row_Count()); index++) {
+		bool is_art = index == intro_row || index == exit_row;
+		if (is_art) continue;
+		menu.Set_Row_Step(index, [&, intro_row, exit_row](int step) {
+			int target = step > 0 ? intro_row : exit_row;
+			if (target >= 0) menu.Set_Focus(target);
+		});
+	}
+
+	menu.Set_Backdrop_Panel([&](ConsoleCanvas & canvas) {
+		for (ArtType const & piece : art) {
+			MSPCXAnim * strip = (menu.Get_Focus() == piece.Row && piece.Lit != NULL && piece.Lit->Image != NULL) ? piece.Lit : piece.Idle;
+			Rect at = strip->Get_Rect();
+			at.X += canvas.Box.X;
+			at.Y += canvas.Box.Y;
+			canvas.Frame.Blit_From(at, *strip->Image, strip->Image->Get_Rect());
+		}
+	});
+
+	int panel_width = widest + 2 * PANEL_PAD;
+	menu.Set_Panel(Rect((640 - panel_width) / 2, FIRST_ROW_Y - PANEL_PAD, panel_width, (y - FIRST_ROW_Y) + PANEL_PAD));
+	menu.Set_Panel_Opacity(0);
+	menu.Set_Focus(std::max(first_list_row, 0));
+	if (menu.Process() != CONSOLE_MENU_ACCEPT) {
+		return(GMENU_BACK);
+	}
+	return(chosen);
 }
 
 

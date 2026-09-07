@@ -25,11 +25,13 @@ target.
 
 | Piece | Where | State |
 | --- | --- | --- |
-| `ControlScheme` option | `code/options.cpp`, manual key page | Done. Defaults to Auto: Controller when a pad is connected at launch. Switched from the console options screen or the options page's Switch To Controller button. |
-| Console menu framework | `code/consolemenu.cpp` | Rows of label, value, step, activate, optional icon and swatch strip; a row may sit on a fixed line. Big menu font, teal focus row, dark panel over the backdrop, held-key repeat, Shift or a shoulder button steps by five. A screen can draw its own content through a canvas and register mouse targets; pointing at a row focuses it, a click accepts, and the two prompts are clickable. |
+| `ControlScheme` option | `code/options.cpp`, manual key page | Done. Defaults to Auto: Controller when a pad is connected at launch. Switched from the console options screen or the options page's Switch To Controller button. Choosing Keyboard & Mouse from the pad asks for a real key or click within ten seconds, else reverts. Menu and B held for a second switch to Controller from anywhere. |
+| Console menu framework | `code/consolemenu.cpp` | Rows of label, value, step, activate, optional icon and swatch strip; a row may sit on a fixed line; long lists scroll. Big menu font, teal focus row, dark panel over the backdrop that a screen can size or drop, held-key repeat, Shift or a shoulder button steps by five, the shell's click as the focus moves. A screen can draw its own content through a canvas, register mouse targets, and run an idle hook each pass; pointing at a row focuses it, a click accepts, and the two prompts are clickable. |
 | Native pad reader | `code/gamepad.cpp` | XInput, loaded at first use. D-pad or left stick, A accept, B back, LB/RB fast step. Under Steam the pad must be on the Gamepad template, not Keyboard & Mouse. |
 | Skirmish setup | `code/consoleskirmish.cpp` | Console screen: name (read only), side with faction icon, colour swatch strip, numbered map list with preview, then the numeric rows and toggles. Writes the same session fields as the dialog. |
-| Shell menu pages | `code/grphmenu.cpp`, `code/grphmimg.cpp` | Original artwork kept. Spatial d-pad navigation over the buttons, Tiberian Sun selected on entry, unselected discs darkened 70 percent, B or Escape takes the page's Back button. A button still held from the previous screen is not a press. |
+| Game select page | `code/grphmenu.cpp`, `code/grphmimg.cpp` | Original artwork kept. Spatial d-pad navigation over the buttons, Tiberian Sun selected on entry, unselected discs darkened 70 percent, B or Escape takes the page's Back button. A button still held from the previous screen is not a press. |
+| Menu pages | `code/newmenu.cpp` | Under the controller scheme the Tiberian Sun and Firestorm pages are console screens on their own backdrops: New Campaign, Load Mission, LAN, Skirmish, Options and Game Select as rows in the menu font, no box, the page theme playing. Intro and Exit keep their artwork at the corners and light when reached: Up or Right for Intro, Down or Left for Exit. Internet and the tour are left out. Keyboard & Mouse keeps the artwork pages. |
+| LAN game list | `code/netdlg2.cpp` | Console screen running the dialog's discovery: your name, Host New Game, one row per game found, the lobby count; the list rebuilds as games come and go. Host and Join end at a notice until the lobby screens exist. |
 | Options | `code/consoleoptions.cpp` | Console screen: control scheme, resolution from the display's mode list, scale mode, integer scaling, stretch movies, game speed, scroll rate and coasting, detail, campaign difficulty, cameo text, action lines, tool tips, three volumes stepped live. Accept saves; back restores the volumes. |
 | Select Campaign | `code/init.cpp` | Side select in the manner of Remastered: the backdrop's own GDI and Nod discs enlarged at left and right, both dim until a side is picked, then the picked one lit and grown with its campaign named under the title; names beneath in faction colours, difficulty along the bottom. Left and right pick the side, or the act when a side has two, with the shell's hover click; A or a click on the lit emblem starts. Writes the difficulty option like the dialog. |
 | Load Mission | `code/loaddlg.cpp` | Console list of the save games, newest first, date at the left and description at the right, a star for multiplayer saves; long lists scroll. |
@@ -56,17 +58,18 @@ target.
 
 ## Next
 
-1. A zoom setting for play: the render frame takes the panel's aspect and a
+1. LAN lobby screens: host lobby with the skirmish rows and a player panel, guest lobby read-only with a Ready toggle. The game list is in.
+2. A zoom setting for play: the render frame takes the panel's aspect and a
    zoom value picks its height, so no screen shows bars and each device tunes
    its own sprite size. A 32:9 panel at 2x felt right in testing.
-2. Glyph sets for prompts and a `PromptStyle` option (Auto, Xbox,
+3. Glyph sets for prompts and a `PromptStyle` option (Auto, Xbox,
    PlayStation, Deck) with pad type detection.
-3. An on-screen keyboard for the player name.
-4. A Steam Input layout for the game, shipped in the repo, so the pad is on
+4. An on-screen keyboard for the player name.
+5. A Steam Input layout for the game, shipped in the repo, so the pad is on
    the Gamepad template without the player building one. Steam only defaults
    a layout the app owner publishes, so this is a file to import once, and
    Steam keeps the choice per player after that.
-5. Later: the in-game control scheme, the sidebar, and the display work in
+6. Later: the in-game control scheme, the sidebar, and the display work in
    the direction notes.
 
 ## Parked

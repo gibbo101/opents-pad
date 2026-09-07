@@ -1440,7 +1440,11 @@ restart:
 							*/
 							Draw_Menu_Background();
 
-							if (Net2Init_Network() && Net2Remote_Connect()) {
+							bool connected = Net2Init_Network()
+
+								&& (Options.ControlScheme == CONTROL_CONTROLLER ? Net2Console_Remote_Connect() : Net2Remote_Connect());
+
+							if (connected) {
 								process = false;
 								Theme.Stop(true);
 							} else {

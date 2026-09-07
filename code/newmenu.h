@@ -12,6 +12,7 @@
 #include "_mixfile.h"
 
 template<class T> class DynamicVectorClass;
+class GraphicMenu;
 
 enum {
 	NSEL_EXIT,
@@ -63,6 +64,7 @@ class NewMenuClass
 		 * is showing instead.
 		 */
 		int GameMode;
+		int Console_Menu_Page(GraphicMenu & page, DynamicVectorClass<int> const & disabled);
 
 		/*
 		 * This is the name of the title page picture that the menus draw themselves over.
