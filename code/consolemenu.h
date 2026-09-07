@@ -52,6 +52,7 @@ struct ConsoleRowType
 	std::function<std::vector<int>()> Swatches;	// Colors to show after the value as hicolor pixels; the Selected one is drawn larger.
 	std::function<int()> Selected;
 	int Y = 0;									// A fixed line within the box for this row, or 0 to follow the list.
+	bool Quiet = false;							// No click when the focus lands here.
 };
 
 enum ConsoleMenuResult
@@ -74,6 +75,8 @@ class ConsoleMenuClass
 		int Add_Row(ConsoleRowType const & row);
 		std::size_t Row_Count(void) const { return(Rows.size()); }
 		void Set_Row_Step(int row, std::function<void(int)> step) { if (row >= 0 && row < int(Rows.size())) Rows[row].Step = step; }
+		void Play_Click_Public(void) { Play_Click(); }
+		void Set_Row_Quiet(int row) { if (row >= 0 && row < int(Rows.size())) Rows[row].Quiet = true; }
 		void Set_Prompts(char const * accept, char const * back);
 		void Set_Side_Panel(std::function<void(Surface &, Rect const &)> draw);
 		void Set_Backdrop_Panel(std::function<void(ConsoleCanvas &)> draw);

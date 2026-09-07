@@ -312,6 +312,7 @@ int NewMenuClass::Console_Menu_Page(GraphicMenu & page, DynamicVectorClass<int> 
 		MSPCXAnim * lit = item != NULL ? dynamic_cast<MSPCXAnim *>(item->HighlightImage) : NULL;
 		if (idle == NULL || idle->Image == NULL) return(-1);
 		int row = menu.Add_Row({"", nullptr, nullptr, [&, id]{ chosen = id; menu.Finish(CONSOLE_MENU_ACCEPT); }});
+		menu.Set_Row_Quiet(row);
 		menu.Add_Hit_Area(idle->Get_Rect(), [&, row]{ menu.Set_Focus(row); }, [&, id]{ chosen = id; menu.Finish(CONSOLE_MENU_ACCEPT); });
 		art.push_back({row, idle, lit});
 		return(row);
@@ -336,7 +337,9 @@ int NewMenuClass::Console_Menu_Page(GraphicMenu & page, DynamicVectorClass<int> 
 	}
 	int exit_row = add_art(NSEL_EXIT);
 
-	// Left and Right on a list row jump to the exit and intro artwork.
+	// Left and Right on a list row jump to the exit and intro artwork; Left on the intro
+	// and Right on the exit come back to the top and bottom of the list.
+	int last_list_row = exit_row >= 0 ? exit_row - 1 : int(menu.Row_Count()) - 1;
 	for (int index = 0; index < int(menu.Row_Count()); index++) {
 		bool is_art = index == intro_row || index == exit_row;
 		if (is_art) continue;
@@ -344,6 +347,12 @@ int NewMenuClass::Console_Menu_Page(GraphicMenu & page, DynamicVectorClass<int> 
 			int target = step > 0 ? intro_row : exit_row;
 			if (target >= 0) menu.Set_Focus(target);
 		});
+	}
+	if (intro_row >= 0) {
+		menu.Set_Row_Step(intro_row, [&, first_list_row](int step) { if (step < 0 && first_list_row >= 0) { menu.Set_Focus(first_list_row); menu.Play_Click_Public(); } });
+	}
+	if (exit_row >= 0) {
+		menu.Set_Row_Step(exit_row, [&, last_list_row](int step) { if (step > 0 && last_list_row >= 0) { menu.Set_Focus(last_list_row); menu.Play_Click_Public(); } });
 	}
 
 	menu.Set_Backdrop_Panel([&](ConsoleCanvas & canvas) {

@@ -184,7 +184,7 @@ void ConsoleMenuClass::Move_Focus(int step)
 	if (Rows.empty()) return;
 	int was = Focus;
 	Focus = (Focus + step + int(Rows.size())) % int(Rows.size());
-	if (Focus != was) {
+	if (Focus != was && !Rows[Focus].Quiet) {
 		Play_Click();
 	}
 	IsDirty = true;
@@ -266,7 +266,7 @@ bool ConsoleMenuClass::Poll_Input(ConsoleMenuResult & result)
 		int row = row_at(mouse);
 		if (row >= 0 && row != Focus) {
 			Focus = row;
-			Play_Click();
+			if (!Rows[Focus].Quiet) Play_Click();
 			IsDirty = true;
 		}
 		HitType const * hit = hit_at(mouse);
