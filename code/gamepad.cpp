@@ -29,6 +29,8 @@
 #include "unit.h"
 #include "unittype.h"
 #include "vidscale.h"
+#include "voc.h"
+#include "waypoint.h"
 #include "win.h"
 
 #include <Xinput.h>
@@ -283,7 +285,7 @@ static void Select_Combat_On_Map(void)
 }
 
 
-// The pad in play: the left stick and the d-pad move the pointer, a shoulder button speeds
+// The pad in play: the left stick and the d-pad move the pointer, R1 speeds
 // it, and cross and circle are the mouse buttons, posted as the messages a mouse would send
 // so every tactical behaviour follows.
 static void Play_Input(GamepadStateType const & pad, GamepadStateType const & previous, unsigned long now)
@@ -307,7 +309,7 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 	if (pad.PadRight) vx += PAD_RATE;
 	if (pad.PadUp) vy -= PAD_RATE;
 	if (pad.PadDown) vy += PAD_RATE;
-	if (pad.Fast) {
+	if (pad.RightShoulder) {
 		vx *= FAST_FACTOR;
 		vy *= FAST_FACTOR;
 	}
@@ -455,15 +457,12 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 		_select_type_pending = false;
 		Execute_Command("SelectType");
 	}
-	// R1 with a cross tap works the sidebar's cell from the map: place, build again, or
-	// queue. Moving while held still draws a band box, so the tap is judged on release.
-	static bool _cross_repeat = false;
 	if (pressed(pad.Accept, previous.Accept)) {
 		_cross_since = now;
 		GetCursorPos(&_cross_at);
 		_cross_sent = false;
-		_cross_stage = 0;
-		_cross_repeat = pad.RightShoulder;
+		// Under L1 or L2 the press belongs to team 4 below and must never become a click.
+		_cross_stage = (pad.LeftTrigger || pad.LeftShoulder) ? 2 : 0;
 	} else if (pad.Accept && previous.Accept && !_cross_sent && _cross_stage != 2) {
 		POINT at;
 		GetCursorPos(&at);
@@ -502,8 +501,6 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 	} else if (!pad.Accept && previous.Accept) {
 		if (_cross_sent) {
 			click(MOUSEEVENTF_LEFTUP, false);
-		} else if (_cross_stage == 0 && _cross_repeat) {
-			Map.Pad_Repeat();
 		} else if (_cross_stage == 0) {
 			click(MOUSEEVENTF_LEFTDOWN, true);
 			click(MOUSEEVENTF_LEFTUP, false);
@@ -513,26 +510,42 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 	}
 	// Circle is a right-button tap, pressed and released together, so holding it while the
 	// pointer moves never becomes the mouse's drag scroll: it only cancels or deselects.
+	// With R1 it works the sidebar's parked cell from the map: place, build again, or queue.
+	// With L1 or L2 it belongs to the teams below, so no tap goes out to deselect them.
+	// In waypoint mode it takes back the last waypoint placed while the path has one.
 	if (pressed(pad.Back, previous.Back)) {
 		if (pad.RightShoulder) {
-			Execute_Command("RepeatLastBuilding");
-		} else {
-			click(MOUSEEVENTF_RIGHTDOWN, true);
-			click(MOUSEEVENTF_RIGHTUP, false);
+			Map.Pad_Repeat();
+		} else if (!pad.LeftTrigger && !pad.LeftShoulder) {
+			WaypointPathClass * path = (Map.IsWaypointMode && PlayerPtr->SelectedPath != PATH_NONE) ? PlayerPtr->Paths[PlayerPtr->SelectedPath] : NULL;
+			if (path != NULL && path->Waypoint_Count() > 0) {
+				Execute_Command("DeleteWaypoint");
+			} else {
+				click(MOUSEEVENTF_RIGHTDOWN, true);
+				click(MOUSEEVENTF_RIGHTUP, false);
+			}
 		}
 	}
 
-	// The shapes with L2 make teams and with L1 select and centre on them; square alone
-	// cycles the sidebar modes.
-	static char const * const _make[3] = {"TeamCreate_1", "TeamCreate_2", "TeamCreate_3"};
-	static char const * const _pick[3] = {"TeamCenter_1", "TeamCenter_2", "TeamCenter_3"};
-	bool shapes[3] = {pressed(pad.Third, previous.Third), pressed(pad.Fourth, previous.Fourth), pressed(pad.Back, previous.Back)};
-	for (int index = 0; index < 3; index++) {
+	// The shapes and cross with L2 make teams 1 to 4. With L1 one press selects a team and
+	// a second press within the double tap window centres the view on it as well; square
+	// alone cycles the sidebar modes.
+	enum { DOUBLE_TAP_MS = 400 };
+	static char const * const _make[4] = {"TeamCreate_1", "TeamCreate_2", "TeamCreate_3", "TeamCreate_4"};
+	static char const * const _select[4] = {"TeamSelect_1", "TeamSelect_2", "TeamSelect_3", "TeamSelect_4"};
+	static char const * const _centre[4] = {"TeamCenter_1", "TeamCenter_2", "TeamCenter_3", "TeamCenter_4"};
+	static int _picked = -1;
+	static unsigned long _picked_at = 0;
+	bool shapes[4] = {pressed(pad.Third, previous.Third), pressed(pad.Fourth, previous.Fourth), pressed(pad.Back, previous.Back), pressed(pad.Accept, previous.Accept)};
+	for (int index = 0; index < 4; index++) {
 		if (!shapes[index]) continue;
 		if (pad.LeftTrigger) {
 			Execute_Command(_make[index]);
 		} else if (pad.LeftShoulder) {
-			Execute_Command(_pick[index]);
+			bool again = _picked == index && now - _picked_at <= DOUBLE_TAP_MS;
+			Execute_Command(again ? _centre[index] : _select[index]);
+			_picked = again ? -1 : index;
+			_picked_at = now;
 		}
 	}
 	if (pressed(pad.Third, previous.Third) && !pad.LeftTrigger && !pad.LeftShoulder) {
@@ -552,22 +565,25 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 		}
 	}
 
-	// R1 with L1 holds the force fire key and R1 with L2 the force move key, so the next
-	// cross press orders as a Ctrl or Alt click would.
-	static bool _force_fire = false;
-	static bool _force_move = false;
-	auto hold_key = [&](bool & held, bool want, WORD vk) {
-		if (want == held) return;
-		held = want;
-		if (want) _SyntheticClicks++;
-		INPUT input = {};
-		input.type = INPUT_KEYBOARD;
-		input.ki.wVk = vk;
-		input.ki.dwFlags = want ? 0 : KEYEVENTF_KEYUP;
-		SendInput(1, &input, sizeof(input));
+	// R1 with L1 orders a force fire at the pointer and R1 with L2 a force move, as a Ctrl or
+	// Alt click would, the moment the two are held together; no cross is needed.
+	auto force_click = [&](WORD vk) {
+		INPUT input[4] = {};
+		input[0].type = INPUT_KEYBOARD;
+		input[0].ki.wVk = vk;
+		input[1].type = INPUT_MOUSE;
+		input[1].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
+		input[2].type = INPUT_MOUSE;
+		input[2].mi.dwFlags = MOUSEEVENTF_LEFTUP;
+		input[3].type = INPUT_KEYBOARD;
+		input[3].ki.wVk = vk;
+		input[3].ki.dwFlags = KEYEVENTF_KEYUP;
+		_SyntheticClicks += 2;
+		SendInput(4, input, sizeof(INPUT));
 	};
-	hold_key(_force_fire, pad.RightShoulder && pad.LeftShoulder, VK_CONTROL);
-	hold_key(_force_move, pad.RightShoulder && pad.LeftTrigger, VK_MENU);
+	auto chord = [&](bool a, bool a_was, bool b, bool b_was) { return((pressed(a, a_was) && b) || (pressed(b, b_was) && a)); };
+	if (chord(pad.RightShoulder, previous.RightShoulder, pad.LeftShoulder, previous.LeftShoulder)) force_click(VK_CONTROL);
+	if (chord(pad.RightShoulder, previous.RightShoulder, pad.LeftTrigger, previous.LeftTrigger)) force_click(VK_MENU);
 
 	// The right stick scrolls the map at the pad's own pace, apart from the mouse scroll
 	// settings: a full push crosses a few view heights a second, and the squared response
