@@ -59,6 +59,9 @@
 #include "dsaudio.h"
 #include "dsurface.h"
 #include "goptions.h"
+#include "consolekeyboard.h"
+#include "options.h"
+#include "padglyph.h"
 #include "houstype.h"
 #include "keyboard.h"
 #include "language/language.h"
@@ -75,6 +78,7 @@
 #include "winstub.h"
 
 #include <algorithm>
+#include <string>
 
 
 #define SIZEGBAR			140
@@ -439,10 +443,18 @@ void ScoreClass::Presentation(void)
 	if (index < NUMFAMENAMES) {
 		Input_Name(hallfame[index].name, XPos + HALLFAME_X - 4, YPos + HALLFAME_Y + (index * 16));
 	} else {
-		str = Fetch_String(TXT_CLICK_CONTINUE);
-		x = XPos + (640 - FullFont->String_Width(str)) / 2;
+		// Under the controller scheme the prompt names the accept button with its glyph.
+		bool padded = Options.ControlScheme == CONTROL_CONTROLLER;
+		str = Fetch_String(padded ? TXT_CONTINUE : TXT_CLICK_CONTINUE);
+		int glyph = FullFont->Get_Height() + 4;
+		int used = padded && Resolved_Prompt_Style() != PROMPT_STYLE_TEXT ? glyph + 6 : 0;
+		x = XPos + (640 - FullFont->String_Width(str) - used) / 2;
 		y = YPos - FullFont->Get_Height() / 2 + 357;
-		Alloc_Object(obj = new ScorePrintClass(str, x, y, FullFont, false));
+		if (used > 0) {
+			Draw_Pad_Glyph(*HiddenSurface, PAD_BUTTON_ACCEPT, x, y - 2, glyph);
+			Draw_Pad_Glyph(*AlternateSurface, PAD_BUTTON_ACCEPT, x, y - 2, glyph);
+		}
+		Alloc_Object(obj = new ScorePrintClass(str, x + used, y, FullFont, false));
 		Cycle_Wait_Click();
 	}
 
@@ -899,6 +911,21 @@ void ScoreClass::Input_Name(char str[], int xpos, int ypos)
 	int x = xpos;
 	int key = 0;
 	int index = 0;
+
+	// Under the controller scheme the name is typed on the on-screen keyboard, and the
+	// score screen is put back from its backing copy once it closes.
+	if (Options.ControlScheme == CONTROL_CONTROLLER) {
+		std::string name(str);
+		Console_Keyboard("Hall of Fame", name, 11);
+		HiddenSurface->Blit_From(*AlternateSurface);
+		Rect field(xpos, ypos + 1, 96, 16);
+		HiddenSurface->Blit_From(field, *SurfacePtr, field);
+		AlternateSurface->Blit_From(field, *SurfacePtr, field);
+		strncpy(str, name.c_str(), MAX_FAMENAME_LENGTH - 1);
+		str[MAX_FAMENAME_LENGTH - 1] = '\0';
+		Alloc_Object(new ScorePrintClass(str, xpos, ypos, FullFont, false));
+		return;
+	}
 
 	do {
 

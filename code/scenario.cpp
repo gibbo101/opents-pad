@@ -1183,7 +1183,18 @@ void Do_Win(void)
 		Keyboard->Clear();
 
 		if (!Scen->IsSkipScore) {
+			// Under the controller scheme the score screen fills the display at the shell's
+			// size like the other console screens; the play size returns afterwards.
+			bool padded = Options.ControlScheme == CONTROL_CONTROLLER;
+			int width = VideoModeWidth;
+			int height = VideoModeHeight;
+			if (padded) {
+				Shell_Display_Mode();
+			}
 			ScoreClass().Presentation();
+			if (padded && (VideoModeWidth != width || VideoModeHeight != height)) {
+				Change_Display_Mode(width, height);
+			}
 		}
 
 		if (Scen->PostScoreMovie != VQ_NONE) {
