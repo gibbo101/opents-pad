@@ -161,6 +161,18 @@ void ConsoleMenuClass::Set_Backdrop_Panel(std::function<void(ConsoleCanvas &)> d
 }
 
 
+int ConsoleMenuClass::Label_Right(void)
+{
+	return(LABEL_RIGHT);
+}
+
+
+int ConsoleMenuClass::Value_Left(void)
+{
+	return(VALUE_LEFT);
+}
+
+
 int ConsoleMenuClass::Text_Width(char const * text)
 {
 	if (Font == NULL) {

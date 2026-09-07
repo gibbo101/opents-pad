@@ -99,6 +99,8 @@ class ConsoleMenuClass
 		void Set_Panel_Opacity(int percent) { PanelOpacity = percent; IsDirty = true; }	// Zero leaves the backdrop bare.
 		void Set_Row_Colors(RGBClass const & idle, RGBClass const & focus);		// Replaces the white idle and teal focus text.
 		int Text_Width(char const * text);		// Runs once per pass of Process, for screens that must service something.
+		static int Label_Right(void);			// Where a value row's label column ends, within the 640x400 area.
+		static int Value_Left(void);			// Where a value row's value column starts.
 
 		/// <summary>
 		/// Ends Process with the given result once the current input has been handled, for a

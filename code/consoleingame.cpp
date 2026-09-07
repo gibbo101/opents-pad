@@ -29,6 +29,7 @@
 #include "wincursor.h"
 
 #include <algorithm>
+#include <cctype>
 #include <string>
 
 
@@ -46,8 +47,9 @@ enum {
 };
 
 // Boxes the rows in the manner of the menu pages: each on its own line, centred as a group,
-// the panel sized to the widest, the title above the box and any note beneath it.
-static void Box_Rows(ConsoleMenuClass & menu, std::string const & title, std::string const & note = std::string())
+// the panel sized to the widest, the title above the box and any note beneath it. A value
+// width means the rows carry values, so the box spans the label and value columns.
+static void Box_Rows(ConsoleMenuClass & menu, std::string const & title, std::string const & note = std::string(), int value_width = 0)
 {
 	int count = int(menu.Row_Count());
 	int first_y = (MENU_HEIGHT - count * ROW_PITCH) / 2 + 8;
@@ -56,8 +58,14 @@ static void Box_Rows(ConsoleMenuClass & menu, std::string const & title, std::st
 		menu.Set_Row_Y(index, first_y + index * ROW_PITCH);
 		widest = std::max(widest, menu.Text_Width(menu.Row_Label(index).c_str()));
 	}
-	int panel_width = widest + 2 * PANEL_PAD;
-	menu.Set_Panel(Rect((640 - panel_width) / 2, first_y - PANEL_PAD, panel_width, count * ROW_PITCH + PANEL_PAD));
+	Rect panel((640 - widest) / 2 - PANEL_PAD, first_y - PANEL_PAD, widest + 2 * PANEL_PAD, count * ROW_PITCH + PANEL_PAD);
+	if (value_width > 0) {
+		int left = ConsoleMenuClass::Label_Right() - widest - PANEL_PAD;
+		int right = ConsoleMenuClass::Value_Left() + value_width + PANEL_PAD;
+		panel.X = left;
+		panel.Width = right - left;
+	}
+	menu.Set_Panel(panel);
 	menu.Set_Row_Colors(RGBClass(96, 208, 248), RGBClass(255, 255, 255));
 	int note_y = first_y + count * ROW_PITCH + PANEL_PAD + TITLE_GAP / 2;
 	menu.Set_Backdrop_Panel([title, note, first_y, note_y](ConsoleCanvas & canvas) {
@@ -69,25 +77,65 @@ static void Box_Rows(ConsoleMenuClass & menu, std::string const & title, std::st
 }
 
 
-static bool Confirm(char const * title, char const * question)
+// Asks the question as one row whose value flips between No and Yes, No to begin with,
+// in the manner of the C&C pause menu; accepting on Yes is the only way to answer yes.
+static bool Confirm(char const * question)
 {
+	bool yes = false;
 	ConsoleMenuClass menu("");
-	menu.Set_Prompts("Confirm", "Back");
-	menu.Add_Row({question, nullptr, nullptr, nullptr});
-	menu.Set_Row_Quiet(0);
-	Box_Rows(menu, title);
-	return(menu.Process() == CONSOLE_MENU_ACCEPT);
+	menu.Set_Prompts("Accept", "Back");
+	menu.Add_Row({question, [&]{ return(std::string(Fetch_String(yes ? TXT_YES : TXT_NO))); }, [&](int) { yes = !yes; }, nullptr});
+	int value_width = std::max(menu.Text_Width(Fetch_String(TXT_YES)), menu.Text_Width(Fetch_String(TXT_NO)));
+	Box_Rows(menu, "Game Paused", std::string(), value_width);
+	return(menu.Process() == CONSOLE_MENU_ACCEPT && yes);
 }
 
 
-// Saves into a fresh slot under the mission's name, posts the outcome to the mission's
-// message list for when play resumes, and reports it for the menu meanwhile.
-static std::string Save_Now(void)
+// The name a save is offered under: a campaign mission's side and number from its map file,
+// such as "GDI 01", ahead of the mission's name; a skirmish keeps the map's name alone.
+static std::string Suggested_Save_Name(void)
 {
+	std::string name;
+	if (Session.Type == GAME_NORMAL) {
+		std::string side;
+		std::string number;
+		for (char const * p = Scen->ScenarioName; *p != '\0' && *p != '.'; p++) {
+			if (isalpha((unsigned char)*p) && number.empty()) {
+				side += char(toupper((unsigned char)*p));
+			} else if (isdigit((unsigned char)*p)) {
+				number += *p;
+			} else {
+				break;
+			}
+		}
+		if (side == "NOD") side = "Nod";
+		if (!side.empty() && !number.empty()) {
+			if (number.size() < 2) number = "0" + number;
+			name = side + " " + number + " - ";
+		}
+	}
+	name += Scen->Description;
+	if (name.size() >= DESCRIP_MAX) name.resize(DESCRIP_MAX - 1);
+	return(name);
+}
+
+
+// Offers the save under its suggested name; accepting writes a fresh slot, posts the outcome
+// to the mission's message list for when play resumes, and reports it for the menu meanwhile.
+static std::string Save_Box(void)
+{
+	std::string name = Suggested_Save_Name();
+	ConsoleMenuClass menu("");
+	menu.Set_Prompts("Save", "Back");
+	menu.Add_Row({"Save As", [&]{ return(name); }, nullptr, nullptr});
+	Box_Rows(menu, "Game Paused", std::string(), menu.Text_Width(name.c_str()));
+	if (menu.Process() != CONSOLE_MENU_ACCEPT) {
+		return(std::string());
+	}
 	LoadOptionsClass saver;
 	char filename[256];
 	saver.Pick_Filename(filename);
-	bool saved = saver.Save_File(filename, Scen->Description);
+	bool saved = saver.Save_File(filename, name.c_str());
 	SaveManager.Post_Save_Notice(saved ? TXT_GAME_WAS_SAVED : TXT_SAVE_FAILED);
 	return(Fetch_String(saved ? TXT_GAME_WAS_SAVED : TXT_SAVE_FAILED));
 }
@@ -164,7 +212,7 @@ ConsoleIngameResult Console_Ingame_Menu(void)
 
 			case ACTION_SAVE:
 				if (Single_Player()) {
-					notice = Save_Now();
+					notice = Save_Box();
 				} else {
 					OutList.push_back(EventClass(PlayerPtr->HeapID, EventClass::SAVEGAME));
 					done = true;
@@ -185,15 +233,14 @@ ConsoleIngameResult Console_Ingame_Menu(void)
 				break;
 
 			case ACTION_RESTART:
-				if (Single_Player() ? Confirm("Restart Mission", "Start the mission again from the beginning?")
-						: Confirm(Fetch_String(TXT_SURRENDER), "Give up this game?")) {
+				if (Confirm(Single_Player() ? "Restart Mission" : Fetch_String(TXT_SURRENDER))) {
 					result = INGAME_MENU_RESTART;
 					done = true;
 				}
 				break;
 
 			case ACTION_ABORT:
-				if (Confirm("Abort Mission", "Leave the mission and return to the menu?")) {
+				if (Confirm("Abort Mission")) {
 					result = INGAME_MENU_ABORT;
 					done = true;
 				}
