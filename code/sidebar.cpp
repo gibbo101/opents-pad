@@ -124,6 +124,7 @@
 #include "color.hh"
 
 #include <algorithm>
+#include <climits>
 #include <string>
 #include <compare>
 
@@ -976,7 +977,7 @@ void SidebarClass::Draw_It(bool complete)
 	**	Draw the side strip elements by calling their respective draw functions.
 	*/
 	if (IsSidebarActive) {
-		if (PadFocus) {
+		if (Options.ControlScheme == CONTROL_CONTROLLER) {
 			if (complete || PadDirty || Column[0].IsToRedraw || Column[1].IsToRedraw) {
 				Column[0].IsToRedraw = false;
 				Column[1].IsToRedraw = false;
@@ -1108,6 +1109,7 @@ void SidebarClass::Pad_Enter(void)
 void SidebarClass::Pad_Leave(void)
 {
 	PadFocus = false;
+	PadSection = -1;
 	Pad_Focus_Changed();
 }
 
@@ -1205,6 +1207,10 @@ void SidebarClass::Pad_Accept(void)
 				PadSuper %= count;
 				if (PadCol == 0) {
 					Column[supers[PadSuper].Column].Activate(supers[PadSuper].Index, GadgetClass::LEFTPRESS);
+					if (IsTargettingMode != SUPER_NONE) {
+						Pad_Leave();
+						return;
+					}
 				} else {
 					PadSuper = (PadSuper + 1) % count;
 				}
@@ -1227,6 +1233,11 @@ void SidebarClass::Pad_Accept(void)
 		if (at < count) {
 			Column[items[at].Column].Activate(items[at].Index, GadgetClass::LEFTPRESS);
 		}
+	}
+	if (PendingObject != NULL || IsTargettingMode != SUPER_NONE) {
+		// Placing a building or aiming a superweapon happens with the pointer on the map.
+		Pad_Leave();
+		return;
 	}
 	Pad_Focus_Changed();
 }
@@ -1297,23 +1308,29 @@ void SidebarClass::Pad_Toggle_Grid(void)
 }
 
 
-// The cameo standing for a section: the side's factory for that kind, or the first
-// superweapon; NULL leaves the cell blank.
+// The cameo standing for a section: the side's factory for that kind, or for structures
+// any building of that side when its construction yard has no cameo; NULL leaves the cell
+// blank.
 static ShapeSet const * Pad_Section_Icon(int row, int column)
 {
 	if (row >= 4) return(NULL);
 	HousesType house = Pad_Column_House(column);
-	for (int index = 0; index < BuildingTypes.Count(); index++) {
-		BuildingTypeClass const * type = BuildingTypes[index];
-		if ((type->Get_Ownable() & (1 << house)) == 0) continue;
-		bool match = false;
-		switch (row) {
-			case PAD_KIND_STRUCTURES: match = type->IsConstructionYard; break;
-			case PAD_KIND_INFANTRY: match = type->ToBuild == RTTI_INFANTRYTYPE; break;
-			case PAD_KIND_VEHICLES: match = type->ToBuild == RTTI_UNITTYPE; break;
-			case PAD_KIND_AIRCRAFT: match = type->ToBuild == RTTI_AIRCRAFTTYPE; break;
+	for (int pass = 0; pass < 2; pass++) {
+		for (int index = 0; index < BuildingTypes.Count(); index++) {
+			BuildingTypeClass const * type = BuildingTypes[index];
+			if ((type->Get_Ownable() & (1 << house)) == 0) continue;
+			bool match = false;
+			switch (row) {
+				case PAD_KIND_STRUCTURES: match = pass == 0 ? type->IsConstructionYard : type->Level >= 0; break;
+				case PAD_KIND_INFANTRY: match = type->ToBuild == RTTI_INFANTRYTYPE; break;
+				case PAD_KIND_VEHICLES: match = type->ToBuild == RTTI_UNITTYPE; break;
+				case PAD_KIND_AIRCRAFT: match = type->ToBuild == RTTI_AIRCRAFTTYPE; break;
+			}
+			if (!match) continue;
+			ShapeSet const * cameo = (ShapeSet const *)type->Get_Cameo_Data();
+			if (cameo != NULL) return(cameo);
 		}
-		if (match) return((ShapeSet const *)type->Get_Cameo_Data());
+		if (row != PAD_KIND_STRUCTURES) break;
 	}
 	return(NULL);
 }
@@ -1337,6 +1354,7 @@ void SidebarClass::Draw_Pad_View(void)
 		SidebarSurface->Draw_Rect(Rect(area.X + 1, area.Y + 1, area.Width - 2, area.Height - 2), color);
 	};
 
+	int const focus_row = PadFocus ? PadRow : INT_MIN;
 	if (PadSection < 0) {
 		for (int row = 0; row < PAD_SECTION_ROWS && row < visible; row++) {
 			for (int column = 0; column < PAD_COLUMNS; column++) {
@@ -1375,7 +1393,7 @@ void SidebarClass::Draw_Pad_View(void)
 					char const * name = bottom && column != 0 ? _PadSectionNames[5] : _PadSectionNames[row];
 					Print_Cameo_Text(name, Point2D(x, y + StripClass::CAMEO_TEXT_Y_OFFSET), cliprect, StripClass::OBJECT_WIDTH - 2);
 				}
-				if (PadRow == row && PadCol == column) {
+				if (focus_row == row && PadCol == column) {
 					outline(x, y);
 					if (bottom && column == 0 && super_count > 0) {
 						PadItemType current = supers[PadSuper % super_count];
@@ -1398,7 +1416,7 @@ void SidebarClass::Draw_Pad_View(void)
 			if (at < count) {
 				Column[items[at].Column].Draw_Cameo(items[at].Index, x, y, cliprect);
 			}
-			if (PadRow == PadTop + row && PadCol == column) {
+			if (focus_row == PadTop + row && PadCol == column) {
 				outline(x, y);
 				if (at < count) {
 					StripClass::BuildType const & entry = Column[items[at].Column].Buildables[items[at].Index];
@@ -1417,7 +1435,7 @@ void SidebarClass::Draw_Pad_View(void)
 		}
 	}
 
-	if (PadRow == PAD_ROW_RADAR) {
+	if (focus_row == PAD_ROW_RADAR) {
 		Rect radar = Radar_Rect();
 		SidebarSurface->Draw_Rect(Rect(radar.X - 1, radar.Y - 1, radar.Width + 2, radar.Height + 2), color);
 		SidebarSurface->Draw_Rect(Rect(radar.X - 2, radar.Y - 2, radar.Width + 4, radar.Height + 4), color);
@@ -1429,7 +1447,7 @@ void SidebarClass::Draw_Pad_View(void)
 		caption = "Radar";
 	}
 
-	if (PadRow == PAD_ROW_MODES) {
+	if (focus_row == PAD_ROW_MODES) {
 		ShapeButtonClass const * buttons[PAD_MODE_BUTTONS] = {&Repair, &Upgrade, &Power, &Waypoint};
 		ShapeButtonClass const & button = *buttons[std::clamp(PadCol, 0, int(PAD_MODE_BUTTONS) - 1)];
 		Rect area(button.X + button.DrawOffsetX + 1, button.Y + button.DrawOffsetY + 1, button.Width - 2, button.Height - 2);
