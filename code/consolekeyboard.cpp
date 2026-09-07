@@ -108,6 +108,9 @@ bool Console_Keyboard(char const * title, std::string & text, int max_length)
 	unsigned int repeat_at = 0;
 
 	Keyboard->Clear();
+	// Start finishes here, so the poll must not turn it into Escape while the keyboard is up.
+	bool starts_were = Gamepad_Menu_Starting();
+	Gamepad_Menu_Starts(true);
 	GamepadStateType previous = Gamepad_Read();
 	Point2D last_mouse(Get_Mouse_X(), Get_Mouse_Y());
 
@@ -251,6 +254,7 @@ bool Console_Keyboard(char const * title, std::string & text, int max_length)
 			if (pad.Right && !previous.Right) move(NAV_RIGHT);
 			if (pad.Accept && !previous.Accept) activate();
 			if (pad.Back && !previous.Back) finished = true;
+			if (pad.Menu && !previous.Menu) { finished = true; accepted = true; }
 			if (pad.Third && !previous.Third) erase();
 			if (pad.Fourth && !previous.Fourth) add(' ');
 			previous = pad;
@@ -309,7 +313,7 @@ bool Console_Keyboard(char const * title, std::string & text, int max_length)
 				}
 			}
 
-			// Back and Delete at the left, Space and Select at the right.
+			// Back and Delete at the left, Done, Space and Select at the right.
 			int glyph = height + 2 * GLYPH_INSET;
 			bool glyphs = Resolved_Prompt_Style() != PROMPT_STYLE_TEXT;
 			auto prompt = [&](std::string const & label, PadButtonType button, int x, bool at_right) -> int {
@@ -324,6 +328,7 @@ bool Console_Keyboard(char const * title, std::string & text, int max_length)
 			x += prompt("Back", PAD_BUTTON_BACK, x, false) + PROMPT_GAP;
 			prompt("Delete", PAD_BUTTON_THIRD, x, false);
 			x = left + MENU_WIDTH - PROMPT_INSET;
+			x -= prompt("Done", PAD_BUTTON_MENU, x, true) + PROMPT_GAP;
 			x -= prompt("Select", PAD_BUTTON_ACCEPT, x, true) + PROMPT_GAP;
 			prompt("Space", PAD_BUTTON_FOURTH, x, true);
 
@@ -335,6 +340,7 @@ bool Console_Keyboard(char const * title, std::string & text, int max_length)
 	}
 
 	Keyboard->Clear();
+	Gamepad_Menu_Starts(starts_were);
 	if (accepted) {
 		text = edit;
 	}

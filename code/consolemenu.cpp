@@ -274,6 +274,8 @@ bool ConsoleMenuClass::Poll_Input(ConsoleMenuResult & result)
 	auto accept = [&](void) -> bool {
 		if (Focus >= 0 && Focus < int(Rows.size()) && Rows[Focus].Activate) {
 			Rows[Focus].Activate();
+			// A button still held from a screen the row opened must not count as a press here.
+			PreviousPad = Gamepad_Read();
 			IsDirty = true;
 			return(false);
 		}
