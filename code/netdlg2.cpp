@@ -68,6 +68,7 @@ bool Net2IsGameListActive = true;
 bool Net2GameStarted = false;
 bool Net2IsConsole = false;
 std::string Net2ConsoleNotice;
+std::deque<std::string> Net2ConsoleMessages;
 
 int RulesID;
 int ArtID;

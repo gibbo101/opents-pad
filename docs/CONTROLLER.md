@@ -33,7 +33,7 @@ target.
 | Skirmish setup | `code/consoleskirmish.cpp` | Console screen: name (read only), side with faction icon, colour swatch strip, numbered map list with preview, then the numeric rows and toggles. Writes the same session fields as the dialog. |
 | Game select page | `code/grphmenu.cpp`, `code/grphmimg.cpp` | Original artwork kept. Spatial d-pad navigation over the buttons, Tiberian Sun selected on entry, unselected discs darkened 70 percent, B or Escape takes the page's Back button. A button still held from the previous screen is not a press. |
 | Menu pages | `code/newmenu.cpp` | Under the controller scheme the Tiberian Sun and Firestorm pages are console screens on their own backdrops: New Campaign, Load Mission, LAN, Skirmish, Options and Game Select as rows in the menu font, no box, the page theme playing. Intro and Exit keep their artwork at the corners and light when reached: Up or Right for Intro, Down or Left for Exit. Internet and the tour are left out. Keyboard & Mouse keeps the artwork pages. |
-| LAN | `code/consolelan.cpp` | Console screens running the dialogs' discovery and join protocol unchanged. Game list: your name, Host New Game, one row per game found, the lobby count, a joining line while a request is out, and the reason when a join fails. Host lobby: the skirmish rows live, the joined players under the map preview in their colours with faction icon and host or ready mark, Start checks for a second player, everyone ready, and room on the map. Guest lobby: the host's rows read only, own side and colour requested from the host, Ready as the accept, Leave signs off. No chat, no kick, and the generated map is skipped in the map list. The Keyboard & Mouse dialogs are untouched; the packet handler only skips the guest dialog and message boxes while the console screens are up. |
+| LAN | `code/consolelan.cpp` | Console screens running the dialogs' discovery and join protocol unchanged. Game list: your name, Host New Game, one row per game found, the lobby count, a joining line while a request is out, and the reason when a join fails. Host lobby: the skirmish rows live, the joined players under the map preview in their colours with faction icon and host or ready mark, Start checks for a second player, everyone ready, and room on the map. Guest lobby: the host's rows read only, own side and colour requested from the host, Ready as the accept, Leave signs off. Each lobby screen has a Chat row showing the latest message that opens a chat screen: the lobby's messages and notices down the page, A to type one on the on-screen keyboard, sent to the game's players or, before joining, to everyone in the lobby. No kick, and the generated map is skipped in the map list. The Keyboard & Mouse dialogs are untouched; the packet handler only skips the guest dialog and message boxes while the console screens are up. |
 | Button prompts | `code/padglyph.cpp`, `assets/input-prompts/` | The accept and back prompts on every console screen and the briefing carry the button's glyph from Kenney's CC0 Input Prompts pack, baked into `code/padglyphdata.h` by `tools/padglyphs.py` and sampled down to the prompt's size with alpha. `PromptStyle` in `SUN.INI` picks the set or plain text; Auto is Deck when Steam's `SteamDeck` variable says so, else Xbox while a pad is connected. The XInput reader cannot tell a DualSense from an Xbox pad, so PlayStation is chosen on the options screen. |
 | Options | `code/consoleoptions.cpp` | Console screen: control scheme, button prompts, resolution from the display's mode list, scale mode, integer scaling, stretch movies, game speed, scroll rate and coasting, detail, campaign difficulty, cameo text, action lines, tool tips, and an Audio row. Accept saves. |
 | Audio | `code/consoleoptions.cpp` | Console screen from Options and the pause menu: music, sound and voice volume stepped live, and in play shuffle, repeat, a Now Playing row, a Track row that steps through the songs by name with A on the row playing it, and Stop Music. Accept keeps the volumes and saves; back restores them. |
@@ -64,17 +64,16 @@ target.
 
 ## Next
 
-1. LAN chat on the on-screen keyboard.
-2. A Steam Input layout for the game, shipped in the repo, so the pad is on
+1. A Steam Input layout for the game, shipped in the repo, so the pad is on
    the Gamepad template without the player building one. Steam only defaults
    a layout the app owner publishes, so this is a file to import once, and
    Steam keeps the choice per player after that.
-3. LAN lobby extras: kick as a row on the host lobby, and the generated map
+2. LAN lobby extras: kick as a row on the host lobby, and the generated map
    once its setup has a console screen.
-4. A zoom setting for play: the render frame takes the panel's aspect and a
+3. A zoom setting for play: the render frame takes the panel's aspect and a
    zoom value picks its height, so no screen shows bars and each device tunes
    its own sprite size. A 32:9 panel at 2x felt right in testing.
-5. Later: the in-game control scheme, the sidebar, and the display work in
+4. Later: the in-game control scheme, the sidebar, and the display work in
    the direction notes.
 
 ## Parked

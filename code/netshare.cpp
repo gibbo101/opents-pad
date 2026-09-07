@@ -141,6 +141,14 @@ void __cdecl PMessagePrintf(int color, const char * fmt, ...)
 	vsprintf(buffer, fmt, va);
 	va_end(va);
 
+	if (Net2IsConsole) {
+		Net2ConsoleMessages.push_back(buffer);
+		while (Net2ConsoleMessages.size() > 12) {
+			Net2ConsoleMessages.pop_front();
+		}
+		return;
+	}
+
 	if (WS_Top_Window() != 0) {
 		HWND top = WS_Top_Window();
 		HWND msg = GetDlgItem(top, IDC_PMESSAGES);

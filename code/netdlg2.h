@@ -15,6 +15,7 @@
 
 #include "netdlg.h"
 
+#include <deque>
 #include <string>
 
 struct GlobalPacketType;
@@ -28,6 +29,7 @@ extern bool Net2IsGameListActive;
 extern bool Net2GameStarted;
 extern bool Net2IsConsole;			// The console screens are up in place of the dialogs.
 extern std::string Net2ConsoleNotice;	// Why a join ended, for the console screens to show.
+extern std::deque<std::string> Net2ConsoleMessages;	// The lobby's chat and notices, newest last, for the console screens.
 extern int RulesID;
 extern int ArtID;
 extern int AIID;

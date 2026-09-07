@@ -39,6 +39,7 @@
 #include "timer.h"
 
 #include <algorithm>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -152,6 +153,8 @@ static void Draw_Players(ConsoleCanvas & canvas)
 }
 
 
+static std::string Latest_Message(void);
+
 // A digest of what the player panel and option rows show, so the screen redraws only on change.
 static std::string Lobby_Signature(void)
 {
@@ -168,6 +171,7 @@ static std::string Lobby_Signature(void)
 		+ ',' + std::to_string(Session.Options.BridgeDestruction) + ',' + std::to_string(Session.Options.MCVRedeploy) + ',' + std::to_string(Session.Options.ShortGame)
 		+ ',' + std::to_string(Session.Options.CrapEngineers) + ',' + std::to_string(Session.Options.AlliesAllowed) + ',' + std::to_string(Session.Options.HarvTruce);
 	text += ';' + std::to_string(MultiplayerMapPreview != NULL);
+	text += ';' + std::to_string(Net2ConsoleMessages.size()) + Latest_Message();
 	return(text);
 }
 
@@ -209,6 +213,88 @@ static void Add_Option_Rows(ConsoleMenuClass & menu, bool host, std::function<vo
 		step_if_host([](int) { Session.Options.AlliesAllowed = !Session.Options.AlliesAllowed; }), nullptr});
 	menu.Add_Row({"Harvester Truce", [&]{ return(Console_On_Off(Session.Options.HarvTruce)); },
 		step_if_host([](int) { Session.Options.HarvTruce = !Session.Options.HarvTruce; }), nullptr});
+}
+
+
+// Sends a chat line to the game's players, or to the lobby when not in a game, and echoes it.
+static void Send_Chat(std::string const & text)
+{
+	if (text.empty()) return;
+	PMessagePrintf(ColorMe, "[%s] %s", Session.Handle, text.c_str());
+	GlobalPacketType packet;
+	memset(&packet, 0, sizeof(packet));
+	packet.Command = NET_MESSAGE;
+	strcpy(packet.Name, Session.Handle);
+	strncpy(packet.Message.Buf, text.c_str(), sizeof(packet.Message.Buf) - 1);
+	packet.Message.Color = Session.ColorIdx;
+	packet.Message.NameCRC = Compute_Name_CRC(Session.GameName);
+	if (JoinState == JOIN_CONFIRMED) {
+		for (int index = 1; index < Session.Players.Count(); index++) {
+			Ipx.Send_Global_Message(&packet, sizeof(packet), 1, &Session.Players[index]->Address);
+			Call_Back();
+		}
+	} else {
+		for (int index = 1; index < Session.Chat.Count(); index++) {
+			Ipx.Send_Global_Message(&packet, sizeof(packet), 1, &Session.Chat[index]->Address);
+			Call_Back();
+		}
+	}
+}
+
+
+static std::string Latest_Message(void)
+{
+	return(Net2ConsoleMessages.empty() ? std::string("No messages") : Net2ConsoleMessages.back());
+}
+
+
+static void Service_Lobby(void);
+
+// The chat screen: the lobby's messages down the page and one row that opens the keyboard
+// to type a new one. Leaves when the player backs out or the caller's condition ends.
+static void Console_Chat_Screen(std::function<bool()> still_open)
+{
+	enum { CHAT_TOP = 44, CHAT_LEFT = 24, CHAT_WIDTH = 592, TYPE_ROW_Y = 340 };
+	while (true) {
+		std::size_t shown = Net2ConsoleMessages.size();
+		std::string last = Latest_Message();
+		bool type = false;
+		ConsoleMenuClass menu("Chat");
+		menu.Set_Prompts("", "Back");
+		ConsoleRowType row = {"Type a message", nullptr, nullptr, [&]{ type = true; menu.Finish(CONSOLE_MENU_ACCEPT); }};
+		row.Y = TYPE_ROW_Y;
+		row.Prompt = "Type";
+		menu.Add_Row(row);
+		menu.Set_Backdrop_Panel([&](ConsoleCanvas & canvas) {
+			int pitch = canvas.LineHeight + 2;
+			int y = canvas.Box.Y + CHAT_TOP;
+			for (std::string const & message : Net2ConsoleMessages) {
+				std::string text = message;
+				while (text.size() > 1 && canvas.Width(text) > CHAT_WIDTH) text.pop_back();
+				canvas.Print(text, canvas.Box.X + CHAT_LEFT, y, false);
+				y += pitch;
+			}
+		});
+		menu.Set_Idle([&]{
+			Service_Lobby();
+			if (!still_open()) {
+				menu.Finish(CONSOLE_MENU_BACK);
+				return;
+			}
+			if (Net2ConsoleMessages.size() != shown || Latest_Message() != last) {
+				shown = Net2ConsoleMessages.size();
+				last = Latest_Message();
+				menu.Refresh();
+			}
+		});
+		if (menu.Process() != CONSOLE_MENU_ACCEPT || !type) {
+			return;
+		}
+		std::string text;
+		if (Console_Keyboard("Message", text, MAX_MESSAGE_LENGTH - 1)) {
+			Send_Chat(text);
+		}
+	}
 }
 
 
@@ -258,6 +344,7 @@ static void Enter_Lobby(void)
 	_netresponse = 0;
 	Net2GameStarted = false;
 	Net2ConsoleNotice.clear();
+	Net2ConsoleMessages.clear();
 	Session.GameName[0] = '\0';
 	Session.Options.ScenarioDescription[0] = '\0';
 	Session.ColorIdx = Session.PrefColor;
@@ -399,6 +486,11 @@ static bool Console_Host_Screen(std::string & notice)
 				}
 			}, nullptr});
 		Add_Option_Rows(menu, true, changed, max_ai);
+		int chat_row = menu.Add_Row({"Chat", [&]{ return(Latest_Message()); }, nullptr, [&]{
+			Console_Chat_Screen([]{ return(true); });
+			menu.Refresh();
+		}});
+		menu.Set_Row_Prompt(chat_row, "Open");
 		if (!notice.empty()) {
 			menu.Add_Row({notice, nullptr, nullptr, nullptr});
 			menu.Set_Row_Quiet(int(menu.Row_Count()) - 1);
@@ -513,6 +605,11 @@ static bool Console_Guest_Screen(std::string & notice)
 			}, nullptr, nullptr, Console_Player_Swatches, [&]{ return(wanted_color >= 0 ? wanted_color : own_color()); }});
 		menu.Add_Row({"Map", [&]{ return(Console_Tidy_Description(Session.Options.ScenarioDescription)); }, nullptr, nullptr});
 		Add_Option_Rows(menu, false, nullptr, nullptr);
+		int chat_row = menu.Add_Row({"Chat", [&]{ return(Latest_Message()); }, nullptr, [&]{
+			Console_Chat_Screen([]{ return(_netresponse == 0 && JoinState == JOIN_CONFIRMED); });
+			menu.Refresh();
+		}});
+		menu.Set_Row_Prompt(chat_row, "Open");
 		menu.Add_Row({"Status", [&]{
 			if (Session.Players.Count() > 0 && Session.Players[0]->Player.Status != 0) return(std::string("Ready, waiting for the host"));
 			return(std::string("Press Ready when set"));
@@ -626,6 +723,13 @@ bool Net2Console_Remote_Connect(void)
 			menu.Add_Row({"No games found yet", nullptr, nullptr, nullptr});
 		}
 		menu.Add_Row({"In the lobby", [&]{ return(std::to_string(std::max(Session.Chat.Count(), 1))); }, nullptr, nullptr});
+		int chat_row = menu.Add_Row({"Chat", [&]{ return(Latest_Message()); }, nullptr, [&]{
+			if (joining) return;
+			Console_Chat_Screen([&]{ return(JoinState != JOIN_CONFIRMED); });
+			rebuild = true;
+			menu.Finish(CONSOLE_MENU_BACK);
+		}});
+		menu.Set_Row_Prompt(chat_row, "Open");
 		if (joining) {
 			menu.Add_Row({"Joining " + std::string(Session.Games[CurGame]->Name) + "..", nullptr, nullptr, nullptr});
 			menu.Set_Row_Quiet(int(menu.Row_Count()) - 1);
