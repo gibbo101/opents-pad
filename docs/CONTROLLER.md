@@ -69,17 +69,32 @@ target.
 
 ## Next
 
-1. The rest of the play scheme: snap to units; R2 with the right stick for zoom once the zoom setting exists, with scatter moving to a tap; the Controls screen updated for play with a diagram in the manner of Retaliation's.
-2. A Steam Input layout for the game, shipped in the repo, so the pad is on
+1. Untested on the sidebar: the Nod side, both as the player and as the
+   captured column; the superweapon row with a weapon charged, cross to fire
+   and the arrow to cycle; a grid longer than the panel scrolling; the hall
+   of fame name on the on-screen keyboard and the score screen's restore
+   after it.
+2. The rest of the play scheme: snap to units; R2 with the right stick for
+   zoom once the zoom setting exists, with scatter moving to a tap; the
+   Controls screen redrawn for play with a button cluster in the manner of
+   Retaliation's, which the current list and its "not final" note stand in
+   for.
+3. A Steam Input layout for the game, shipped in the repo, so the pad is on
    the Gamepad template without the player building one. Steam only defaults
    a layout the app owner publishes, so this is a file to import once, and
    Steam keeps the choice per player after that.
-3. LAN lobby extras: kick as a row on the host lobby, and the generated map
-   once its setup has a console screen.
-4. A zoom setting for play, on the right stick: the render frame takes the panel's aspect and a
-   zoom value picks its height, so no screen shows bars and each device tunes
-   its own sprite size. A 32:9 panel at 2x felt right in testing.
-5. Later: the sidebar look and the display work in the direction notes.
+4. LAN lobby extras: kick as a row on the host lobby, and the generated map
+   once its setup has a console screen. The lobbies and chat are still
+   untested between two machines.
+5. A zoom setting for play, on the right stick: the render frame takes the
+   panel's aspect and a zoom value picks its height, so no screen shows bars
+   and each device tunes its own sprite size. A 32:9 panel at 2x felt right
+   in testing.
+6. Sidebar shadows: `assets/sidebar-shadows/` and `tools/sidebarshadows.py`
+   bake a black silhouette of what a section builds over its cell, and every
+   slot is empty until original art exists. The game's own sprites are not to
+   be traced for it.
+7. Later: the display work in the direction notes.
 
 ## Parked
 
