@@ -1114,11 +1114,21 @@ void SidebarClass::Pad_Leave(void)
 
 void SidebarClass::Pad_Move(int dx, int dy)
 {
-	if (PadRow == PAD_ROW_MODES) {
+	if (PadRow == PAD_ROW_RADAR) {
+		if (dy > 0) {
+			PadRow = PAD_ROW_MODES;
+			PadCol = 0;
+		}
+	} else if (PadRow == PAD_ROW_MODES) {
 		if (dx != 0) PadCol = (PadCol + dx + PAD_MODE_BUTTONS) % PAD_MODE_BUTTONS;
 		if (dy > 0) {
 			PadCol = PadCol < PAD_MODE_BUTTONS / 2 ? 0 : 1;
 			PadRow = 0;
+		} else if (dy < 0 && Is_Radar_Active()) {
+			PadRow = PAD_ROW_RADAR;
+			Rect radar = Radar_Rect();
+			PadRadar = Point2D(radar.X + radar.Width / 2, radar.Y + radar.Height / 2);
+			PadRadarHeld = false;
 		}
 	} else if (PadSection < 0) {
 		if (dx != 0) PadCol = (PadCol + PAD_COLUMNS + dx) % PAD_COLUMNS;
@@ -1150,8 +1160,34 @@ void SidebarClass::Pad_Move(int dx, int dy)
 }
 
 
+void SidebarClass::Pad_Radar_Nudge(int dx, int dy)
+{
+	Rect radar = Radar_Rect();
+	PadRadar.X = std::clamp(PadRadar.X + dx, radar.X, radar.X + radar.Width - 1);
+	PadRadar.Y = std::clamp(PadRadar.Y + dy, radar.Y, radar.Y + radar.Height - 1);
+	PadRadarHeld = true;
+	Pad_Focus_Changed();
+}
+
+
+void SidebarClass::Pad_Radar_Jump(void)
+{
+	PadRadarHeld = false;
+	Cell cell(0, 0);
+	ObjectClass * object = NULL;
+	Resolve_Radar_Point(PadRadar, cell, object);
+	if (cell != CELL_NONE) {
+		Jump_To_Radar_Cell(cell);
+	}
+	Pad_Focus_Changed();
+}
+
+
 void SidebarClass::Pad_Accept(void)
 {
+	if (PadRow == PAD_ROW_RADAR) {
+		return;
+	}
 	if (PadRow == PAD_ROW_MODES) {
 		switch (PadCol) {
 			case 0: Repair_Mode_Control(-1); break;
@@ -1198,7 +1234,7 @@ void SidebarClass::Pad_Accept(void)
 
 bool SidebarClass::Pad_Back(void)
 {
-	if (PadRow == PAD_ROW_MODES) {
+	if (PadRow == PAD_ROW_MODES || PadRow == PAD_ROW_RADAR) {
 		Pad_Leave();
 		return(false);
 	}
@@ -1240,7 +1276,7 @@ bool SidebarClass::Pad_Back(void)
 
 void SidebarClass::Pad_Toggle_Grid(void)
 {
-	if (PadRow == PAD_ROW_MODES) return;
+	if (PadRow == PAD_ROW_MODES || PadRow == PAD_ROW_RADAR) return;
 	if (PadSection < 0) {
 		int section = PadRow * PAD_COLUMNS + PadCol;
 		if (PadRow == PAD_SECTION_ROWS - 1) return;
@@ -1379,6 +1415,18 @@ void SidebarClass::Draw_Pad_View(void)
 				}
 			}
 		}
+	}
+
+	if (PadRow == PAD_ROW_RADAR) {
+		Rect radar = Radar_Rect();
+		SidebarSurface->Draw_Rect(Rect(radar.X - 1, radar.Y - 1, radar.Width + 2, radar.Height + 2), color);
+		SidebarSurface->Draw_Rect(Rect(radar.X - 2, radar.Y - 2, radar.Width + 4, radar.Height + 4), color);
+		if (PadRadarHeld) {
+			int white = DSurface::Build_Hicolor_Pixel(RGBClass(255, 255, 255));
+			SidebarSurface->Draw_Line(Point2D(PadRadar.X - 4, PadRadar.Y), Point2D(PadRadar.X + 4, PadRadar.Y), white);
+			SidebarSurface->Draw_Line(Point2D(PadRadar.X, PadRadar.Y - 4), Point2D(PadRadar.X, PadRadar.Y + 4), white);
+		}
+		caption = "Radar";
 	}
 
 	if (PadRow == PAD_ROW_MODES) {

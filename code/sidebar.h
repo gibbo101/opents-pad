@@ -402,6 +402,7 @@ class SidebarClass : public PowerClass
 			PAD_SECTION_ROWS = 5,
 			PAD_MODE_BUTTONS = 4,
 			PAD_ROW_MODES = -1,
+			PAD_ROW_RADAR = -2,
 		};
 		bool PadFocus = false;
 		int PadRow = 0;					// PAD_ROW_MODES, or a row of the sections or of the open grid.
@@ -409,6 +410,8 @@ class SidebarClass : public PowerClass
 		int PadSection = -1;			// The open section as row * 2 + column, or -1 on the section grid.
 		int PadTop = 0;					// The first grid row shown while a section is open.
 		int PadSuper = 0;				// Which superweapon the bottom row shows.
+		Point2D PadRadar;				// The marker on the radar while cross is held there, sidebar-relative.
+		bool PadRadarHeld = false;
 		bool PadDirty = false;
 		struct PadItemType {
 			int Column;					// Which strip holds the buildable.
@@ -422,6 +425,8 @@ class SidebarClass : public PowerClass
 		void Pad_Accept(void);
 		bool Pad_Back(void);				// False once it has left the sidebar.
 		void Pad_Toggle_Grid(void);
+		void Pad_Radar_Nudge(int dx, int dy);
+		void Pad_Radar_Jump(void);
 		void Pad_Focus_Changed(void);
 		void Draw_Pad_View(void);
 

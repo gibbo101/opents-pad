@@ -358,6 +358,29 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 		}
 	}
 	if (Map.PadFocus) {
+		// On the radar, cross held turns the stick and d-pad into a marker over the map, and
+		// letting go jumps the view there.
+		if (Map.PadRow == SidebarClass::PAD_ROW_RADAR && pad.Accept) {
+			const float RADAR_RATE = 90.0f;		// Pixels per second at full stick.
+			static float _radar_x = 0.0f;
+			static float _radar_y = 0.0f;
+			float rx = pad.StickX + (pad.PadRight ? 1.0f : 0.0f) - (pad.PadLeft ? 1.0f : 0.0f);
+			float ry = -pad.StickY + (pad.PadDown ? 1.0f : 0.0f) - (pad.PadUp ? 1.0f : 0.0f);
+			_radar_x += rx * dt * RADAR_RATE;
+			_radar_y += ry * dt * RADAR_RATE;
+			int nx = int(_radar_x);
+			int ny = int(_radar_y);
+			_radar_x -= nx;
+			_radar_y -= ny;
+			if (nx != 0 || ny != 0 || !Map.PadRadarHeld) {
+				Map.Pad_Radar_Nudge(nx, ny);
+			}
+			return;
+		}
+		if (Map.PadRow == SidebarClass::PAD_ROW_RADAR && !pad.Accept && previous.Accept) {
+			Map.Pad_Radar_Jump();
+			return;
+		}
 		bool any = pad.Up || pad.Down || pad.Left || pad.Right;
 		bool fresh = pressed(pad.Up, previous.Up) || pressed(pad.Down, previous.Down) || pressed(pad.Left, previous.Left) || pressed(pad.Right, previous.Right);
 		if (any && (fresh || (_sidebar_held && now >= _sidebar_repeat_at))) {
