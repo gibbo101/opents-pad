@@ -13,6 +13,7 @@
 
 #include "_keyboar.h"
 #include "_map.h"
+#include "ccfile.h"
 #include "consolekeyboard.h"
 #include "consolemenu.h"
 #include "data.h"
@@ -169,8 +170,9 @@ ConsoleIngameResult Console_Ingame_Menu(void)
 	// The menu is its own screen at the shell's size, like the main menus, so its text and
 	// artwork are the same on every panel; the play size returns on the way out.
 	Shell_Display_Mode();
-	// The mission's own plate, the one the briefing uses, rather than the shell's backdrop.
-	Console_Set_Backdrop_File("SCORE.PCX");
+	// The mission's own plate rather than the shell's backdrop: the campaign's, which only
+	// its side archive carries, else the multiplayer score plate.
+	Console_Set_Backdrop_File(CCFileClass("SCORE.PCX").Is_Available() ? "SCORE.PCX" : "MPSCORE.PCX");
 
 	ConsoleIngameResult result = INGAME_MENU_RESUME;
 	std::string notice;

@@ -570,5 +570,7 @@ void Load_Title_Screen(char const * name, Surface * surface, PaletteClass * pale
 			surface->Blit_From(surface->Get_Rect(), Rect(x, y, load_buffer->Get_Width(), load_buffer->Get_Height()), *load_buffer, load_buffer->Get_Rect(), load_buffer->Get_Rect());
 		}
 		delete load_buffer;
+	} else {
+		DebugString("Load_Title_Screen: %s is missing\n", name);
 	}
 }
