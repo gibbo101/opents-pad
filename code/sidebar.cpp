@@ -1247,6 +1247,9 @@ void SidebarClass::Pad_Accept(void)
 			case 2: Power_Mode_Control(-1); break;
 			default: Waypoint_Mode_Control(-1, false); break;
 		}
+		// The mode lives on the pointer, so the sidebar lets go as soon as one is picked.
+		Pad_Leave();
+		return;
 	} else if (PadSection < 0) {
 		int section = PadRow * PAD_COLUMNS + PadCol;
 		if (PadRow == PAD_SECTION_ROWS - 1) {
