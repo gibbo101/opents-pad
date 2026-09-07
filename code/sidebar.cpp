@@ -97,7 +97,9 @@
 #include "factory.h"
 #include "font.h"
 #include "globals.h"
+#include "dsurface.h"
 #include "goptions.h"
+#include "rgb.h"
 #include "house.h"
 #include "incdec.h"
 #include "language/language.h"
@@ -966,6 +968,7 @@ void SidebarClass::Draw_It(bool complete)
 		Upgrade.Draw_Me(true);
 		Power.Draw_Me(true);
 		Waypoint.Draw_Me(true);
+		Draw_Pad_Focus();
 		IsToBlitSidebar = true;
 	}
 
@@ -1002,6 +1005,115 @@ void SidebarClass::Draw_It(bool complete)
 	LogicalSurface = old;
 
 	BEnd(BENCH_SIDEBAR);
+}
+
+
+int SidebarClass::Pad_Origin_X(void) const
+{
+	return(Options.IsSidebarOnRight ? TacticalRect.Width : 0);
+}
+
+
+static void Pad_Focus_Changed(SidebarClass & sidebar)
+{
+	sidebar.IsToRedraw = true;
+	sidebar.Column[0].IsToRedraw = true;
+	sidebar.Column[1].IsToRedraw = true;
+	sidebar.Flag_To_Redraw();
+}
+
+
+void SidebarClass::Pad_Enter(void)
+{
+	PadFocus = true;
+	PadColumn = std::clamp(PadColumn, 0, int(COLUMNS) - 1);
+	if (PadSlot >= 0) {
+		int shown = std::min(Max_Visible(), Column[PadColumn].BuildableCount - Column[PadColumn].TopIndex);
+		if (shown <= 0) {
+			PadSlot = -1;
+			PadMode = 0;
+		} else {
+			PadSlot = std::clamp(PadSlot, 0, shown - 1);
+		}
+	}
+	Pad_Focus_Changed(*this);
+}
+
+
+void SidebarClass::Pad_Leave(void)
+{
+	PadFocus = false;
+	Pad_Focus_Changed(*this);
+}
+
+
+void SidebarClass::Pad_Move(int dx, int dy)
+{
+	enum { MODE_BUTTONS = 4 };
+	int visible = Max_Visible();
+	if (PadSlot < 0) {
+		if (dx != 0) {
+			PadMode = (PadMode + dx + MODE_BUTTONS) % MODE_BUTTONS;
+		}
+		if (dy > 0) {
+			PadColumn = PadMode < MODE_BUTTONS / 2 ? 0 : 1;
+			int shown = std::min(visible, Column[PadColumn].BuildableCount - Column[PadColumn].TopIndex);
+			if (shown > 0) {
+				PadSlot = 0;
+			}
+		}
+	} else {
+		if (dx != 0) {
+			PadColumn = (PadColumn + 1) % COLUMNS;
+		}
+		StripClass & strip = Column[PadColumn];
+		int shown = std::min(visible, strip.BuildableCount - strip.TopIndex);
+		if (dy < 0) {
+			if (PadSlot > 0) {
+				PadSlot--;
+			} else if (!strip.Scroll(true)) {
+				PadSlot = -1;
+				PadMode = PadColumn * (MODE_BUTTONS / 2);
+			}
+		} else if (dy > 0) {
+			if (PadSlot + 1 < shown) {
+				PadSlot++;
+			} else {
+				strip.Scroll(false);
+			}
+		}
+		if (PadSlot >= 0) {
+			PadSlot = std::clamp(PadSlot, 0, std::max(shown - 1, 0));
+		}
+	}
+	Pad_Focus_Changed(*this);
+}
+
+
+Rect SidebarClass::Pad_Focus_Rect(void) const
+{
+	if (!PadFocus) return(Rect());
+	if (PadSlot < 0) {
+		ShapeButtonClass const * buttons[4] = {&Repair, &Upgrade, &Power, &Waypoint};
+		ShapeButtonClass const & button = *buttons[std::clamp(PadMode, 0, 3)];
+		return(Rect(button.X + button.DrawOffsetX, button.Y + button.DrawOffsetY, button.Width, button.Height));
+	}
+	StripClass const & strip = Column[PadColumn];
+	return(Rect(strip.X, strip.Y + PadSlot * StripClass::OBJECT_HEIGHT, StripClass::OBJECT_WIDTH, StripClass::OBJECT_HEIGHT));
+}
+
+
+// Outlines the pad's focus on the sidebar surface, inside the cell so the strip's own
+// redraw clears it when the focus moves on.
+void SidebarClass::Draw_Pad_Focus(void)
+{
+	if (!PadFocus) return;
+	Rect area = Pad_Focus_Rect();
+	if (!area.Is_Valid()) return;
+	int color = DSurface::Build_Hicolor_Pixel(RGBClass(255, 72, 255));
+	SidebarSurface->Draw_Rect(Rect(area.X + 1, area.Y + 1, area.Width - 2, area.Height - 2), color);
+	SidebarSurface->Draw_Rect(Rect(area.X + 2, area.Y + 2, area.Width - 4, area.Height - 4), color);
+	IsToBlitSidebar = true;
 }
 
 

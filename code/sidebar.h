@@ -389,6 +389,21 @@ class SidebarClass : public PowerClass
 		 */
 		bool IsToRedrawCredits;
 
+		/*
+		 * The pad's focus on the sidebar: one cameo cell, or one of the mode buttons on the
+		 * row above them, drawn with a highlight and moved between with the d-pad.
+		 */
+		bool PadFocus = false;
+		int PadColumn = 0;
+		int PadSlot = 0;				// A visible slot, or -1 for the mode button row.
+		int PadMode = 0;				// Which mode button when on that row.
+		void Pad_Enter(void);
+		void Pad_Leave(void);
+		void Pad_Move(int dx, int dy);
+		Rect Pad_Focus_Rect(void) const;	// Within the sidebar surface; invalid when there is no focus.
+		int Pad_Origin_X(void) const;		// Where the sidebar surface lands on the frame.
+		void Draw_Pad_Focus(void);
+
 		class SBGadgetClass: public GadgetClass {
 			public:
 				SBGadgetClass(void);
