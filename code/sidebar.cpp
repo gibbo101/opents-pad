@@ -1415,6 +1415,17 @@ static SuperWeaponType Pad_Side_Super(int column, int nth)
 			if (!known) seen[count++] = super;
 		}
 	}
+	if (nth == 0) {
+		// The side's signature weapon stands in when it grants one: GDI's ion cannon and
+		// Nod's missile silo, whichever the rules list first otherwise.
+		static char const * const _signature[] = {"IonCannonSpecial", "MultiSpecial"};
+		for (char const * name : _signature) {
+			SuperWeaponType wanted = SuperWeaponTypeClass::From_Name(name);
+			for (int k = 0; k < count; k++) {
+				if (seen[k] == wanted) return(wanted);
+			}
+		}
+	}
 	return(nth < count ? seen[nth] : SUPER_NONE);
 }
 
