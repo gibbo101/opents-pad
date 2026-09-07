@@ -1239,6 +1239,11 @@ void SidebarClass::Pad_Accept(void)
 		Pad_Leave();
 		return;
 	}
+	if (PadSection >= 0 && PadSection / PAD_COLUMNS == PAD_KIND_STRUCTURES) {
+		// Structures build one at a time, so the grid has nothing more to offer once one starts.
+		Pad_Toggle_Grid();
+		return;
+	}
 	Pad_Focus_Changed();
 }
 
