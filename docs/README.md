@@ -9,6 +9,10 @@ The developer guides are split by subject:
 - [Rationale](RATIONALE.md) — reconstruction tools, recovered structure, and
   non-obvious implementation choices.
 - [Project direction](DIRECTION.md) — long-term architecture.
+- [Controller scheme](CONTROLS.md) — every button in the menus, on the
+  map, in the sidebar, and the cheat codes, with a layout diagram.
+- [Controller support](CONTROLLER.md) — how the controller scheme is built,
+  its findings, and what is next.
 - [UI system design](UI_DESIGN.md) — proposed RmlUi and ImGui integration,
   screen-level interchangeable views, and the migration from OwnerDraw.
 

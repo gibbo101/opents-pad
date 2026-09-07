@@ -1,0 +1,134 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 620" font-family="Helvetica, Arial, sans-serif" font-size="13">
+  <title>Controller layout under the controller scheme</title>
+  <rect width="1000" height="620" fill="#f4f4f2"/>
+  <text x="500" y="30" text-anchor="middle" font-size="18" font-weight="bold" fill="#222">Controller layout, on the map</text>
+  <text x="500" y="50" text-anchor="middle" fill="#555">PlayStation names, Xbox and Steam Deck names in brackets</text>
+
+  <!-- Pad body -->
+  <g stroke="#333" stroke-width="2" fill="#dcdcd8">
+    <rect x="320" y="200" width="360" height="170" rx="40"/>
+    <ellipse cx="365" cy="380" rx="55" ry="85"/>
+    <ellipse cx="635" cy="380" rx="55" ry="85"/>
+    <rect x="320" y="285" width="360" height="100" stroke="none"/>
+  </g>
+  <!-- Shoulders -->
+  <g stroke="#333" stroke-width="2" fill="#c8c8c4">
+    <rect x="335" y="150" width="90" height="20" rx="8"/>
+    <rect x="335" y="174" width="90" height="22" rx="8"/>
+    <rect x="575" y="150" width="90" height="20" rx="8"/>
+    <rect x="575" y="174" width="90" height="22" rx="8"/>
+  </g>
+  <g fill="#222" font-size="11" text-anchor="middle">
+    <text x="380" y="164">L2 (LT)</text>
+    <text x="380" y="190">L1 (LB)</text>
+    <text x="620" y="164">R2 (RT)</text>
+    <text x="620" y="190">R1 (RB)</text>
+  </g>
+  <!-- D-pad -->
+  <g fill="#8a8a86" stroke="#333" stroke-width="1.5">
+    <rect x="368" y="235" width="24" height="70" rx="4"/>
+    <rect x="345" y="258" width="70" height="24" rx="4"/>
+  </g>
+  <!-- Face buttons -->
+  <g stroke="#333" stroke-width="1.5">
+    <circle cx="620" cy="238" r="14" fill="#7cc48f"/>
+    <circle cx="655" cy="270" r="14" fill="#e08a8a"/>
+    <circle cx="585" cy="270" r="14" fill="#e6b7e0"/>
+    <circle cx="620" cy="302" r="14" fill="#8fb8e6"/>
+  </g>
+  <g fill="#222" font-size="12" text-anchor="middle" font-weight="bold">
+    <text x="620" y="242">△</text>
+    <text x="655" y="274">○</text>
+    <text x="585" y="274">□</text>
+    <text x="620" y="306">✕</text>
+  </g>
+  <!-- Sticks -->
+  <g stroke="#333" stroke-width="1.5" fill="#b0b0ac">
+    <circle cx="440" cy="335" r="26"/>
+    <circle cx="560" cy="335" r="26"/>
+    <circle cx="440" cy="335" r="16" fill="#8a8a86"/>
+    <circle cx="560" cy="335" r="16" fill="#8a8a86"/>
+  </g>
+  <!-- Share and Options -->
+  <g stroke="#333" stroke-width="1.5" fill="#b0b0ac">
+    <rect x="462" y="248" width="24" height="12" rx="3"/>
+    <rect x="514" y="248" width="24" height="12" rx="3"/>
+  </g>
+
+  <!-- Callout lines -->
+  <g stroke="#666" stroke-width="1.2" fill="none">
+    <line x1="335" y1="160" x2="290" y2="110"/>
+    <line x1="335" y1="185" x2="290" y2="185"/>
+    <line x1="345" y1="270" x2="290" y2="270"/>
+    <line x1="414" y1="335" x2="290" y2="345"/>
+    <line x1="474" y1="248" x2="474" y2="100"/>
+    <line x1="526" y1="248" x2="526" y2="100"/>
+    <line x1="665" y1="160" x2="710" y2="110"/>
+    <line x1="665" y1="185" x2="710" y2="185"/>
+    <line x1="634" y1="238" x2="710" y2="238"/>
+    <line x1="669" y1="270" x2="710" y2="270"/>
+    <line x1="634" y1="302" x2="710" y2="302"/>
+    <line x1="586" y1="335" x2="710" y2="365"/>
+    <polyline points="585,284 598,296 598,450"/>
+  </g>
+
+  <!-- Left labels -->
+  <g fill="#222" text-anchor="end">
+    <text x="284" y="106" font-weight="bold">L2 (LT)</text>
+    <text x="284" y="122">Hold with a shape or ✕: make team 1 to 4</text>
+    <text x="284" y="138">With R1: force move</text>
+
+    <text x="284" y="181" font-weight="bold">L1 (LB)</text>
+    <text x="284" y="197">Hold with a shape or ✕: select team 1 to 4</text>
+    <text x="284" y="213">Same press again: centre on it. With R1: force fire</text>
+
+    <text x="284" y="266" font-weight="bold">D-pad</text>
+    <text x="284" y="282">Move the pointer, a nudge that ramps up</text>
+    <text x="284" y="298">In the sidebar: move the focus</text>
+
+    <text x="284" y="341" font-weight="bold">Left stick, L3</text>
+    <text x="284" y="357">Move the pointer, light push slow</text>
+    <text x="284" y="373">Click: deploy the selected unit</text>
+  </g>
+
+  <!-- Top labels -->
+  <g fill="#222">
+    <text x="466" y="80" font-weight="bold" text-anchor="end">Share (View, Select)</text>
+    <text x="466" y="96" text-anchor="end">Ally with the selected unit's owner</text>
+    <text x="534" y="80" font-weight="bold">Options (Menu, Start)</text>
+    <text x="534" y="96">Pause menu</text>
+  </g>
+
+  <!-- Right labels -->
+  <g fill="#222">
+    <text x="716" y="106" font-weight="bold">R2 (RT)</text>
+    <text x="716" y="122">Scatter. With R1: guard</text>
+
+    <text x="716" y="181" font-weight="bold">R1 (RB)</text>
+    <text x="716" y="197">Hold: fast pointer. With ○: build or place again</text>
+    <text x="716" y="213">With L1: force fire. With L2: force move</text>
+
+    <text x="716" y="234" font-weight="bold">△ Triangle (Y)</text>
+    <text x="716" y="250">Into the sidebar and back</text>
+
+    <text x="716" y="274" font-weight="bold">○ Circle (B)</text>
+    <text x="716" y="290">Cancel, deselect. Sidebar: hold, cancel, back</text>
+
+    <text x="716" y="306" font-weight="bold">✕ Cross (A)</text>
+    <text x="716" y="322">Select, order, place. Hold still: select all of a type,</text>
+    <text x="716" y="338">or on the ground all combat units</text>
+
+    <text x="716" y="361" font-weight="bold">Right stick, R3</text>
+    <text x="716" y="377">Scroll the map. Click: centre on the base</text>
+  </g>
+
+  <!-- Square label below -->
+  <g fill="#222" text-anchor="middle">
+    <text x="598" y="470" font-weight="bold">□ Square (X)</text>
+    <text x="598" y="486">Cycle repair, sell, power, waypoint, off</text>
+    <text x="598" y="502">In the sidebar: open or close a section's grid</text>
+  </g>
+
+  <text x="500" y="560" text-anchor="middle" fill="#555">Sidebar: Cross builds or places, Circle holds then cancels, Cross held on the radar moves a marker and jumps the view.</text>
+  <text x="500" y="580" text-anchor="middle" fill="#555">Cheats: Circle on the mode buttons enters the symbols. See CONTROLS.md for the codes.</text>
+</svg>
