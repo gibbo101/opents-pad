@@ -145,15 +145,19 @@ bool Console_Audio_Screen(bool in_game)
 		menu.Add_Row({"Repeat", [&]{ return(On_Off(Options.IsScoreRepeat)); },
 			[&](int) { Options.Set_Repeat(!Options.IsScoreRepeat); if (Options.IsScoreRepeat) Options.Set_Shuffle(false); }, nullptr});
 		if (!tracks.empty()) {
+			menu.Add_Row({"Now Playing", [&]{
+					ThemeType playing = Theme.What_Is_Playing();
+					return(std::string(Theme.Is_Allowed(playing) ? Theme.Full_Name(playing) : "None"));
+				}, nullptr, nullptr});
 			menu.Add_Row({"Track", [&]{
 					ThemeType theme = tracks[track];
 					int length = Theme.Track_Length(theme);
 					char buffer[128];
-					snprintf(buffer, sizeof(buffer), "%s%02d - %s [%d:%02d]", theme == Theme.What_Is_Playing() ? "> " : "", track + 1, Theme.Full_Name(theme), length / 60, length % 60);
+					snprintf(buffer, sizeof(buffer), "%02d - %s [%d:%02d]", track + 1, Theme.Full_Name(theme), length / 60, length % 60);
 					return(std::string(buffer));
 				},
 				[&](int step) { track = Wrap(track + step, 0, int(tracks.size()) - 1); },
-				[&]{ Theme.Stop(); Theme.Queue_Song(tracks[track]); }});
+				[&]{ Theme.Stop(); Theme.Queue_Song(tracks[track]); menu.Refresh(); }});
 			menu.Add_Row({"Stop Music", nullptr, nullptr, [&]{ Theme.Queue_Song(THEME_QUIET); menu.Refresh(); }});
 		}
 	}
