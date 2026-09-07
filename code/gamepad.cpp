@@ -320,6 +320,19 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 	ClientToScreen(MainWindow, &corner);
 	float height = float(corner.y - origin.y);
 
+	// In play the pointer keeps to the map: the sidebar is worked by the pad, so reaching
+	// its edge scrolls the view as the screen's edge does.
+	if (GameActive && ScenarioActive && TacticalRect.Width > 0) {
+		POINT top_left = {TacticalRect.X, TacticalRect.Y};
+		POINT bottom_right = {TacticalRect.X + TacticalRect.Width, TacticalRect.Y + TacticalRect.Height};
+		Game_Point_To_Screen(top_left);
+		Game_Point_To_Screen(bottom_right);
+		origin.x = std::max(origin.x, top_left.x);
+		origin.y = std::max(origin.y, top_left.y);
+		corner.x = std::min(corner.x, bottom_right.x);
+		corner.y = std::min(corner.y, bottom_right.y);
+	}
+
 	_carry_x += vx * dt * height;
 	_carry_y += vy * dt * height;
 	int dx = int(_carry_x);

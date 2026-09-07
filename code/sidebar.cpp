@@ -125,8 +125,12 @@
 
 #include "padglyph.h"
 #include "sidebarshadowdata.h"
+#include "bsurface.h"
+#include "lightcon.h"
 
 #include <algorithm>
+#include <map>
+#include <memory>
 #include <string>
 #include <compare>
 
@@ -387,6 +391,9 @@ void SidebarClass::One_Time(void)
  * HISTORY:                                                                                    *
  *   12/24/1994 JLB : Created.                                                                 *
  *=============================================================================================*/
+static void Pad_Clear_Sprite_Cache(void);
+
+
 void SidebarClass::Init_Clear(void)
 {
 
@@ -400,6 +407,7 @@ void SidebarClass::Init_Clear(void)
 	Column[0].Init_Clear();
 	Column[1].Init_Clear();
 	for (PadLastType & last : PadLast) last = PadLastType();
+	Pad_Clear_Sprite_Cache();
 
 	Activate(false);
 }
@@ -1439,6 +1447,106 @@ static bool Pad_Section_Shown(int row, int column)
 }
 
 
+// The building type standing for a section: the factory the player holds, else the side's
+// factory for that kind.
+static BuildingTypeClass const * Pad_Section_Factory(int row, int column)
+{
+	HousesType house = Pad_Column_House(column);
+	BuildingTypeClass const * owned = Pad_Owned_Factory(house, row);
+	if (owned != NULL) return(owned);
+	for (int index = 0; index < BuildingTypes.Count(); index++) {
+		BuildingTypeClass const * type = BuildingTypes[index];
+		if (!Pad_Type_Belongs(type, column)) continue;
+		if (Pad_Kind_Matches(type, row)) return(type);
+	}
+	return(NULL);
+}
+
+
+static std::map<std::pair<BuildingTypeClass const *, int>, std::unique_ptr<BSurface>> _PadSpriteCache;
+
+static void Pad_Clear_Sprite_Cache(void)
+{
+	_PadSpriteCache.clear();
+}
+
+
+// The building's own sprite, its idle frame drawn in the player's colours and shrunk to fit a
+// cell, kept once per building and scheme; NULL when the building has no art. Pixel 0 is the
+// transparent key, so a black sprite pixel is nudged off it.
+static BSurface const * Pad_Building_Sprite(BuildingTypeClass const * type)
+{
+	if (type == NULL || PlayerPtr == NULL) return(NULL);
+	auto key = std::make_pair(type, PlayerPtr->Scheme);
+	auto found = _PadSpriteCache.find(key);
+	if (found != _PadSpriteCache.end()) return(found->second.get());
+
+	ShapeSet const * shape = (ShapeSet const *)type->Get_Image_Data();
+	ConvertClass * converter = (unsigned)PlayerPtr->Scheme < (unsigned)ColorSchemes.Count() ? (ConvertClass *)ColorSchemes[PlayerPtr->Scheme]->Converter : NULL;
+	if (shape == NULL || shape->Get_Count() == 0 || converter == NULL) {
+		_PadSpriteCache[key] = nullptr;
+		return(NULL);
+	}
+	Rect frame = shape->Get_Rect(0);
+	if (!frame.Is_Valid()) {
+		_PadSpriteCache[key] = nullptr;
+		return(NULL);
+	}
+
+	int width = shape->Get_Width();
+	int height = shape->Get_Height();
+	BSurface full(width, height, 2);
+	full.Fill(0);
+	Draw_Shape(full, *converter, shape, 0, Point2D(width / 2, height / 2), Rect(0, 0, width, height), ShapeFlags_Type(SHAPE_CENTER|SHAPE_WIN_REL));
+
+	int const cell_w = SidebarClass::StripClass::OBJECT_WIDTH;
+	int const cell_h = SidebarClass::StripClass::OBJECT_HEIGHT;
+	float scale = std::min(float(cell_w - 4) / frame.Width, float(cell_h - 4) / frame.Height);
+	scale = std::min(scale, 1.0f);
+	int dest_w = std::max(1, int(frame.Width * scale));
+	int dest_h = std::max(1, int(frame.Height * scale));
+	int left = (cell_w - dest_w) / 2;
+	int top = (cell_h - dest_h) / 2;
+
+	std::unique_ptr<BSurface> cell(new BSurface(cell_w, cell_h, 2));
+	cell->Fill(0);
+	unsigned short const * source = (unsigned short const *)full.Lock();
+	unsigned short * dest = (unsigned short *)cell->Lock();
+	int source_pitch = full.Stride() / 2;
+	int dest_pitch = cell->Stride() / 2;
+	for (int dy = 0; dy < dest_h; dy++) {
+		int sy0 = frame.Y + int(dy / scale);
+		int sy1 = std::max(sy0 + 1, frame.Y + int((dy + 1) / scale));
+		for (int dx = 0; dx < dest_w; dx++) {
+			int sx0 = frame.X + int(dx / scale);
+			int sx1 = std::max(sx0 + 1, frame.X + int((dx + 1) / scale));
+			int red = 0, green = 0, blue = 0, count = 0, total = 0;
+			for (int sy = sy0; sy < sy1 && sy < height; sy++) {
+				for (int sx = sx0; sx < sx1 && sx < width; sx++) {
+					total++;
+					unsigned short pixel = source[sy * source_pitch + sx];
+					if (pixel == 0) continue;
+					RGBClass rgb = DSurface::Deconstruct_Hicolor_Pixel(pixel);
+					red += rgb.Get_Red();
+					green += rgb.Get_Green();
+					blue += rgb.Get_Blue();
+					count++;
+				}
+			}
+			if (count * 2 < total || count == 0) continue;
+			int pixel = DSurface::Build_Hicolor_Pixel(red / count, green / count, blue / count);
+			if (pixel == 0) pixel = 1;
+			dest[(top + dy) * dest_pitch + left + dx] = (unsigned short)pixel;
+		}
+	}
+	cell->Unlock();
+	full.Unlock();
+	BSurface const * result = cell.get();
+	_PadSpriteCache[key] = std::move(cell);
+	return(result);
+}
+
+
 // The cameo standing for a section: the factory the player holds, else the side's factory for
 // that kind, else for structures any building of that side; NULL leaves the cell blank.
 static ShapeSet const * Pad_Section_Icon(int row, int column)
@@ -1527,7 +1635,10 @@ void SidebarClass::Draw_Pad_View(void)
 					Column[active.Column].Draw_Cameo(active.Index, x, y, cliprect);
 				} else {
 					ShapeSet const * icon = NULL;
-					if (bottom && column != 0 && super_count > 1) {
+					BSurface const * sprite = bottom ? NULL : Pad_Building_Sprite(Pad_Section_Factory(row, column));
+					if (sprite != NULL) {
+						SidebarSurface->Blit_From(Rect(x, cliprect.Y + y, StripClass::OBJECT_WIDTH, StripClass::OBJECT_HEIGHT), *sprite, sprite->Get_Rect(), true);
+					} else if (bottom && column != 0 && super_count > 1) {
 						PadItemType next = supers[(PadSuper + 1) % super_count];
 						icon = Column[next.Column].Get_Special_Cameo(SuperWeaponType(Column[next.Column].Buildables[next.Index].BuildableID));
 					} else if (bottom && column == 0) {
@@ -1541,7 +1652,8 @@ void SidebarClass::Draw_Pad_View(void)
 					if (icon != NULL) {
 						Draw_Shape(*SidebarSurface, *CameoDrawer, icon, 0, Point2D(x, y), cliprect, ShapeFlags_Type(SHAPE_WIN_REL));
 					}
-					if (!bottom && icon != NULL) {
+					bool drawn = icon != NULL || sprite != NULL;
+					if (!bottom && drawn) {
 						// A shadow of what the section builds stands over the factory, as in Retaliation.
 						int shadow = row * PAD_COLUMNS + (Pad_Column_House(column) == HOUSE_GOOD ? 0 : 1);
 						if (SidebarShadowPresent[shadow]) {
@@ -1552,7 +1664,7 @@ void SidebarClass::Draw_Pad_View(void)
 					if (bottom && column != 0) {
 						Pad_Draw_Next_Arrow(x, cliprect.Y + y, !dark);
 					}
-					if (dark && icon != NULL) {
+					if (dark && drawn) {
 						// A section with no factory yet sits well behind the ones that build, so
 						// the strip's darkening is followed by a black wash.
 						if (StripClass::DarkenShapes != NULL) {
