@@ -114,6 +114,16 @@ class OptionsClass {
 		int PromptStyle;				// One of the PromptStyleType values.
 
 		/*
+		 * The controller's own paces, 1 to 10 with 5 the default: the pointer under the stick
+		 * and d-pad, how much a shoulder button speeds it, and the right stick's map scroll.
+		 * The mouse scroll settings above leave the controller alone.
+		 */
+		int PadPointerSpeed;
+		int PadFastSpeed;
+		int PadScrollSpeed;
+		enum { PAD_SPEED_MIN = 1, PAD_SPEED_MAX = 10, PAD_SPEED_DEFAULT = 5 };
+
+		/*
 		 * This is how much detail the renderer is allowed to draw (0 - 2). Animations, particle
 		 * systems and translucency carry a detail level of their own and are skipped when it
 		 * exceeds this one, so a lower setting buys frame rate at the cost of eye candy.

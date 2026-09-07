@@ -289,9 +289,10 @@ static void Select_Combat_On_Map(void)
 static void Play_Input(GamepadStateType const & pad, GamepadStateType const & previous, unsigned long now)
 {
 	enum { STEP_CAP_MS = 50 };
-	const float POINTER_RATE = 0.9f;		// Screen heights per second at full stick.
-	const float PAD_RATE = 0.6f;			// The d-pad's steady rate.
-	const float FAST_FACTOR = 2.2f;
+	// The paces at the default setting, each scaled by the player's setting over the default.
+	const float POINTER_RATE = 0.9f * Options.PadPointerSpeed / OptionsClass::PAD_SPEED_DEFAULT;		// Screen heights per second at full stick.
+	const float PAD_RATE = 0.6f * Options.PadPointerSpeed / OptionsClass::PAD_SPEED_DEFAULT;			// The d-pad's steady rate.
+	const float FAST_FACTOR = 1.0f + 1.2f * Options.PadFastSpeed / OptionsClass::PAD_SPEED_DEFAULT;
 	static unsigned long _last = 0;
 	static float _carry_x = 0.0f;
 	static float _carry_y = 0.0f;
@@ -557,7 +558,7 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 	// settings: a full push crosses a few view heights a second, and the squared response
 	// keeps a light touch slow.
 	{
-		const float STICK_SCROLL_RATE = 3.0f;		// View heights per second at full stick.
+		const float STICK_SCROLL_RATE = 3.0f * Options.PadScrollSpeed / OptionsClass::PAD_SPEED_DEFAULT;		// View heights per second at full stick.
 		static float _scroll_x = 0.0f;
 		static float _scroll_y = 0.0f;
 		float rx = pad.RightStickX * (pad.RightStickX < 0 ? -pad.RightStickX : pad.RightStickX);

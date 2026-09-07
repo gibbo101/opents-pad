@@ -245,13 +245,14 @@ bool Console_Options_Screen(bool in_game)
 	int scale_mode = Options.ScaleMode;
 	bool integer_scaling = Options.IntegerScaling;
 	int speed = (OptionsClass::MAX_SPEED_SETTING - 1) - Options.GameSpeed;
-	int scroll = (OptionsClass::MAX_SCROLL_SETTING - 1) - Options.ScrollRate;
+	int pointer_speed = Options.PadPointerSpeed;
+	int fast_speed = Options.PadFastSpeed;
+	int scroll_speed = Options.PadScrollSpeed;
 	int detail = Options.DetailLevel;
 	int difficulty = Options.Difficulty;
 	bool cameo_text = Options.SidebarCameoText;
 	bool action_lines = Options.ActionLines;
 	bool tooltips = Options.ToolTips;
-	bool coasting = Options.ScrollMethod == 0;
 
 	static char const * const _scale_names[] = {"Nearest", "Linear", "Pixel Art"};
 	static char const * const _detail_names[] = {"Low", "Medium", "High"};
@@ -276,9 +277,10 @@ bool Console_Options_Screen(bool in_game)
 	}
 	menu.Add_Row({"Game Speed", [&]{ return(std::to_string(speed)); },
 		[&](int step) { speed = std::clamp(speed + step, 0, int(OptionsClass::MAX_SPEED_SETTING) - 1); }, nullptr});
-	menu.Add_Row({"Scroll Rate", [&]{ return(std::to_string(scroll)); },
-		[&](int step) { scroll = std::clamp(scroll + step, 0, int(OptionsClass::MAX_SCROLL_SETTING) - 1); }, nullptr});
-	menu.Add_Row({"Scroll Coasting", [&]{ return(On_Off(coasting)); }, [&](int) { coasting = !coasting; }, nullptr});
+	auto step_speed = [](int & value) { return [&value](int delta) { value = std::clamp(value + delta, int(OptionsClass::PAD_SPEED_MIN), int(OptionsClass::PAD_SPEED_MAX)); }; };
+	menu.Add_Row({"Pointer Speed", [&]{ return(std::to_string(pointer_speed)); }, step_speed(pointer_speed), nullptr});
+	menu.Add_Row({"Fast Pointer", [&]{ return(std::to_string(fast_speed)); }, step_speed(fast_speed), nullptr});
+	menu.Add_Row({"Stick Scroll Speed", [&]{ return(std::to_string(scroll_speed)); }, step_speed(scroll_speed), nullptr});
 	menu.Add_Row({"Detail Level", [&]{ return(std::string(_detail_names[std::clamp(detail, 0, 2)])); },
 		[&](int step) { detail = std::clamp(detail + step, 0, int(OptionsClass::MAX_DETAIL_SETTING) - 1); }, nullptr});
 	// The difficulty is a setting for the next campaign mission, so it is not offered in play.
@@ -319,8 +321,9 @@ bool Console_Options_Screen(bool in_game)
 	Options.IntegerScaling = integer_scaling;
 	Options.StretchMovies = stretch;
 	Options.GameSpeed = (OptionsClass::MAX_SPEED_SETTING - 1) - speed;
-	Options.ScrollRate = (OptionsClass::MAX_SCROLL_SETTING - 1) - scroll;
-	Options.ScrollMethod = coasting ? 0 : 1;
+	Options.PadPointerSpeed = pointer_speed;
+	Options.PadFastSpeed = fast_speed;
+	Options.PadScrollSpeed = scroll_speed;
 	if (Options.DetailLevel != detail) {
 		Options.DetailLevel = detail;
 		Map.Reinit_Cell_Drawers();

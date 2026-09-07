@@ -15161,6 +15161,60 @@ PadAircraft:
       source: code/rules.cpp
       guard: null
     level: RulesClass
+PadFastSpeed:
+  key: PadFastSpeed
+  scopes:
+  - applies_to:
+    - client settings
+    file: sun.ini
+    section:
+      kind: literal
+      name: Options
+    value_type: integer
+    status: generated
+    _provenance:
+      default_candidate: null
+      declared_in: OptionsClass
+      member: null
+      source: code/options.cpp
+      guard: null
+    level: OptionsClass
+PadPointerSpeed:
+  key: PadPointerSpeed
+  scopes:
+  - applies_to:
+    - client settings
+    file: sun.ini
+    section:
+      kind: literal
+      name: Options
+    value_type: integer
+    status: generated
+    _provenance:
+      default_candidate: null
+      declared_in: OptionsClass
+      member: null
+      source: code/options.cpp
+      guard: null
+    level: OptionsClass
+PadScrollSpeed:
+  key: PadScrollSpeed
+  scopes:
+  - applies_to:
+    - client settings
+    file: sun.ini
+    section:
+      kind: literal
+      name: Options
+    value_type: integer
+    status: generated
+    _provenance:
+      default_candidate: null
+      declared_in: OptionsClass
+      member: null
+      source: code/options.cpp
+      guard: null
+    level: OptionsClass
 Parachute:
   key: Parachute
   scopes:
