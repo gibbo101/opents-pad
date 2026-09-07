@@ -25,7 +25,8 @@ enum PadButtonType {
 
 /// <summary>
 /// The style prompts draw in right now. Auto resolves to the Deck set on a Steam Deck, to
-/// the Xbox set while a controller is connected, and to plain text otherwise.
+/// the PlayStation set when the system lists a Sony controller, to the Xbox set while a
+/// controller is connected, and to plain text otherwise.
 /// </summary>
 int Resolved_Prompt_Style(void);
 

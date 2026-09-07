@@ -46,6 +46,9 @@ int Resolved_Prompt_Style(void)
 	if (On_Steam_Deck()) {
 		return(PROMPT_STYLE_DECK);
 	}
+	if (Gamepad_Kind() == GAMEPAD_KIND_PLAYSTATION) {
+		return(PROMPT_STYLE_PLAYSTATION);
+	}
 	return(Gamepad_Read().Connected ? PROMPT_STYLE_XBOX : PROMPT_STYLE_TEXT);
 }
 

@@ -28,6 +28,20 @@ struct GamepadStateType
 	bool Menu;
 };
 
+// What make of controller the system reports, from its device list.
+enum GamepadKindType {
+	GAMEPAD_KIND_UNKNOWN,
+	GAMEPAD_KIND_XBOX,
+	GAMEPAD_KIND_PLAYSTATION,
+};
+
+/// <summary>
+/// Reports the make of the connected controller from the vendor of the game controllers in
+/// the system's device list, rechecked every few seconds. Steam's virtual pad reports as
+/// Xbox whatever is in the player's hands.
+/// </summary>
+GamepadKindType Gamepad_Kind(void);
+
 /// <summary>
 /// Reads the first connected controller. Returns a disconnected state when no controller
 /// or no controller support is present.

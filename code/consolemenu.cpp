@@ -54,6 +54,7 @@ enum {
 	GLYPH_INSET = 2,
 	GLYPH_GAP = 6,
 	SWATCH_GAP = 10,
+	COLUMN_GAP = 16,
 	SWATCH_INSET = 2,
 	PANEL_OPACITY = 80,
 	REPEAT_FIRST_MS = 350,
@@ -92,6 +93,7 @@ ConsoleMenuClass::ConsoleMenuClass(char const * title) :
 	FocusFont(NULL),
 	Click(NULL),
 	PanelOpacity(PANEL_OPACITY),
+	StartButton(false),
 	IdleFont(NULL),
 	FocusOverride(NULL),
 	Backdrop(NULL),
@@ -275,6 +277,8 @@ bool ConsoleMenuClass::Poll_Input(ConsoleMenuResult & result)
 			IsDirty = true;
 			return(false);
 		}
+		// On a screen with a start button, accepting is that button's job alone.
+		if (StartButton) return(false);
 		result = CONSOLE_MENU_ACCEPT;
 		return(true);
 	};
@@ -360,7 +364,7 @@ bool ConsoleMenuClass::Poll_Input(ConsoleMenuResult & result)
 	bool accept_pressed = pad.Accept && !PreviousPad.Accept;
 	bool back_pressed = pad.Back && !PreviousPad.Back;
 	// On a screen whose accept is Start, the pad's start button starts from any row.
-	bool start_pressed = pad.Menu && !PreviousPad.Menu && AcceptPrompt == "Start";
+	bool start_pressed = pad.Menu && !PreviousPad.Menu && StartButton;
 	PreviousPad = pad;
 	if (start_pressed) {
 		result = CONSOLE_MENU_ACCEPT;
@@ -473,6 +477,11 @@ void ConsoleMenuClass::Draw(void)
 	for (ConsoleRowType const & row : Rows) {
 		if (row.Value) widest_label = std::max(widest_label, width(row.Label));
 	}
+	// The label column starts clear of a side panel, and the values move right if the
+	// widest label would otherwise run under them.
+	int label_left = left + LABEL_RIGHT - widest_label;
+	if (SidePanel) label_left = std::max(label_left, left + SIDE_X + SIDE_WIDTH + COLUMN_GAP);
+	int value_left = std::max(left + VALUE_LEFT, label_left + widest_label + COLUMN_GAP);
 	RowRects.assign(count, Rect());
 	int list_y = top + ROWS_TOP;
 	int order = 0;
@@ -490,20 +499,20 @@ void ConsoleMenuClass::Draw(void)
 		if (!row.Value) {
 			print(row.Label, left + (MENU_WIDTH - width(row.Label)) / 2, y, focused);
 		} else {
-			print(row.Label, left + LABEL_RIGHT - widest_label, y, focused);
+			print(row.Label, label_left, y, focused);
 		}
 		if (row.Value) {
 			std::string value = row.Value();
 			// A value that would run past the box is cut short with a trailing "..".
-			int limit = VALUE_RIGHT - VALUE_LEFT;
+			int limit = left + VALUE_RIGHT - value_left;
 			if (width(value) > limit) {
 				while (value.size() > 1 && width(value + "..") > limit) {
 					value.pop_back();
 				}
 				value += "..";
 			}
-			print(value, left + VALUE_LEFT, y, focused);
-			int x = left + VALUE_LEFT + (value.empty() ? 0 : width(value) + SWATCH_GAP);
+			print(value, value_left, y, focused);
+			int x = value_left + (value.empty() ? 0 : width(value) + SWATCH_GAP);
 			if (row.Icon) {
 				Surface * icon = row.Icon();
 				if (icon != NULL) {
@@ -540,17 +549,17 @@ void ConsoleMenuClass::Draw(void)
 		return(Rect(x - 8, top + PROMPT_Y - 4, total + 16, height + 8));
 	};
 	// A row with an action of its own takes the accept button, so the prompt says what it does.
-	std::string accept_text = AcceptPrompt;
+	std::string accept_text = StartButton ? std::string() : AcceptPrompt;
 	if (Focus >= 0 && Focus < count && Rows[Focus].Activate && !AcceptPrompt.empty()) {
 		accept_text = Rows[Focus].Prompt.empty() ? "Select" : Rows[Focus].Prompt;
 	}
 	BackRect = prompt(BackPrompt, PAD_BUTTON_BACK, false);
 	AcceptRect = prompt(accept_text, PAD_BUTTON_ACCEPT, true);
 	// The start button's prompt sits in the middle on a screen that starts from it.
-	if (AcceptPrompt == "Start") {
+	if (StartButton) {
 		int used = Resolved_Prompt_Style() == PROMPT_STYLE_TEXT ? 0 : glyph + GLYPH_GAP;
 		int total = used + width(AcceptPrompt);
-		int x = left + (MENU_WIDTH - total) / 2;
+		int x = accept_text.empty() ? left + MENU_WIDTH - PROMPT_INSET - total : left + (MENU_WIDTH - total) / 2;
 		if (used > 0) {
 			Draw_Pad_Glyph(surface, PAD_BUTTON_MENU, x, top + PROMPT_Y - GLYPH_INSET, glyph);
 		}
@@ -567,7 +576,7 @@ ConsoleMenuResult ConsoleMenuClass::Process(void)
 	ConsoleMenuResult result = CONSOLE_MENU_BACK;
 
 	Keyboard->Clear();
-	Gamepad_Menu_Starts(AcceptPrompt == "Start");
+	Gamepad_Menu_Starts(StartButton);
 	// A button still held from the screen before must not count as a press here.
 	PreviousPad = Gamepad_Read();
 	LastMouse = Point2D(Get_Mouse_X(), Get_Mouse_Y());

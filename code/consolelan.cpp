@@ -450,6 +450,7 @@ static bool Console_Host_Screen(std::string & notice)
 		std::string signature;
 		ConsoleMenuClass menu("Host Game");
 		menu.Set_Prompts("Start", "Back");
+		menu.Set_Start_Button(true);
 		menu.Set_Side_Panel(Console_Draw_Map_Preview);
 		menu.Set_Backdrop_Panel(Draw_Players);
 

@@ -52,6 +52,50 @@ static XInputGetStateType Get_State_Function(void)
 }
 
 
+GamepadKindType Gamepad_Kind(void)
+{
+	enum { RECHECK_MS = 3000, VENDOR_SONY = 0x054C, VENDOR_MICROSOFT = 0x045E, USAGE_PAGE_DESKTOP = 1, USAGE_JOYSTICK = 4, USAGE_GAMEPAD = 5 };
+	static GamepadKindType _kind = GAMEPAD_KIND_UNKNOWN;
+	static unsigned long _checked = 0;
+	static bool _logged = false;
+
+	unsigned long now = timeGetTime();
+	if (_checked != 0 && now - _checked < RECHECK_MS) {
+		return(_kind);
+	}
+	_checked = now;
+
+	UINT count = 0;
+	if (GetRawInputDeviceList(NULL, &count, sizeof(RAWINPUTDEVICELIST)) != 0 || count == 0) {
+		return(_kind);
+	}
+	RAWINPUTDEVICELIST * list = new RAWINPUTDEVICELIST[count];
+	count = GetRawInputDeviceList(list, &count, sizeof(RAWINPUTDEVICELIST));
+	GamepadKindType found = GAMEPAD_KIND_UNKNOWN;
+	for (UINT index = 0; index < count && count != (UINT)-1; index++) {
+		if (list[index].dwType != RIM_TYPEHID) continue;
+		RID_DEVICE_INFO info;
+		info.cbSize = sizeof(info);
+		UINT size = sizeof(info);
+		if (GetRawInputDeviceInfoA(list[index].hDevice, RIDI_DEVICEINFO, &info, &size) == (UINT)-1) continue;
+		bool pad = info.hid.usUsagePage == USAGE_PAGE_DESKTOP && (info.hid.usUsage == USAGE_JOYSTICK || info.hid.usUsage == USAGE_GAMEPAD);
+		if (!pad) continue;
+		if (!_logged) {
+			DebugString("Game controller: vendor %04lX product %04lX usage %u\n", info.hid.dwVendorId, info.hid.dwProductId, info.hid.usUsage);
+		}
+		if (info.hid.dwVendorId == VENDOR_SONY) {
+			found = GAMEPAD_KIND_PLAYSTATION;
+		} else if (info.hid.dwVendorId == VENDOR_MICROSOFT && found == GAMEPAD_KIND_UNKNOWN) {
+			found = GAMEPAD_KIND_XBOX;
+		}
+	}
+	_logged = true;
+	delete [] list;
+	_kind = found;
+	return(_kind);
+}
+
+
 GamepadStateType Gamepad_Read(void)
 {
 	GamepadStateType result = {};

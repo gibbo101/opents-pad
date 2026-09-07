@@ -168,6 +168,7 @@ bool Console_Skirmish_Screen(void)
 	ConsoleMenuClass menu("Skirmish");
 	menu.Set_Side_Panel(Console_Draw_Map_Preview);
 	menu.Set_Prompts("Start", "Back");
+	menu.Set_Start_Button(true);
 
 	int name_row = menu.Add_Row({"Name", [&]{ return(std::string(Session.Handle)); }, nullptr, [&]{
 		std::string handle = Session.Handle;
