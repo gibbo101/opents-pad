@@ -13,7 +13,9 @@ remains under its own license and copyright notices.
 | [astc-encoder](https://github.com/ARM-software/astc-encoder)       | ASTC texture processing used by bimg      | Apache-2.0   |
 | [OpenGL Registry](https://github.com/KhronosGroup/OpenGL-Registry) | OpenGL API headers used by bgfx           | MIT          |
 | [Vulkan Headers](https://github.com/KhronosGroup/Vulkan-Headers)   | Vulkan API headers used by bgfx           | Apache-2.0   |
+| [Kenney Input Prompts](https://kenney.nl/assets/input-prompts)     | Controller button glyphs on console-style screens | CC0  |
 
-The source checkout keeps the license texts under `thirdparty/`. Binary
+The source checkout keeps the license texts under `thirdparty/`, and the
+glyph pack's under `assets/input-prompts/`. Binary
 packages reproduce the license texts for the components used by OpenTS under
 `OpenTS_THIRD_PARTY_LICENSES/`.
