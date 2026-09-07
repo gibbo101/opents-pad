@@ -1017,7 +1017,7 @@ void SidebarClass::Draw_It(bool complete)
 
 
 enum PadSectionKind { PAD_KIND_STRUCTURES, PAD_KIND_INFANTRY, PAD_KIND_VEHICLES, PAD_KIND_AIRCRAFT, PAD_KIND_SPECIAL };
-static char const * const _PadSectionNames[] = {"Structures", "Infantry", "Vehicles", "Aircraft", "Superweapons", "Return"};
+static char const * const _PadSectionNames[] = {"Structures", "Infantry", "Vehicles", "Aircraft", "Superweapons", "Next Weapon"};
 
 
 // The house whose things a section column holds: the player's own in the left column, the
@@ -1161,8 +1161,19 @@ void SidebarClass::Pad_Accept(void)
 		}
 	} else if (PadSection < 0) {
 		int section = PadRow * PAD_COLUMNS + PadCol;
-		if (PadRow == PAD_SECTION_ROWS - 1 && PadCol != 0) {
-			Pad_Leave();
+		if (PadRow == PAD_SECTION_ROWS - 1) {
+			// The bottom row is the current superweapon and the cell that cycles to the next.
+			PadItemType supers[StripClass::MAX_BUILDABLES];
+			int count = Pad_Items((PAD_SECTION_ROWS - 1) * PAD_COLUMNS, supers, StripClass::MAX_BUILDABLES);
+			if (count > 0) {
+				PadSuper %= count;
+				if (PadCol == 0) {
+					Column[supers[PadSuper].Column].Activate(supers[PadSuper].Index, GadgetClass::LEFTPRESS);
+				} else {
+					PadSuper = (PadSuper + 1) % count;
+				}
+			}
+			Pad_Focus_Changed();
 			return;
 		}
 		PadItemType active;
@@ -1193,6 +1204,18 @@ bool SidebarClass::Pad_Back(void)
 	}
 	if (PadSection < 0) {
 		int section = PadRow * PAD_COLUMNS + PadCol;
+		if (PadRow == PAD_SECTION_ROWS - 1) {
+			PadItemType supers[StripClass::MAX_BUILDABLES];
+			int count = Pad_Items((PAD_SECTION_ROWS - 1) * PAD_COLUMNS, supers, StripClass::MAX_BUILDABLES);
+			if (count > 0 && PadCol == 0) {
+				PadSuper %= count;
+				Column[supers[PadSuper].Column].Activate(supers[PadSuper].Index, GadgetClass::RIGHTPRESS);
+				Pad_Focus_Changed();
+				return(true);
+			}
+			Pad_Leave();
+			return(false);
+		}
 		PadItemType active;
 		if (Pad_Active_Item(section, active)) {
 			Column[active.Column].Activate(active.Index, GadgetClass::RIGHTPRESS);
@@ -1220,6 +1243,7 @@ void SidebarClass::Pad_Toggle_Grid(void)
 	if (PadRow == PAD_ROW_MODES) return;
 	if (PadSection < 0) {
 		int section = PadRow * PAD_COLUMNS + PadCol;
+		if (PadRow == PAD_SECTION_ROWS - 1) return;
 		PadItemType items[1];
 		if (Pad_Items(section, items, 1) == 0) return;
 		PadSection = section;
@@ -1283,17 +1307,24 @@ void SidebarClass::Draw_Pad_View(void)
 				int section = row * PAD_COLUMNS + column;
 				int x = cell_x[column];
 				int y = COLUMN_ONE_Y + row * StripClass::OBJECT_HEIGHT;
-				bool is_return = row == PAD_SECTION_ROWS - 1 && column != 0;
+				bool bottom = row == PAD_SECTION_ROWS - 1;
+				PadItemType supers[StripClass::MAX_BUILDABLES];
+				int super_count = bottom ? Pad_Items((PAD_SECTION_ROWS - 1) * PAD_COLUMNS, supers, StripClass::MAX_BUILDABLES) : 0;
 				PadItemType items[1];
-				bool has_items = !is_return && Pad_Items(section, items, 1) > 0;
+				bool has_items = bottom ? super_count > 0 : Pad_Items(section, items, 1) > 0;
 				PadItemType active;
-				if (has_items && Pad_Active_Item(section, active)) {
+				if (bottom && column == 0 && super_count > 0) {
+					// The current superweapon, with its charge as the strip would show it.
+					PadItemType current = supers[PadSuper % super_count];
+					Column[current.Column].Draw_Cameo(current.Index, x, y, cliprect);
+				} else if (!bottom && has_items && Pad_Active_Item(section, active)) {
 					Column[active.Column].Draw_Cameo(active.Index, x, y, cliprect);
 				} else {
 					ShapeSet const * icon = NULL;
-					if (row == PAD_SECTION_ROWS - 1 && column == 0 && has_items) {
-						icon = Column[items[0].Column].Get_Special_Cameo(SuperWeaponType(Column[items[0].Column].Buildables[items[0].Index].BuildableID));
-					} else if (!is_return) {
+					if (bottom && column != 0 && super_count > 1) {
+						PadItemType next = supers[(PadSuper + 1) % super_count];
+						icon = Column[next.Column].Get_Special_Cameo(SuperWeaponType(Column[next.Column].Buildables[next.Index].BuildableID));
+					} else if (!bottom) {
 						icon = Pad_Section_Icon(row, column);
 					}
 					if (icon != NULL) {
@@ -1301,15 +1332,21 @@ void SidebarClass::Draw_Pad_View(void)
 					} else {
 						Draw_Shape(*SidebarSurface, *SidebarDrawer, StripClass::LogoShapes, 0, Point2D(x, y), cliprect, ShapeFlags_Type(SHAPE_WIN_REL));
 					}
-					if (!has_items && !is_return) {
+					bool dark = bottom ? (column == 0 ? super_count == 0 : super_count < 2) : !has_items;
+					if (dark) {
 						Draw_Shape(*SidebarSurface, *SidebarDrawer, StripClass::DarkenShapes, 0, Point2D(x, y), cliprect, ShapeFlags_Type(SHAPE_WIN_REL|SHAPE_DARKEN));
 					}
-					char const * name = is_return ? _PadSectionNames[5] : _PadSectionNames[row];
+					char const * name = bottom && column != 0 ? _PadSectionNames[5] : _PadSectionNames[row];
 					Print_Cameo_Text(name, Point2D(x, y + StripClass::CAMEO_TEXT_Y_OFFSET), cliprect, StripClass::OBJECT_WIDTH - 2);
 				}
 				if (PadRow == row && PadCol == column) {
 					outline(x, y);
-					caption = is_return ? _PadSectionNames[5] : _PadSectionNames[row];
+					if (bottom && column == 0 && super_count > 0) {
+						PadItemType current = supers[PadSuper % super_count];
+						caption = SuperWeaponTypes[Column[current.Column].Buildables[current.Index].BuildableID]->Full_Name();
+					} else {
+						caption = bottom && column != 0 ? _PadSectionNames[5] : _PadSectionNames[row];
+					}
 				}
 			}
 		}

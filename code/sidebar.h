@@ -394,7 +394,7 @@ class SidebarClass : public PowerClass
 		/*
 		 * The pad's sidebar: a fixed grid of sections, the player's side in the left column
 		 * and the other side's in the right, structures, infantry, vehicles and aircraft by
-		 * row, then superweapons and a return cell. Opening a section shows its buildables
+		 * row, then the current superweapon and a cell that cycles to the next. Opening a section shows its buildables
 		 * as a grid of their own. Above the sections sits the row of mode buttons.
 		 */
 		enum {
@@ -408,6 +408,7 @@ class SidebarClass : public PowerClass
 		int PadCol = 0;					// A column, or the mode button when on that row.
 		int PadSection = -1;			// The open section as row * 2 + column, or -1 on the section grid.
 		int PadTop = 0;					// The first grid row shown while a section is open.
+		int PadSuper = 0;				// Which superweapon the bottom row shows.
 		bool PadDirty = false;
 		struct PadItemType {
 			int Column;					// Which strip holds the buildable.
