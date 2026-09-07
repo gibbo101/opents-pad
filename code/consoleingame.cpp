@@ -13,10 +13,8 @@
 
 #include "_keyboar.h"
 #include "_map.h"
-#include "_surface.h"
 #include "consolemenu.h"
 #include "data.h"
-#include "dsurface.h"
 #include "event.h"
 #include "globals.h"
 #include "house.h"
@@ -24,25 +22,12 @@
 #include "loaddlg.h"
 #include "mainopt.h"
 #include "restate.h"
-#include "rgb.h"
 #include "savemgr.h"
 #include "scenario.h"
 #include "session.h"
 #include "wincursor.h"
 
 #include <string>
-
-enum {
-	PAUSE_DIM = 50,
-	PAUSE_PANEL_OPACITY = 70,
-};
-
-static Rect const _box(120, 104, 400, 176);
-static RGBClass const _gold(236, 200, 72);
-static RGBClass const _white(255, 255, 255);
-static RGBClass const _border(200, 200, 210);
-static RGBClass const _border_inner(70, 76, 110);
-static RGBClass const _panel(16, 28, 84);
 
 
 static bool Single_Player(void)
@@ -51,21 +36,9 @@ static bool Single_Player(void)
 }
 
 
-// Sets up a pause-style menu over the frozen frame, shared by the menu and its confirmations.
-static void Style_Menu(ConsoleMenuClass & menu, Surface const & frame)
-{
-	menu.Set_Backdrop_From(frame, PAUSE_DIM);
-	menu.Set_Box(_box, _border, _border_inner);
-	menu.Set_Panel_Color(_panel);
-	menu.Set_Panel_Opacity(PAUSE_PANEL_OPACITY);
-	menu.Set_Row_Colors(_gold, _white);
-}
-
-
-static bool Confirm(Surface const & frame, char const * title, char const * question)
+static bool Confirm(char const * title, char const * question)
 {
 	ConsoleMenuClass menu(title);
-	Style_Menu(menu, frame);
 	menu.Set_Prompts("Confirm", "Back");
 	menu.Add_Row({question, nullptr, nullptr, nullptr});
 	menu.Set_Row_Quiet(0);
@@ -91,10 +64,9 @@ ConsoleIngameResult Console_Ingame_Menu(void)
 	IgnoreInput = true;
 	Keyboard->Clear();
 
-	// The frame as it stood at the pause, kept so every screen here sits on the same picture.
-	DSurface frame(HiddenSurface->Get_Width(), HiddenSurface->Get_Height());
-	frame.Fill(0);
-	frame.Blit_From(*CompositeSurface);
+	// The menu is its own screen at the shell's size, like the main menus, so its text and
+	// artwork are the same on every panel; the play size returns on the way out.
+	Shell_Display_Mode();
 
 	ConsoleIngameResult result = INGAME_MENU_RESUME;
 	std::string notice;
@@ -103,7 +75,6 @@ ConsoleIngameResult Console_Ingame_Menu(void)
 	while (!done) {
 		int action = ACTION_NONE;
 		ConsoleMenuClass menu("Game Paused");
-		Style_Menu(menu, frame);
 		menu.Set_Prompts("Select", "Return");
 		auto add = [&](char const * label, int which) {
 			menu.Add_Row({label, nullptr, nullptr, [&, which]{ action = which; menu.Finish(CONSOLE_MENU_ACCEPT); }});
@@ -174,21 +145,23 @@ ConsoleIngameResult Console_Ingame_Menu(void)
 				break;
 
 			case ACTION_RESTART:
-				if (Single_Player() ? Confirm(frame, "Restart Mission", "Start the mission again from the beginning?")
-						: Confirm(frame, Fetch_String(TXT_SURRENDER), "Give up this game?")) {
+				if (Single_Player() ? Confirm("Restart Mission", "Start the mission again from the beginning?")
+						: Confirm(Fetch_String(TXT_SURRENDER), "Give up this game?")) {
 					result = INGAME_MENU_RESTART;
 					done = true;
 				}
 				break;
 
 			case ACTION_ABORT:
-				if (Confirm(frame, "Abort Mission", "Leave the mission and return to the menu?")) {
+				if (Confirm("Abort Mission", "Leave the mission and return to the menu?")) {
 					result = INGAME_MENU_ABORT;
 					done = true;
 				}
 				break;
 		}
 	}
+
+	Play_Display_Mode();
 
 	Keyboard->Clear();
 	IgnoreInput = Scen->IsInputLocked;

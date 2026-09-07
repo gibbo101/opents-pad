@@ -53,8 +53,6 @@ enum {
 	PROMPT_INSET = 24,
 	GLYPH_INSET = 2,
 	GLYPH_GAP = 6,
-	BOX_INSET = 16,
-	BOX_TITLE_GAP = 12,
 	SWATCH_GAP = 10,
 	SWATCH_INSET = 2,
 	PANEL_OPACITY = 80,
@@ -80,10 +78,6 @@ ConsoleMenuClass::ConsoleMenuClass(char const * title) :
 	FocusFont(NULL),
 	Click(NULL),
 	PanelOpacity(PANEL_OPACITY),
-	PanelColor(0, 0, 0),
-	BoxOuter(0, 0, 0),
-	BoxInner(0, 0, 0),
-	KeepBackdrop(false),
 	IdleFont(NULL),
 	FocusOverride(NULL),
 	Backdrop(NULL),
@@ -142,38 +136,6 @@ void ConsoleMenuClass::Set_Prompts(char const * accept, char const * back)
 void ConsoleMenuClass::Set_Side_Panel(std::function<void(Surface &, Rect const &)> draw)
 {
 	SidePanel = draw;
-	IsDirty = true;
-}
-
-
-void ConsoleMenuClass::Set_Panel_Color(RGBClass const & color)
-{
-	PanelColor = color;
-	IsDirty = true;
-}
-
-
-void ConsoleMenuClass::Set_Backdrop_From(Surface const & source, int dim_percent)
-{
-	if (Backdrop == NULL) {
-		Backdrop = new DSurface(HiddenSurface->Get_Width(), HiddenSurface->Get_Height());
-	}
-	Backdrop->Fill(0);
-	Backdrop->Blit_From(source);
-	if (dim_percent > 0) {
-		Backdrop->Fill_Rect_Trans(Backdrop->Get_Rect(), RGBClass(0, 0, 0), dim_percent);
-	}
-	KeepBackdrop = true;
-	IsDirty = true;
-}
-
-
-void ConsoleMenuClass::Set_Box(Rect const & box, RGBClass const & outer, RGBClass const & inner)
-{
-	Box = box;
-	BoxOuter = outer;
-	BoxInner = inner;
-	Panel = box;
 	IsDirty = true;
 }
 
@@ -411,17 +373,9 @@ void ConsoleMenuClass::Draw(void)
 	if (PanelOpacity <= 0) {
 		// Bare backdrop.
 	} else if (Panel.Is_Valid()) {
-		surface.Fill_Rect_Trans(Rect(left + Panel.X, top + Panel.Y, Panel.Width, Panel.Height), PanelColor, PanelOpacity);
+		surface.Fill_Rect_Trans(Rect(left + Panel.X, top + Panel.Y, Panel.Width, Panel.Height), RGBClass(0, 0, 0), PanelOpacity);
 	} else {
-		surface.Fill_Rect_Trans(Rect(left + PANEL_INSET, top + PANEL_INSET, MENU_WIDTH - 2 * PANEL_INSET, MENU_HEIGHT - 2 * PANEL_INSET), PanelColor, PanelOpacity);
-	}
-	if (Box.Is_Valid()) {
-		Rect frame_box(left + Box.X, top + Box.Y, Box.Width, Box.Height);
-		int outer = DSurface::Build_Hicolor_Pixel(BoxOuter);
-		int inner = DSurface::Build_Hicolor_Pixel(BoxInner);
-		surface.Draw_Rect(frame_box, outer);
-		surface.Draw_Rect(Rect(frame_box.X + 1, frame_box.Y + 1, frame_box.Width - 2, frame_box.Height - 2), outer);
-		surface.Draw_Rect(Rect(frame_box.X + 3, frame_box.Y + 3, frame_box.Width - 6, frame_box.Height - 6), inner);
+		surface.Fill_Rect_Trans(Rect(left + PANEL_INSET, top + PANEL_INSET, MENU_WIDTH - 2 * PANEL_INSET, MENU_HEIGHT - 2 * PANEL_INSET), RGBClass(0, 0, 0), PanelOpacity);
 	}
 	if (Font == NULL) {
 		Font = new MSFont(false);
@@ -450,15 +404,7 @@ void ConsoleMenuClass::Draw(void)
 		BackdropPanel(canvas);
 	}
 
-	int rows_top = ROWS_TOP;
-	int rows_bottom = ROWS_BOTTOM;
-	if (Box.Is_Valid()) {
-		rows_top = Box.Y + BOX_INSET;
-		rows_bottom = Box.Y + Box.Height - BOX_INSET;
-		print(Title, left + (MENU_WIDTH - width(Title)) / 2, top + Box.Y - height - BOX_TITLE_GAP);
-	} else {
-		print(Title, left + (MENU_WIDTH - width(Title)) / 2, top + TITLE_Y);
-	}
+	print(Title, left + (MENU_WIDTH - width(Title)) / 2, top + TITLE_Y);
 
 	if (SidePanel) {
 		SidePanel(surface, Rect(left + SIDE_X, top + SIDE_Y, SIDE_WIDTH, SIDE_HEIGHT));
@@ -470,10 +416,10 @@ void ConsoleMenuClass::Draw(void)
 		if (row.Y <= 0) listed++;
 	}
 	int pitch = height + 4;
-	int visible = std::max((rows_bottom - rows_top) / pitch, 1);
+	int visible = std::max((ROWS_BOTTOM - ROWS_TOP) / pitch, 1);
 	// A list a little too long is packed to fit; a long one scrolls, keeping the focused row in view.
 	if (listed > visible && listed <= visible + visible / 2) {
-		pitch = (rows_bottom - rows_top) / listed;
+		pitch = (ROWS_BOTTOM - ROWS_TOP) / listed;
 		visible = listed;
 	}
 	int focus_order = 0;
@@ -485,13 +431,13 @@ void ConsoleMenuClass::Draw(void)
 	if (focus_order >= First + visible) First = focus_order - visible + 1;
 	First = std::clamp(First, 0, std::max(listed - visible, 0));
 	if (First > 0) {
-		print("..", left + (MENU_WIDTH - width("..")) / 2, top + rows_top - height);
+		print("..", left + (MENU_WIDTH - width("..")) / 2, top + ROWS_TOP - height);
 	}
 	if (First + visible < listed) {
-		print("..", left + (MENU_WIDTH - width("..")) / 2, top + rows_bottom);
+		print("..", left + (MENU_WIDTH - width("..")) / 2, top + ROWS_BOTTOM);
 	}
 	RowRects.assign(count, Rect());
-	int list_y = top + rows_top;
+	int list_y = top + ROWS_TOP;
 	int order = 0;
 	for (int index = 0; index < count; index++) {
 		ConsoleRowType const & row = Rows[index];
@@ -577,10 +523,8 @@ ConsoleMenuResult ConsoleMenuClass::Process(void)
 	if (Backdrop == NULL) {
 		Backdrop = new DSurface(HiddenSurface->Get_Width(), HiddenSurface->Get_Height());
 	}
-	if (!KeepBackdrop) {
-		Backdrop->Fill(0);
-		Load_Title_Screen(Get_New_Menu()->Background, Backdrop, &CCPalette);
-	}
+	Backdrop->Fill(0);
+	Load_Title_Screen(Get_New_Menu()->Background, Backdrop, &CCPalette);
 	IsDirty = true;
 
 	while (true) {

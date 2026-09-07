@@ -12,7 +12,6 @@
 #include "gamepad.h"
 #include "point.h"
 #include "rect.h"
-#include "rgb.h"
 
 #include <functional>
 #include <string>
@@ -90,19 +89,6 @@ class ConsoleMenuClass
 		void Set_Idle(std::function<void()> idle) { Idle = idle; }
 		void Set_Panel(Rect const & panel) { Panel = panel; IsDirty = true; }	// The dark panel's area within the box; invalid means the whole box.
 		void Set_Panel_Opacity(int percent) { PanelOpacity = percent; IsDirty = true; }	// Zero leaves the backdrop bare.
-		void Set_Panel_Color(RGBClass const & color);
-
-		/// <summary>
-		/// Uses a copy of the given surface, darkened by the percentage, as the backdrop in
-		/// place of the title screen. The surface must match the frame's size.
-		/// </summary>
-		void Set_Backdrop_From(Surface const & source, int dim_percent);
-
-		/// <summary>
-		/// Lays the rows out inside a bordered box within the 640x400 area, with the title
-		/// above it, in the manner of a pause menu over the game.
-		/// </summary>
-		void Set_Box(Rect const & box, RGBClass const & outer, RGBClass const & inner);
 		void Set_Row_Colors(RGBClass const & idle, RGBClass const & focus);		// Replaces the white idle and teal focus text.
 		int Text_Width(char const * text);		// Runs once per pass of Process, for screens that must service something.
 
@@ -139,11 +125,6 @@ class ConsoleMenuClass
 		std::vector<Rect> RowRects;			// Where each row was last drawn, in frame coordinates; invalid when not drawn.
 		Rect Panel;
 		int PanelOpacity;
-		RGBClass PanelColor;
-		Rect Box;						// Invalid when the rows use the whole area.
-		RGBClass BoxOuter;
-		RGBClass BoxInner;
-		bool KeepBackdrop;				// The backdrop was supplied, so Process must not load the title screen.
 		MSFont * IdleFont;				// Replaces Font for row text when a screen sets its own colours.
 		MSFont * FocusOverride;
 		Rect BackRect;
