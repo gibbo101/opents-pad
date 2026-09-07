@@ -359,7 +359,13 @@ bool ConsoleMenuClass::Poll_Input(ConsoleMenuResult & result)
 	if (pad.Right && !PreviousPad.Right) navigate(NAV_RIGHT);
 	bool accept_pressed = pad.Accept && !PreviousPad.Accept;
 	bool back_pressed = pad.Back && !PreviousPad.Back;
+	// On a screen whose accept is Start, the pad's start button starts from any row.
+	bool start_pressed = pad.Menu && !PreviousPad.Menu && AcceptPrompt == "Start";
 	PreviousPad = pad;
+	if (start_pressed) {
+		result = CONSOLE_MENU_ACCEPT;
+		return(true);
+	}
 	if (accept_pressed && accept()) return(true);
 	if (back_pressed) {
 		result = CONSOLE_MENU_BACK;
@@ -551,6 +557,7 @@ ConsoleMenuResult ConsoleMenuClass::Process(void)
 	ConsoleMenuResult result = CONSOLE_MENU_BACK;
 
 	Keyboard->Clear();
+	Gamepad_Menu_Starts(AcceptPrompt == "Start");
 	// A button still held from the screen before must not count as a press here.
 	PreviousPad = Gamepad_Read();
 	LastMouse = Point2D(Get_Mouse_X(), Get_Mouse_Y());
@@ -588,6 +595,7 @@ ConsoleMenuResult ConsoleMenuClass::Process(void)
 		Sleep(1);
 	}
 
+	Gamepad_Menu_Starts(false);
 	Keyboard->Clear();
 	return(result);
 }

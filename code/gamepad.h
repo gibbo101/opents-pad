@@ -43,6 +43,12 @@ GamepadStateType Gamepad_Read(void);
 void Gamepad_Pump(void * dialog);
 
 /// <summary>
+/// While on, the menu button is left to the screen that asked instead of pressing Escape,
+/// for a screen whose accept is Start.
+/// </summary>
+void Gamepad_Menu_Starts(bool on);
+
+/// <summary>
 /// Has a real keyboard key or mouse button been pressed on the game window since launch?
 /// Steam presents a mouse and keyboard whether or not the player has one, so use is the
 /// only evidence.

@@ -87,6 +87,13 @@ GamepadStateType Gamepad_Read(void)
 // backs out of a screen. Polling is held to once per frame because asking XInput about
 // a controller that is not there is slow.
 static bool _KeyboardMouseSeen = false;
+static bool _MenuStarts = false;
+
+void Gamepad_Menu_Starts(bool on)
+{
+	_MenuStarts = on;
+}
+
 
 bool Keyboard_Mouse_Seen(void)
 {
@@ -158,7 +165,7 @@ void Gamepad_Pump(void * dialog)
 		_previous = pad;
 		return;
 	}
-	if (pad.Menu && !_previous.Menu) {
+	if (pad.Menu && !_previous.Menu && !_MenuStarts) {
 		Keyboard->Put(KN_ESC);
 		Keyboard->Put(KN_ESC | WWKEY_RLS_BIT);
 	}
