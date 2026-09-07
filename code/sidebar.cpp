@@ -1308,24 +1308,56 @@ void SidebarClass::Pad_Toggle_Grid(void)
 }
 
 
-// The cameo standing for a section: the side's factory for that kind, or for structures
-// any building of that side when its construction yard has no cameo; NULL leaves the cell
-// blank.
+static bool Pad_Kind_Matches(BuildingTypeClass const * type, int row)
+{
+	switch (row) {
+		case PAD_KIND_STRUCTURES: return(type->IsConstructionYard);
+		case PAD_KIND_INFANTRY: return(type->ToBuild == RTTI_INFANTRYTYPE);
+		case PAD_KIND_VEHICLES: return(type->ToBuild == RTTI_UNITTYPE);
+		case PAD_KIND_AIRCRAFT: return(type->ToBuild == RTTI_AIRCRAFTTYPE);
+	}
+	return(false);
+}
+
+
+// A building the player holds on the map of the given side that produces the section's kind.
+static BuildingTypeClass const * Pad_Owned_Factory(HousesType house, int row)
+{
+	for (int index = 0; index < Buildings.Count(); index++) {
+		BuildingClass const * building = Buildings[index];
+		if (building == NULL || building->IsInLimbo || building->House != PlayerPtr) continue;
+		BuildingTypeClass const * type = building->Class;
+		if ((type->Get_Ownable() & (1 << house)) == 0) continue;
+		if (Pad_Kind_Matches(type, row)) return(type);
+	}
+	return(NULL);
+}
+
+
+// A side's construction yard opens all four of its sections; without one only the sections
+// whose factory the player holds appear.
+static bool Pad_Section_Shown(int row, int column)
+{
+	HousesType house = Pad_Column_House(column);
+	return(Pad_Owned_Factory(house, PAD_KIND_STRUCTURES) != NULL || Pad_Owned_Factory(house, row) != NULL);
+}
+
+
+// The cameo standing for a section: the factory the player holds, else the side's factory for
+// that kind, else for structures any building of that side; NULL leaves the cell blank.
 static ShapeSet const * Pad_Section_Icon(int row, int column)
 {
 	if (row >= 4) return(NULL);
 	HousesType house = Pad_Column_House(column);
+	BuildingTypeClass const * owned = Pad_Owned_Factory(house, row);
+	if (owned != NULL && owned->Get_Cameo_Data() != NULL) {
+		return((ShapeSet const *)owned->Get_Cameo_Data());
+	}
 	for (int pass = 0; pass < 2; pass++) {
 		for (int index = 0; index < BuildingTypes.Count(); index++) {
 			BuildingTypeClass const * type = BuildingTypes[index];
 			if ((type->Get_Ownable() & (1 << house)) == 0) continue;
-			bool match = false;
-			switch (row) {
-				case PAD_KIND_STRUCTURES: match = pass == 0 ? type->IsConstructionYard : type->Level >= 0; break;
-				case PAD_KIND_INFANTRY: match = type->ToBuild == RTTI_INFANTRYTYPE; break;
-				case PAD_KIND_VEHICLES: match = type->ToBuild == RTTI_UNITTYPE; break;
-				case PAD_KIND_AIRCRAFT: match = type->ToBuild == RTTI_AIRCRAFTTYPE; break;
-			}
+			bool match = pass == 0 ? Pad_Kind_Matches(type, row) : type->Level >= 0;
 			if (!match) continue;
 			ShapeSet const * cameo = (ShapeSet const *)type->Get_Cameo_Data();
 			if (cameo != NULL) return(cameo);
@@ -1366,8 +1398,11 @@ void SidebarClass::Draw_Pad_View(void)
 				int super_count = bottom ? Pad_Items((PAD_SECTION_ROWS - 1) * PAD_COLUMNS, supers, StripClass::MAX_BUILDABLES) : 0;
 				PadItemType items[1];
 				bool has_items = bottom ? super_count > 0 : Pad_Items(section, items, 1) > 0;
+				bool shown = bottom || has_items || Pad_Section_Shown(row, column);
 				PadItemType active;
-				if (bottom && column == 0 && super_count > 0) {
+				if (!shown) {
+					// Nothing marks a section the player has no way into yet.
+				} else if (bottom && column == 0 && super_count > 0) {
 					// The current superweapon, with its charge as the strip would show it.
 					PadItemType current = supers[PadSuper % super_count];
 					Column[current.Column].Draw_Cameo(current.Index, x, y, cliprect);
@@ -1395,7 +1430,9 @@ void SidebarClass::Draw_Pad_View(void)
 				}
 				if (focus_row == row && PadCol == column) {
 					outline(x, y);
-					if (bottom && column == 0 && super_count > 0) {
+					if (!shown) {
+						caption.clear();
+					} else if (bottom && column == 0 && super_count > 0) {
 						PadItemType current = supers[PadSuper % super_count];
 						caption = SuperWeaponTypes[Column[current.Column].Buildables[current.Index].BuildableID]->Full_Name();
 					} else {
