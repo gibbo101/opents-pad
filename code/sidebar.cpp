@@ -123,6 +123,9 @@
 #include "bench.hh"
 #include "color.hh"
 
+#include "padglyph.h"
+#include "sidebarshadowdata.h"
+
 #include <algorithm>
 #include <string>
 #include <compare>
@@ -1440,6 +1443,7 @@ void SidebarClass::Draw_Pad_View(void)
 	int visible = Max_Visible();
 	int const cell_x[PAD_COLUMNS] = {COLUMN_ONE_X, COLUMN_TWO_X};
 	int color = DSurface::Build_Hicolor_Pixel(PadFocus ? RGBClass(255, 72, 255) : RGBClass(120, 40, 120));
+	enum { SHADOW_BOX = 34 };
 	std::string caption;
 
 	auto outline = [&](int x, int y) {
@@ -1482,6 +1486,13 @@ void SidebarClass::Draw_Pad_View(void)
 					// missing, so a cell without an icon shows the frame alone.
 					if (icon != NULL) {
 						Draw_Shape(*SidebarSurface, *CameoDrawer, icon, 0, Point2D(x, y), cliprect, ShapeFlags_Type(SHAPE_WIN_REL));
+					}
+					if (!bottom && icon != NULL) {
+						// A shadow of what the section builds stands over the factory, as in Retaliation.
+						int shadow = row * PAD_COLUMNS + (Pad_Column_House(column) == HOUSE_GOOD ? 0 : 1);
+						if (SidebarShadowPresent[shadow]) {
+							Draw_Baked_Image(*SidebarSurface, SidebarShadowPixels[shadow], SIDEBAR_SHADOW_SIZE, x + StripClass::OBJECT_WIDTH - SHADOW_BOX - 3, cliprect.Y + y + 2, SHADOW_BOX, 100);
+						}
 					}
 					bool dark = bottom ? (column == 0 ? super_count == 0 : super_count < 2) : !has_items;
 					if (dark && icon != NULL) {

@@ -70,35 +70,43 @@ int Draw_Pad_Glyph(Surface & surface, PadButtonType button, int x, int y, int si
 	if (row < 0 || size < 4) {
 		return(0);
 	}
-	unsigned char const * pixels = PadGlyphPixels[row][std::clamp(int(button), 0, int(PAD_BUTTON_COUNT) - 1)];
+	Draw_Baked_Image(surface, PadGlyphPixels[row][std::clamp(int(button), 0, int(PAD_BUTTON_COUNT) - 1)], PAD_GLYPH_SOURCE_SIZE, x, y, size, 100);
+	return(size);
+}
+
+
+void Draw_Baked_Image(Surface & surface, unsigned char const * pixels, int source, int x, int y, int size, int opacity)
+{
+	if (size < 1 || opacity < 1) {
+		return;
+	}
 
 	// Each drawn pixel averages a grid of source samples, then blends in by its coverage.
-	float scale = float(PAD_GLYPH_SOURCE_SIZE) / float(size);
+	float scale = float(source) / float(size);
 	for (int dy = 0; dy < size; dy++) {
 		for (int dx = 0; dx < size; dx++) {
 			int red = 0, green = 0, blue = 0, alpha = 0;
 			for (int sy = 0; sy < SAMPLES; sy++) {
 				for (int sx = 0; sx < SAMPLES; sx++) {
-					int px = std::min(int((dx + (sx + 0.5f) / SAMPLES) * scale), int(PAD_GLYPH_SOURCE_SIZE) - 1);
-					int py = std::min(int((dy + (sy + 0.5f) / SAMPLES) * scale), int(PAD_GLYPH_SOURCE_SIZE) - 1);
-					unsigned char const * source = pixels + (py * PAD_GLYPH_SOURCE_SIZE + px) * 4;
-					int a = source[3];
-					red += source[0] * a;
-					green += source[1] * a;
-					blue += source[2] * a;
+					int px = std::min(int((dx + (sx + 0.5f) / SAMPLES) * scale), source - 1);
+					int py = std::min(int((dy + (sy + 0.5f) / SAMPLES) * scale), source - 1);
+					unsigned char const * sample = pixels + (py * source + px) * 4;
+					int a = sample[3];
+					red += sample[0] * a;
+					green += sample[1] * a;
+					blue += sample[2] * a;
 					alpha += a;
 				}
 			}
 			if (alpha == 0) continue;
 			RGBClass color(red / alpha, green / alpha, blue / alpha);
-			int opacity = alpha * 100 / (255 * SAMPLES * SAMPLES);
+			int coverage = alpha * opacity / (255 * SAMPLES * SAMPLES);
 			Rect pixel(x + dx, y + dy, 1, 1);
-			if (opacity >= 100) {
+			if (coverage >= 100) {
 				surface.Fill_Rect(pixel, DSurface::Build_Hicolor_Pixel(color));
-			} else if (opacity > 0) {
-				surface.Fill_Rect_Trans(pixel, color, opacity);
+			} else if (coverage > 0) {
+				surface.Fill_Rect_Trans(pixel, color, coverage);
 			}
 		}
 	}
-	return(size);
 }

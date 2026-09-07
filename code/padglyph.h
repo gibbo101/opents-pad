@@ -35,3 +35,10 @@ int Resolved_Prompt_Style(void);
 /// and returns the width used, or 0 when the style is plain text and nothing was drawn.
 /// </summary>
 int Draw_Pad_Glyph(Surface & surface, PadButtonType button, int x, int y, int size);
+
+/// <summary>
+/// Draws a baked square RGBA image, source pixels on a side, into a box of the given size at
+/// x, y, averaging source samples per drawn pixel and blending by coverage scaled by opacity
+/// in percent.
+/// </summary>
+void Draw_Baked_Image(Surface & surface, unsigned char const * pixels, int source, int x, int y, int size, int opacity);
