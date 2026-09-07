@@ -422,7 +422,7 @@ void ScrollClass::Scroll_Edge(Point2D const & point)
 			bool at_screen_edge = (y <= 0 || x == 0 || x >= w || y >= h);
 			if (Options.ControlScheme == CONTROL_CONTROLLER) {
 				// The pad's pointer stops at the map's own edges, so those count as the screen's.
-				at_screen_edge = at_screen_edge || point.X <= 0 || point.Y <= 0 || point.X >= TacticalRect.Width - 1 || point.Y >= TacticalRect.Height - 1;
+				at_screen_edge = at_screen_edge || point.X <= 1 || point.Y <= 1 || point.X >= TacticalRect.Width - 2 || point.Y >= TacticalRect.Height - 2;
 			}
 
 			bool player_scrolled=false;

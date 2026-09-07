@@ -327,10 +327,11 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 		POINT bottom_right = {TacticalRect.X + TacticalRect.Width, TacticalRect.Y + TacticalRect.Height};
 		Game_Point_To_Screen(top_left);
 		Game_Point_To_Screen(bottom_right);
-		origin.x = std::max(origin.x, top_left.x);
-		origin.y = std::max(origin.y, top_left.y);
-		corner.x = std::min(corner.x, bottom_right.x);
-		corner.y = std::min(corner.y, bottom_right.y);
+		// One pixel inside, so the pointer never rests on the tab bar or the sidebar itself.
+		origin.x = std::max(origin.x, top_left.x + 1);
+		origin.y = std::max(origin.y, top_left.y + 1);
+		corner.x = std::min(corner.x, bottom_right.x - 1);
+		corner.y = std::min(corner.y, bottom_right.y - 1);
 	}
 
 	_carry_x += vx * dt * height;
