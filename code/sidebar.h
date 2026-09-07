@@ -417,8 +417,15 @@ class SidebarClass : public PowerClass
 			int Column;					// Which strip holds the buildable.
 			int Index;					// Its index in that strip.
 		};
+		struct PadLastType {
+			RTTIType Type = RTTI_NONE;
+			int ID = 0;
+		};
+		PadLastType PadLast[PAD_SECTION_ROWS * PAD_COLUMNS];	// What each section last built.
 		int Pad_Items(int section, PadItemType * items, int max) const;
 		int Pad_Active_Item(int section, PadItemType & item) const;	// The item a factory is working on, if any.
+		int Pad_Last_Item(int section, PadItemType & item) const;	// The section's last build, while it can still be built.
+		void Pad_Remember(int section, PadItemType const & item);
 		void Pad_Enter(void);
 		void Pad_Leave(void);
 		void Pad_Move(int dx, int dy);

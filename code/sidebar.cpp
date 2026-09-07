@@ -397,6 +397,7 @@ void SidebarClass::Init_Clear(void)
 
 	Column[0].Init_Clear();
 	Column[1].Init_Clear();
+	for (PadLastType & last : PadLast) last = PadLastType();
 
 	Activate(false);
 }
@@ -1084,6 +1085,30 @@ int SidebarClass::Pad_Active_Item(int section, PadItemType & item) const
 }
 
 
+int SidebarClass::Pad_Last_Item(int section, PadItemType & item) const
+{
+	PadLastType const & last = PadLast[section];
+	if (last.Type == RTTI_NONE) return(0);
+	PadItemType items[StripClass::MAX_BUILDABLES];
+	int count = Pad_Items(section, items, StripClass::MAX_BUILDABLES);
+	for (int index = 0; index < count; index++) {
+		StripClass::BuildType const & entry = Column[items[index].Column].Buildables[items[index].Index];
+		if (entry.BuildableType == last.Type && entry.BuildableID == last.ID) {
+			item = items[index];
+			return(1);
+		}
+	}
+	return(0);
+}
+
+
+void SidebarClass::Pad_Remember(int section, PadItemType const & item)
+{
+	StripClass::BuildType const & entry = Column[item.Column].Buildables[item.Index];
+	PadLast[section] = {entry.BuildableType, entry.BuildableID};
+}
+
+
 void SidebarClass::Pad_Focus_Changed(void)
 {
 	PadDirty = true;
@@ -1222,6 +1247,8 @@ void SidebarClass::Pad_Accept(void)
 		if (Pad_Active_Item(section, active)) {
 			// A section already building takes cross as one more of the same, or the place.
 			Column[active.Column].Activate(active.Index, GadgetClass::LEFTPRESS);
+		} else if (Pad_Last_Item(section, active)) {
+			Column[active.Column].Activate(active.Index, GadgetClass::LEFTPRESS);
 		} else {
 			Pad_Toggle_Grid();
 			return;
@@ -1232,6 +1259,7 @@ void SidebarClass::Pad_Accept(void)
 		int at = PadRow * PAD_COLUMNS + PadCol;
 		if (at < count) {
 			Column[items[at].Column].Activate(items[at].Index, GadgetClass::LEFTPRESS);
+			Pad_Remember(PadSection, items[at]);
 		}
 	}
 	if (PendingObject != NULL || IsTargettingMode != SUPER_NONE) {
@@ -1412,7 +1440,7 @@ void SidebarClass::Draw_Pad_View(void)
 					// The current superweapon, with its charge as the strip would show it.
 					PadItemType current = supers[PadSuper % super_count];
 					Column[current.Column].Draw_Cameo(current.Index, x, y, cliprect);
-				} else if (!bottom && has_items && Pad_Active_Item(section, active)) {
+				} else if (!bottom && has_items && (Pad_Active_Item(section, active) || Pad_Last_Item(section, active))) {
 					Column[active.Column].Draw_Cameo(active.Index, x, y, cliprect);
 				} else {
 					ShapeSet const * icon = NULL;
