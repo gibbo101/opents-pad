@@ -1399,6 +1399,26 @@ static BuildingTypeClass const * Pad_Owned_Factory(HousesType house, int row)
 }
 
 
+// The nth distinct superweapon a side's buildings grant, or SUPER_NONE past the end.
+static SuperWeaponType Pad_Side_Super(int column, int nth)
+{
+	SuperWeaponType seen[8];
+	int count = 0;
+	for (int index = 0; index < BuildingTypes.Count() && count < 8; index++) {
+		BuildingTypeClass const * type = BuildingTypes[index];
+		if (!Pad_Type_Belongs(type, column)) continue;
+		SuperWeaponType grants[2] = {type->SuperWeapon, type->SuperWeapon2};
+		for (SuperWeaponType super : grants) {
+			if (super == SUPER_NONE || count >= 8) continue;
+			bool known = false;
+			for (int k = 0; k < count; k++) known = known || seen[k] == super;
+			if (!known) seen[count++] = super;
+		}
+	}
+	return(nth < count ? seen[nth] : SUPER_NONE);
+}
+
+
 // A side's construction yard opens all four of its sections; without one only the sections
 // whose factory the player holds appear.
 static bool Pad_Section_Shown(int row, int column)
@@ -1430,6 +1450,26 @@ static ShapeSet const * Pad_Section_Icon(int row, int column)
 		if (row != PAD_KIND_STRUCTURES) break;
 	}
 	return(NULL);
+}
+
+
+// A right-pointing arrow over a cell, lit when there is something to step to.
+static void Pad_Draw_Next_Arrow(int x, int y, bool lit)
+{
+	int color = DSurface::Build_Hicolor_Pixel(lit ? RGBClass(236, 236, 236) : RGBClass(88, 88, 88));
+	int edge = DSurface::Build_Hicolor_Pixel(RGBClass(0, 0, 0));
+	int cx = x + SidebarClass::StripClass::OBJECT_WIDTH / 2;
+	int cy = y + 20;
+	// The black rim first, one pixel larger all round, then the arrow itself.
+	for (int pass = 0; pass < 2; pass++) {
+		int fill = pass == 0 ? edge : color;
+		int grow = pass == 0 ? 1 : 0;
+		SidebarSurface->Fill_Rect(Rect(cx - 14 - grow, cy - 4 - grow, 16 + grow, 8 + grow * 2), fill);
+		for (int step = 0; step <= 12 + grow; step++) {
+			int half = 12 + grow - step;
+			SidebarSurface->Fill_Rect(Rect(cx + 2 + step - grow, cy - half, 1, half * 2 + 1), fill);
+		}
+	}
 }
 
 
@@ -1479,7 +1519,10 @@ void SidebarClass::Draw_Pad_View(void)
 					if (bottom && column != 0 && super_count > 1) {
 						PadItemType next = supers[(PadSuper + 1) % super_count];
 						icon = Column[next.Column].Get_Special_Cameo(SuperWeaponType(Column[next.Column].Buildables[next.Index].BuildableID));
-					} else if (!bottom) {
+					} else if (bottom) {
+						// With nothing charged yet the side's own superweapons stand in, dulled.
+						icon = Column[0].Get_Special_Cameo(Pad_Side_Super(0, column == 0 ? 0 : 1));
+					} else {
 						icon = Pad_Section_Icon(row, column);
 					}
 					// The strip's blank-slot shape is never drawn by the engine and may be
@@ -1495,6 +1538,9 @@ void SidebarClass::Draw_Pad_View(void)
 						}
 					}
 					bool dark = bottom ? (column == 0 ? super_count == 0 : super_count < 2) : !has_items;
+					if (bottom && column != 0) {
+						Pad_Draw_Next_Arrow(x, cliprect.Y + y, !dark);
+					}
 					if (dark && icon != NULL) {
 						// A section with no factory yet sits well behind the ones that build, so
 						// the strip's darkening is followed by a black wash.
