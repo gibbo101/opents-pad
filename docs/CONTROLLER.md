@@ -31,7 +31,7 @@ target.
 | Skirmish setup | `code/consoleskirmish.cpp` | Console screen: name (read only), side with faction icon, colour swatch strip, numbered map list with preview, then the numeric rows and toggles. Writes the same session fields as the dialog. |
 | Game select page | `code/grphmenu.cpp`, `code/grphmimg.cpp` | Original artwork kept. Spatial d-pad navigation over the buttons, Tiberian Sun selected on entry, unselected discs darkened 70 percent, B or Escape takes the page's Back button. A button still held from the previous screen is not a press. |
 | Menu pages | `code/newmenu.cpp` | Under the controller scheme the Tiberian Sun and Firestorm pages are console screens on their own backdrops: New Campaign, Load Mission, LAN, Skirmish, Options and Game Select as rows in the menu font, no box, the page theme playing. Intro and Exit keep their artwork at the corners and light when reached: Up or Right for Intro, Down or Left for Exit. Internet and the tour are left out. Keyboard & Mouse keeps the artwork pages. |
-| LAN game list | `code/netdlg2.cpp` | Console screen running the dialog's discovery: your name, Host New Game, one row per game found, the lobby count; the list rebuilds as games come and go. Host and Join end at a notice until the lobby screens exist. |
+| LAN | `code/consolelan.cpp` | Console screens running the dialogs' discovery and join protocol unchanged. Game list: your name, Host New Game, one row per game found, the lobby count, a joining line while a request is out, and the reason when a join fails. Host lobby: the skirmish rows live, the joined players under the map preview in their colours with faction icon and host or ready mark, Start checks for a second player, everyone ready, and room on the map. Guest lobby: the host's rows read only, own side and colour requested from the host, Ready as the accept, Leave signs off. No chat, no kick, and the generated map is skipped in the map list. The Keyboard & Mouse dialogs are untouched; the packet handler only skips the guest dialog and message boxes while the console screens are up. |
 | Options | `code/consoleoptions.cpp` | Console screen: control scheme, resolution from the display's mode list, scale mode, integer scaling, stretch movies, game speed, scroll rate and coasting, detail, campaign difficulty, cameo text, action lines, tool tips, three volumes stepped live. Accept saves; back restores the volumes. |
 | Select Campaign | `code/init.cpp` | Side select in the manner of Remastered: the backdrop's own GDI and Nod discs enlarged at left and right, both dim until a side is picked, then the picked one lit and grown with its campaign named under the title; names beneath in faction colours, difficulty along the bottom. Left and right pick the side, or the act when a side has two, with the shell's hover click; A or a click on the lit emblem starts. Writes the difficulty option like the dialog. |
 | Load Mission | `code/loaddlg.cpp` | Console list of the save games, newest first, date at the left and description at the right, a star for multiplayer saves; long lists scroll. |
@@ -58,7 +58,9 @@ target.
 
 ## Next
 
-1. LAN lobby screens: host lobby with the skirmish rows and a player panel, guest lobby read-only with a Ready toggle. The game list is in.
+1. LAN lobby extras: kick as a row on the host lobby, chat once the
+   on-screen keyboard exists, and the generated map once its setup has a
+   console screen.
 2. A zoom setting for play: the render frame takes the panel's aspect and a
    zoom value picks its height, so no screen shows bars and each device tunes
    its own sprite size. A 32:9 panel at 2x felt right in testing.

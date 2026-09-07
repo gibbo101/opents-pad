@@ -24,7 +24,6 @@
 #include "data.h"
 #include "dbgprint.h"
 #include "globals.h"
-#include "consolemenu.h"
 #include "goptions.h"
 
 #include <string>
@@ -67,6 +66,8 @@ JoinStateType JoinState;
 char SerialNumber[23];
 bool Net2IsGameListActive = true;
 bool Net2GameStarted = false;
+bool Net2IsConsole = false;
+std::string Net2ConsoleNotice;
 
 int RulesID;
 int ArtID;
@@ -621,118 +622,6 @@ bool Decrypt_Serial(char * buffer)
  * HISTORY:                                                                                    *
  *   02/14/1995 BR : Created.                                                                  *
  *=============================================================================================*/
-// The console-style LAN screens. The game list runs the same discovery as the dialog and
-// shows the games it finds as rows; hosting and joining hand over to the lobby screens.
-static void Net2Console_Enter_Lobby(void)
-{
-	CurGame = 0;
-	Net2IsGameListActive = 1;
-	Session.Options.ScenarioDescription[0] = '\0';
-	Session.ColorIdx = Session.PrefColor;
-	Clear_Vector(&Session.Games);
-	Clear_Vector(&Session.Players);
-	Clear_Vector(&Session.Chat);
-	NodeNameType * who = new NodeNameType;
-	strcpy(who->Name, Session.Handle);
-	who->Chat.LastTime = 0;
-	who->Chat.LastChance = 0;
-	who->Chat.Color = Session.GPacket.PlayerInfo.Color;
-	Session.Chat.Add(who);
-	NodeNameType * game = new NodeNameType;
-	strcpy(game->Name, "");
-	game->Game.IsOpen = 0;
-	game->Game.LastTime = 0;
-	Session.Games.Add(game);
-	Send_Join_Queries(true, false, true, true);
-}
-
-
-static void Net2Console_Leave_Lobby(void)
-{
-	Session.Write_MultiPlayer_Settings();
-	if (JoinState > JOIN_NOTHING) {
-		Unjoin_Game(CurGame);
-		Ipx.Service();
-	}
-	JoinState = JOIN_NOTHING;
-	Clear_Vector(&Session.Players);
-	Clear_Vector(&Session.Games);
-	Clear_Vector(&Session.Chat);
-	Session.NetOpen = false;
-	Ipx.Service();
-}
-
-
-bool Net2Console_Remote_Connect(void)
-{
-	enum { ACTION_NONE, ACTION_HOST, ACTION_JOIN };
-
-	RulesID = RulesClass::Get_Rule_Unique_ID();
-	RulesClass::Load_Art_INI();
-	ArtID = RulesClass::Get_Art_Unique_ID();
-	AIID = RulesClass::Get_AI_Unique_ID();
-	Decrypt_Serial(SerialNumber);
-	Ipx.Set_Timing(TIMER_SECOND / 2, -1, 10 * TIMER_SECOND);
-	Session.NetOpen = true;
-	Session.NetStealth = false;
-	Session.GameName[0] = '\0';
-	Net2GameStarted = false;
-	_netresponse = 0;
-	JoinState = JOIN_NOTHING;
-	Net2Console_Enter_Lobby();
-
-	int focus = 1;
-	std::string notice;
-	while (true) {
-		int action = ACTION_NONE;
-		bool rebuild = false;
-		int listed = Session.Games.Count();
-		int chatters = Session.Chat.Count();
-
-		ConsoleMenuClass menu("LAN Games");
-		menu.Set_Prompts("Select", "Back");
-		menu.Add_Row({"Name", [&]{ return(std::string(Session.Handle)); }, nullptr, nullptr});
-		menu.Add_Row({"Host New Game", nullptr, nullptr, [&]{ action = ACTION_HOST; menu.Finish(CONSOLE_MENU_ACCEPT); }});
-		for (int index = 1; index < Session.Games.Count(); index++) {
-			menu.Add_Row({std::string(Session.Games[index]->Name) + (Session.Games[index]->Game.IsOpen ? "" : " (closed)"), nullptr, nullptr,
-				[&, index]{ CurGame = index; action = ACTION_JOIN; menu.Finish(CONSOLE_MENU_ACCEPT); }});
-		}
-		if (Session.Games.Count() <= 1) {
-			menu.Add_Row({"No games found yet", nullptr, nullptr, nullptr});
-		}
-		menu.Add_Row({"In the lobby", [&]{ return(std::to_string(std::max(Session.Chat.Count(), 1))); }, nullptr, nullptr});
-		if (!notice.empty()) {
-			menu.Add_Row({notice, nullptr, nullptr, nullptr});
-		}
-		menu.Set_Focus(focus);
-		menu.Set_Idle([&]{
-			Ipx.Service();
-			Send_Join_Queries(false, false, false, false);
-			Get_Join_Responses();
-			Net2ServiceGameList();
-			if (Session.Games.Count() != listed || Session.Chat.Count() != chatters) {
-				rebuild = true;
-				menu.Finish(CONSOLE_MENU_BACK);
-			}
-		});
-		ConsoleMenuResult result = menu.Process();
-		focus = menu.Get_Focus();
-		if (rebuild) {
-			continue;
-		}
-		if (result != CONSOLE_MENU_ACCEPT) {
-			Net2Console_Leave_Lobby();
-			return(false);
-		}
-		if (action == ACTION_HOST) {
-			notice = "Hosting from the pad is not ready yet";
-		} else if (action == ACTION_JOIN) {
-			notice = "Joining from the pad is not ready yet";
-		}
-	}
-}
-
-
 /// <summary>
 /// Starts the game this machine has joined: applies the agreed options and derives the packet
 /// timing from the measured response time.
@@ -2668,12 +2557,14 @@ void Get_Join_Responses(void)
 				Session.Players.Add (who);
 
 				Net2IsGameListActive = false;
-				WS_Destroy_Dialog(0, 0);
-				_netresponse = 0;
-				dialog = WS_Create_Dialog(ProgramInstance, IDD_MPLAYER_GUEST, MainWindow, MPlayer_Guest_Dialog_Proc, FALSE);
-				Center_Window_Within_Window(dialog);
-				OwnerDraw::Subclass_Dialog(dialog, 0);
-				ShowWindow(dialog, SW_SHOWNORMAL);
+				if (!Net2IsConsole) {
+					WS_Destroy_Dialog(0, 0);
+					_netresponse = 0;
+					dialog = WS_Create_Dialog(ProgramInstance, IDD_MPLAYER_GUEST, MainWindow, MPlayer_Guest_Dialog_Proc, FALSE);
+					Center_Window_Within_Window(dialog);
+					OwnerDraw::Subclass_Dialog(dialog, 0);
+					ShowWindow(dialog, SW_SHOWNORMAL);
+				}
 				display_users = true;
 
 				Send_Join_Queries(1, 1, 1, 0);
@@ -2765,7 +2656,9 @@ void Get_Join_Responses(void)
 				else if (why==REJECT_DUPLICATE_SERIAL) {
 					item = (char *)Fetch_String(TXT_SERIAL_DUP);
 				}
-				if (item) {
+				if (Net2IsConsole) {
+					Net2ConsoleNotice = item != NULL ? item : Fetch_String(TXT_REQUEST_DENIED);
+				} else if (item) {
 					ODMessageBox(item, 0, Net2Callback, 0);
 				}
 				if ( WS_Top_Window_ID() != IDD_MPLAYER_GAME_LIST ) {

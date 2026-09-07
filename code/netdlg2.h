@@ -15,6 +15,8 @@
 
 #include "netdlg.h"
 
+#include <string>
+
 struct GlobalPacketType;
 class IPXAddressClass;
 
@@ -24,6 +26,8 @@ extern JoinStateType JoinState;
 extern char SerialNumber[23];
 extern bool Net2IsGameListActive;
 extern bool Net2GameStarted;
+extern bool Net2IsConsole;			// The console screens are up in place of the dialogs.
+extern std::string Net2ConsoleNotice;	// Why a join ended, for the console screens to show.
 extern int RulesID;
 extern int ArtID;
 extern int AIID;
@@ -47,3 +51,4 @@ void Net2Start_Hosted_Game(void);
 void Net2Start_Joined_Game(void);
 bool Process_Global_Packet(GlobalPacketType *packet, IPXAddressClass *address);
 void Net2DisplayGameList(void);
+void Net2ServiceGameList(void);

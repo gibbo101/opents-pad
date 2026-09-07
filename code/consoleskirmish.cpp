@@ -14,6 +14,7 @@
 #include "_rules.h"
 #include "ccfile.h"
 #include "consolemenu.h"
+#include "consolemp.h"
 #include "data.h"
 #include "dsurface.h"
 #include "globals.h"
@@ -41,14 +42,13 @@ enum {
 };
 
 
-static std::string On_Off(bool value)
+std::string Console_On_Off(bool value)
 {
 	return(Fetch_String(value ? TXT_ON : TXT_OFF));
 }
 
 
-// Map descriptions carry stray spaces around their player counts, such as "(2-4 )".
-static std::string Tidy(char const * text)
+std::string Console_Tidy_Description(char const * text)
 {
 	std::string result;
 	for (char const * p = text; *p != '\0'; p++) {
@@ -61,7 +61,7 @@ static std::string Tidy(char const * text)
 }
 
 
-static int Wrap(int value, int low, int high)
+int Console_Wrap(int value, int low, int high)
 {
 	int span = high - low + 1;
 	if (span <= 0) return(low);
@@ -69,8 +69,7 @@ static int Wrap(int value, int low, int high)
 }
 
 
-// Rebuilds the map preview for the current scenario, if its file is at hand.
-static void Load_Preview(void)
+void Console_Load_Map_Preview(void)
 {
 	delete MultiplayerMapPreview;
 	MultiplayerMapPreview = NULL;
@@ -85,7 +84,7 @@ static void Load_Preview(void)
 }
 
 
-static void Draw_Preview(Surface & surface, Rect const & panel)
+void Console_Draw_Map_Preview(Surface & surface, Rect const & panel)
 {
 	if (MultiplayerMapPreview == NULL) return;
 	XSurface * preview = MultiplayerMapPreview->Get_Preview_Surface();
@@ -96,6 +95,28 @@ static void Draw_Preview(Surface & surface, Rect const & panel)
 	int height = std::min(source.Height, panel.Height);
 	Rect dest(panel.X + (panel.Width - width) / 2, panel.Y + (panel.Height - height) / 2, width, height);
 	surface.Blit_From(dest, *preview, Rect(0, 0, width, height));
+}
+
+
+Surface * Console_Side_Icon(bool gdi)
+{
+	char const * name = gdi ? "gdii.pcx" : "nodi.pcx";
+	Surface * icon = SurfaceCache.GetSurface(name);
+	if (icon == NULL && SurfaceCache.CachePCX(name)) {
+		icon = SurfaceCache.GetSurface(name);
+	}
+	return(icon);
+}
+
+
+std::vector<int> Console_Player_Swatches(void)
+{
+	std::vector<int> colors;
+	for (int index = 0; index < MAX_MPLAYER_COLORS; index++) {
+		COLORREF rgb = PlayerColorTable[index];
+		colors.push_back(DSurface::Build_Hicolor_Pixel(GetRValue(rgb), GetGValue(rgb), GetBValue(rgb)));
+	}
+	return(colors);
 }
 
 
@@ -115,8 +136,7 @@ bool Console_Skirmish_Screen(void)
 	}
 	int side = std::clamp(Session.House <= HOUSE_BAD ? Session.House : int(HOUSE_BAD), 0, std::max(int(sides.size()) - 1, 0));
 
-	static int const _color_names[] = {TXT_GOLD, TXT_RED, TXT_BLUE, TXT_GREEN, TXT_ORANGE, TXT_SKY_BLUE, TXT_PURPLE, TXT_PINK};
-	int const color_count = int(sizeof(_color_names) / sizeof(_color_names[0]));
+	int const color_count = MAX_MPLAYER_COLORS;
 	int color = std::clamp(Session.PrefColor, 0, color_count - 1);
 
 	int units = Session.Options.UnitCount;
@@ -137,7 +157,7 @@ bool Console_Skirmish_Screen(void)
 	Set_Scenario_Info_From_Index(0);
 	Clear_Vector(&Session.Players);
 	Clear_Vector(&Session.Computers);
-	Load_Preview();
+	Console_Load_Map_Preview();
 
 	auto max_ai = [&](void) {
 		return(std::clamp(RandomMapWaypointCount(Session.Options.ScenarioIndex) - 1, 1, int(SKIRMISH_MAX_AI)));
@@ -145,39 +165,24 @@ bool Console_Skirmish_Screen(void)
 	ai_players = std::min(ai_players, max_ai());
 
 	ConsoleMenuClass menu("Skirmish");
-	menu.Set_Side_Panel(Draw_Preview);
+	menu.Set_Side_Panel(Console_Draw_Map_Preview);
 	menu.Set_Prompts("Start", "Back");
 
 	menu.Add_Row({"Name", [&]{ return(std::string(Session.Handle)); }, nullptr, nullptr});
 	menu.Add_Row({"Side", [&]{ return(sides.empty() ? std::string() : std::string(HouseTypes[sides[side]]->GivenName)); },
-		[&](int step) { side = Wrap(side + step, 0, int(sides.size()) - 1); }, nullptr,
-		[&]() -> Surface * {
-			char const * name = (!sides.empty() && sides[side] == HOUSE_GOOD) ? "gdii.pcx" : "nodi.pcx";
-			Surface * icon = SurfaceCache.GetSurface(name);
-			if (icon == NULL && SurfaceCache.CachePCX(name)) {
-				icon = SurfaceCache.GetSurface(name);
-			}
-			return(icon);
-		}});
+		[&](int step) { side = Console_Wrap(side + step, 0, int(sides.size()) - 1); }, nullptr,
+		[&]{ return(Console_Side_Icon(!sides.empty() && sides[side] == HOUSE_GOOD)); }});
 	menu.Add_Row({"Color", [&]{ return(std::string()); },
-		[&](int step) { color = Wrap(color + step, 0, color_count - 1); }, nullptr, nullptr,
-		[&]{
-			std::vector<int> colors;
-			for (int index = 0; index < color_count; index++) {
-				COLORREF rgb = PlayerColorTable[index];
-				colors.push_back(DSurface::Build_Hicolor_Pixel(GetRValue(rgb), GetGValue(rgb), GetBValue(rgb)));
-			}
-			return(colors);
-		},
-		[&]{ return(color); }});
-	menu.Add_Row({"Map", [&]{ return(std::to_string(Session.Options.ScenarioIndex + 1) + "/" + std::to_string(Session.Scenarios.Count()) + " " + Tidy(Session.Options.ScenarioDescription)); },
+		[&](int step) { color = Console_Wrap(color + step, 0, color_count - 1); }, nullptr, nullptr,
+		Console_Player_Swatches, [&]{ return(color); }});
+	menu.Add_Row({"Map", [&]{ return(std::to_string(Session.Options.ScenarioIndex + 1) + "/" + std::to_string(Session.Scenarios.Count()) + " " + Console_Tidy_Description(Session.Options.ScenarioDescription)); },
 		[&](int step) {
 			int count = Session.Scenarios.Count();
 			if (count <= 0) return;
-			int index = Wrap(Session.Options.ScenarioIndex + step, 0, count - 1);
+			int index = Console_Wrap(Session.Options.ScenarioIndex + step, 0, count - 1);
 			if (Set_Scenario_Info_From_Index(index)) {
 				Session.Options.ScenarioIndex = index;
-				Load_Preview();
+				Console_Load_Map_Preview();
 				ai_players = std::min(ai_players, max_ai());
 			}
 		}, nullptr});
@@ -193,15 +198,15 @@ bool Console_Skirmish_Screen(void)
 		[&](int step) { speed = std::clamp(speed + step, 0, 6); }, nullptr});
 	menu.Add_Row({"Credits", [&]{ return(std::to_string(credits)); },
 		[&](int step) { credits = std::clamp(credits + step * SKIRMISH_MONEY_STEP, int(SKIRMISH_MIN_MONEY), Rule->MPMaxMoney); }, nullptr});
-	menu.Add_Row({"Bases", [&]{ return(On_Off(bases)); },
+	menu.Add_Row({"Bases", [&]{ return(Console_On_Off(bases)); },
 		[&](int) { bases = !bases; if (!bases) short_game = false; }, nullptr});
-	menu.Add_Row({"Crates", [&]{ return(On_Off(crates)); }, [&](int) { crates = !crates; }, nullptr});
-	menu.Add_Row({"Fog Of War", [&]{ return(On_Off(fog)); }, [&](int) { fog = !fog; }, nullptr});
-	menu.Add_Row({"Bridges Destroyable", [&]{ return(On_Off(bridges)); }, [&](int) { bridges = !bridges; }, nullptr});
-	menu.Add_Row({"Re-Deployable MCV", [&]{ return(On_Off(redeploy)); }, [&](int) { redeploy = !redeploy; }, nullptr});
-	menu.Add_Row({"Short Game", [&]{ return(On_Off(short_game)); },
+	menu.Add_Row({"Crates", [&]{ return(Console_On_Off(crates)); }, [&](int) { crates = !crates; }, nullptr});
+	menu.Add_Row({"Fog Of War", [&]{ return(Console_On_Off(fog)); }, [&](int) { fog = !fog; }, nullptr});
+	menu.Add_Row({"Bridges Destroyable", [&]{ return(Console_On_Off(bridges)); }, [&](int) { bridges = !bridges; }, nullptr});
+	menu.Add_Row({"Re-Deployable MCV", [&]{ return(Console_On_Off(redeploy)); }, [&](int) { redeploy = !redeploy; }, nullptr});
+	menu.Add_Row({"Short Game", [&]{ return(Console_On_Off(short_game)); },
 		[&](int) { short_game = !short_game; if (short_game) bases = true; }, nullptr});
-	menu.Add_Row({"Multi Engineer", [&]{ return(On_Off(engineers)); }, [&](int) { engineers = !engineers; }, nullptr});
+	menu.Add_Row({"Multi Engineer", [&]{ return(Console_On_Off(engineers)); }, [&](int) { engineers = !engineers; }, nullptr});
 
 	bool accepted = menu.Process() == CONSOLE_MENU_ACCEPT;
 

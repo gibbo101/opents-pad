@@ -60,6 +60,13 @@ enum {
 };
 
 
+void Console_Draw_Icon(Surface & surface, Surface & icon, int x, int y)
+{
+	Rect source = icon.Get_Rect();
+	SurfaceCache.DrawTrans(Rect(x, y, source.Width, source.Height), surface, icon, (255 >> DSurface::RedLeft << DSurface::RedRight) | (255u >> DSurface::BlueLeft << DSurface::BlueRight));
+}
+
+
 ConsoleMenuClass::ConsoleMenuClass(char const * title) :
 	Title(title != NULL ? title : ""),
 	AcceptPrompt("Accept"),
@@ -461,9 +468,7 @@ void ConsoleMenuClass::Draw(void)
 				Surface * icon = row.Icon();
 				if (icon != NULL) {
 					Rect source = icon->Get_Rect();
-					int iy = y + (height - source.Height) / 2;
-					// The cached icons carry a magenta key around their artwork.
-					SurfaceCache.DrawTrans(Rect(x, iy, source.Width, source.Height), surface, *icon, (255 >> DSurface::RedLeft << DSurface::RedRight) | (255u >> DSurface::BlueLeft << DSurface::BlueRight));
+					Console_Draw_Icon(surface, *icon, x, y + (height - source.Height) / 2);
 					x += source.Width + SWATCH_GAP;
 				}
 			}
