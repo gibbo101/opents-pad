@@ -1490,17 +1490,37 @@ static BSurface const * Pad_Building_Sprite(BuildingTypeClass const * type)
 		_PadSpriteCache[key] = nullptr;
 		return(NULL);
 	}
-	Rect frame = shape->Get_Rect(0);
+	// The bib, where there is one, lies under the building at the same centre, as in play.
+	ShapeSet const * bib = type->BibShape;
+	int width = shape->Get_Width();
+	int height = shape->Get_Height();
+	if (bib != NULL) {
+		width = std::max(width, bib->Get_Width());
+		height = std::max(height, bib->Get_Height());
+	}
+	Point2D centre(width / 2, height / 2);
+	auto placed = [&](ShapeSet const * part) {
+		Rect rect = part->Get_Rect(0);
+		if (!rect.Is_Valid()) return(RECT_NONE);
+		rect.X += centre.X - part->Get_Width() / 2;
+		rect.Y += centre.Y - part->Get_Height() / 2;
+		return(rect);
+	};
+	Rect frame = placed(shape);
+	if (bib != NULL) {
+		frame = Union(frame, placed(bib));
+	}
 	if (!frame.Is_Valid()) {
 		_PadSpriteCache[key] = nullptr;
 		return(NULL);
 	}
 
-	int width = shape->Get_Width();
-	int height = shape->Get_Height();
 	BSurface full(width, height, 2);
 	full.Fill(0);
-	Draw_Shape(full, *converter, shape, 0, Point2D(width / 2, height / 2), Rect(0, 0, width, height), ShapeFlags_Type(SHAPE_CENTER|SHAPE_WIN_REL));
+	if (bib != NULL) {
+		Draw_Shape(full, *converter, bib, 0, centre, Rect(0, 0, width, height), ShapeFlags_Type(SHAPE_CENTER|SHAPE_WIN_REL));
+	}
+	Draw_Shape(full, *converter, shape, 0, centre, Rect(0, 0, width, height), ShapeFlags_Type(SHAPE_CENTER|SHAPE_WIN_REL));
 
 	int const cell_w = SidebarClass::StripClass::OBJECT_WIDTH;
 	int const cell_h = SidebarClass::StripClass::OBJECT_HEIGHT;
