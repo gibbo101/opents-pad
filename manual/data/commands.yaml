@@ -1718,6 +1718,33 @@ fixed_controls:
   _provenance:
     source: code/grphmenu.cpp
     guard: null
+- id: fixed:graphic-menu-back
+  route_id: fixed-graphic-menu-back
+  kind: fixed
+  title: Graphic menu back
+  description: Takes the Back button of a shell menu page, under the controller control scheme.
+  audience: player
+  availability: *id001
+  bindings:
+  - Escape
+  context: Shell menu pages under the controller control scheme
+  _provenance:
+    source: code/grphmenu.cpp
+    guard: null
+- id: fixed:continue-mission-restatement
+  route_id: fixed-continue-mission-restatement
+  kind: fixed
+  title: Continue mission restatement
+  description: Turns to the next page of the mission restatement, or closes its last page, under the controller
+    control scheme.
+  audience: player
+  availability: *id001
+  bindings:
+  - Enter
+  context: Mission restatement under the controller control scheme
+  _provenance:
+    source: code/restate.cpp
+    guard: null
 - id: fixed:console-menu-accept
   route_id: fixed-console-menu-accept
   kind: fixed

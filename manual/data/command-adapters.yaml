@@ -51,6 +51,24 @@ fixed_controls:
     availability: *all
     sites:
       - { file: code/grphmenu.cpp, function: GraphicMenu::Presentation, expression: KN_SPACE }
+  - id: fixed:graphic-menu-back
+    title: Graphic menu back
+    description: Takes the Back button of a shell menu page, under the controller control scheme.
+    audience: player
+    bindings: [Escape]
+    context: Shell menu pages under the controller control scheme
+    availability: *all
+    sites:
+      - { file: code/grphmenu.cpp, function: GraphicMenu::Presentation, expression: KN_ESC }
+  - id: fixed:continue-mission-restatement
+    title: Continue mission restatement
+    description: Turns to the next page of the mission restatement, or closes its last page, under the controller control scheme.
+    audience: player
+    bindings: [Enter]
+    context: Mission restatement under the controller control scheme
+    availability: *all
+    sites:
+      - { file: code/restate.cpp, function: RestateMission::User_Input, expression: KN_RETURN }
   - id: fixed:console-menu-accept
     title: Console menu accept
     description: Accepts a console-style menu, or activates the focused row when it has an action of its own.
@@ -347,6 +365,8 @@ fixed_exclusions:
     reason: Input sentinel, not a player control.
   - site: { file: code/consolemenu.cpp, function: ConsoleMenuClass::Poll_Input, expression: KN_NONE }
     reason: Input sentinel, not a player control.
+  - site: { file: code/consolemenu.cpp, function: ConsoleMenuClass::Poll_Input, expression: KN_LMOUSE }
+    reason: A pointer click on a row or a prompt, the mouse form of the accept and back commands.
   - site: { file: code/mainloop.cpp, function: Keyboard_Process, expression: KN_ESC }
     reason: Escape is represented by the forced Options command binding.
   - site: { file: code/mainloop.cpp, function: Keyboard_Process, expression: KN_RLSE_BIT, guard: _DEBUG }
