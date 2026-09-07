@@ -954,8 +954,11 @@ void SidebarClass::Draw_It(bool complete)
 
 	Rect window(0, 0, SidebarSurface->Get_Width(), SidebarSurface->Get_Height());
 
-	if (IsSidebarActive && (IsToRedraw || complete) && !Debug_Map) {
-		if (complete || Column[0].IsToRedraw || Column[1].IsToRedraw) {
+	// The pad view paints over the whole strip area rather than its own slots, so any
+	// redraw of it needs the sidebar's background under it first.
+	bool pad_redraw = Options.ControlScheme == CONTROL_CONTROLLER && (PadDirty || Column[0].IsToRedraw || Column[1].IsToRedraw);
+	if (IsSidebarActive && (IsToRedraw || complete || pad_redraw) && !Debug_Map) {
+		if (complete || Column[0].IsToRedraw || Column[1].IsToRedraw || pad_redraw) {
 
 			int y = SidebarRect.Y;
 
