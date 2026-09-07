@@ -69,6 +69,45 @@ fixed_controls:
     availability: *all
     sites:
       - { file: code/restate.cpp, function: RestateMission::User_Input, expression: KN_RETURN }
+  - id: fixed:console-keyboard-navigate
+    title: On-screen keyboard navigation
+    description: Moves the focus around the on-screen keyboard's keys; a held key repeats.
+    audience: player
+    bindings: [Up, Down, Left, Right]
+    context: On-screen keyboard under the controller control scheme
+    availability: *all
+    sites:
+      - { file: code/consolekeyboard.cpp, function: Console_Keyboard, expression: KN_UP }
+      - { file: code/consolekeyboard.cpp, function: Console_Keyboard, expression: KN_DOWN }
+      - { file: code/consolekeyboard.cpp, function: Console_Keyboard, expression: KN_LEFT }
+      - { file: code/consolekeyboard.cpp, function: Console_Keyboard, expression: KN_RIGHT }
+  - id: fixed:console-keyboard-finish
+    title: On-screen keyboard finish
+    description: Keeps the text typed on the on-screen keyboard and closes it.
+    audience: player
+    bindings: [Enter]
+    context: On-screen keyboard under the controller control scheme
+    availability: *all
+    sites:
+      - { file: code/consolekeyboard.cpp, function: Console_Keyboard, expression: KN_RETURN }
+  - id: fixed:console-keyboard-cancel
+    title: On-screen keyboard cancel
+    description: Closes the on-screen keyboard leaving the text as it was.
+    audience: player
+    bindings: [Escape]
+    context: On-screen keyboard under the controller control scheme
+    availability: *all
+    sites:
+      - { file: code/consolekeyboard.cpp, function: Console_Keyboard, expression: KN_ESC }
+  - id: fixed:console-keyboard-delete
+    title: On-screen keyboard delete
+    description: Removes the last character typed on the on-screen keyboard.
+    audience: player
+    bindings: [Backspace]
+    context: On-screen keyboard under the controller control scheme
+    availability: *all
+    sites:
+      - { file: code/consolekeyboard.cpp, function: Console_Keyboard, expression: KN_BACKSPACE }
   - id: fixed:console-menu-accept
     title: Console menu accept
     description: Accepts a console-style menu, or activates the focused row when it has an action of its own.
@@ -367,6 +406,10 @@ fixed_exclusions:
     reason: Input sentinel, not a player control.
   - site: { file: code/consolemenu.cpp, function: ConsoleMenuClass::Poll_Input, expression: KN_LMOUSE }
     reason: A pointer click on a row or a prompt, the mouse form of the accept and back commands.
+  - site: { file: code/consolekeyboard.cpp, function: Console_Keyboard, expression: KN_NONE }
+    reason: Input sentinel, not a player control.
+  - site: { file: code/consolekeyboard.cpp, function: Console_Keyboard, expression: KN_LMOUSE }
+    reason: A pointer click on a key, the mouse form of selecting it.
   - site: { file: code/mainloop.cpp, function: Keyboard_Process, expression: KN_ESC }
     reason: Escape is represented by the forced Options command binding.
   - site: { file: code/mainloop.cpp, function: Keyboard_Process, expression: KN_RLSE_BIT, guard: _DEBUG }

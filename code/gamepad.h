@@ -22,6 +22,8 @@ struct GamepadStateType
 	bool Right;
 	bool Accept;
 	bool Back;
+	bool Third;		// X, or square.
+	bool Fourth;	// Y, or triangle.
 	bool Fast;
 	bool Menu;
 };

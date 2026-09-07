@@ -1745,6 +1745,61 @@ fixed_controls:
   _provenance:
     source: code/restate.cpp
     guard: null
+- id: fixed:console-keyboard-navigate
+  route_id: fixed-console-keyboard-navigate
+  kind: fixed
+  title: On-screen keyboard navigation
+  description: Moves the focus around the on-screen keyboard's keys; a held key repeats.
+  audience: player
+  availability: *id001
+  bindings:
+  - Up
+  - Down
+  - Left
+  - Right
+  context: On-screen keyboard under the controller control scheme
+  _provenance:
+    source: code/consolekeyboard.cpp
+    guard: null
+- id: fixed:console-keyboard-finish
+  route_id: fixed-console-keyboard-finish
+  kind: fixed
+  title: On-screen keyboard finish
+  description: Keeps the text typed on the on-screen keyboard and closes it.
+  audience: player
+  availability: *id001
+  bindings:
+  - Enter
+  context: On-screen keyboard under the controller control scheme
+  _provenance:
+    source: code/consolekeyboard.cpp
+    guard: null
+- id: fixed:console-keyboard-cancel
+  route_id: fixed-console-keyboard-cancel
+  kind: fixed
+  title: On-screen keyboard cancel
+  description: Closes the on-screen keyboard leaving the text as it was.
+  audience: player
+  availability: *id001
+  bindings:
+  - Escape
+  context: On-screen keyboard under the controller control scheme
+  _provenance:
+    source: code/consolekeyboard.cpp
+    guard: null
+- id: fixed:console-keyboard-delete
+  route_id: fixed-console-keyboard-delete
+  kind: fixed
+  title: On-screen keyboard delete
+  description: Removes the last character typed on the on-screen keyboard.
+  audience: player
+  availability: *id001
+  bindings:
+  - Backspace
+  context: On-screen keyboard under the controller control scheme
+  _provenance:
+    source: code/consolekeyboard.cpp
+    guard: null
 - id: fixed:console-menu-accept
   route_id: fixed-console-menu-accept
   kind: fixed

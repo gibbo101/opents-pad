@@ -71,6 +71,12 @@ void Console_Set_Backdrop_File(char const * name)
 }
 
 
+char const * Console_Backdrop_File(void)
+{
+	return(_BackdropFile != NULL ? _BackdropFile : Get_New_Menu()->Background);
+}
+
+
 void Console_Draw_Icon(Surface & surface, Surface & icon, int x, int y)
 {
 	Rect source = icon.Get_Rect();
@@ -549,7 +555,7 @@ ConsoleMenuResult ConsoleMenuClass::Process(void)
 		Backdrop = new DSurface(HiddenSurface->Get_Width(), HiddenSurface->Get_Height());
 	}
 	Backdrop->Fill(0);
-	Load_Title_Screen(_BackdropFile != NULL ? _BackdropFile : Get_New_Menu()->Background, Backdrop, &CCPalette);
+	Load_Title_Screen(Console_Backdrop_File(), Backdrop, &CCPalette);
 	IsDirty = true;
 
 	while (true) {

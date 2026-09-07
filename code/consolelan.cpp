@@ -16,6 +16,7 @@
 #include "_timer.h"
 #include "addon.h"
 #include "conquer.h"
+#include "consolekeyboard.h"
 #include "consolemenu.h"
 #include "consolemp.h"
 #include "data.h"
@@ -603,7 +604,18 @@ bool Net2Console_Remote_Connect(void)
 
 		ConsoleMenuClass menu("LAN Games");
 		menu.Set_Prompts("Select", "Back");
-		menu.Add_Row({"Name", [&]{ return(std::string(Session.Handle)); }, nullptr, nullptr});
+		menu.Add_Row({"Name", [&]{ return(std::string(Session.Handle)); }, nullptr, [&]{
+			if (joining) return;
+			std::string handle = Session.Handle;
+			if (Console_Keyboard("Name", handle, MPLAYER_NAME_MAX - 1) && !handle.empty() && handle != Session.Handle) {
+				strcpy(Session.Handle, handle.c_str());
+				Session.Write_MultiPlayer_Settings();
+				strcpy(Session.Chat[0]->Name, Session.Handle);
+				Send_Join_Queries(false, false, true, false);
+			}
+			rebuild = true;
+			menu.Finish(CONSOLE_MENU_BACK);
+		}});
 		menu.Add_Row({"Host New Game", nullptr, nullptr, [&]{ if (!joining) { action = ACTION_HOST; menu.Finish(CONSOLE_MENU_ACCEPT); } }});
 		for (int index = 1; index < Session.Games.Count(); index++) {
 			menu.Add_Row({std::string(Session.Games[index]->Name) + (Session.Games[index]->Game.IsOpen ? "" : " (closed)"), nullptr, nullptr,

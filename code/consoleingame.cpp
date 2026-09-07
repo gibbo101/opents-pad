@@ -13,6 +13,7 @@
 
 #include "_keyboar.h"
 #include "_map.h"
+#include "consolekeyboard.h"
 #include "consolemenu.h"
 #include "data.h"
 #include "event.h"
@@ -129,12 +130,24 @@ static std::string Suggested_Save_Name(void)
 static std::string Save_Box(void)
 {
 	std::string name = Suggested_Save_Name();
-	ConsoleMenuClass menu("");
-	menu.Set_Prompts("Save", "Back");
-	menu.Add_Row({"Save As", [&]{ return(name); }, nullptr, nullptr});
-	Box_Rows(menu, "Game Paused", std::string(), menu.Text_Width(name.c_str()));
-	if (menu.Process() != CONSOLE_MENU_ACCEPT) {
-		return(std::string());
+	bool saving = false;
+	while (!saving) {
+		ConsoleMenuClass menu("");
+		menu.Set_Prompts("Save", "Back");
+		bool edit = false;
+		menu.Add_Row({"Save As", [&]{ return(name); }, nullptr, [&]{ edit = true; menu.Finish(CONSOLE_MENU_ACCEPT); }});
+		Box_Rows(menu, "Game Paused", std::string(), menu.Text_Width(name.c_str()));
+		if (menu.Process() != CONSOLE_MENU_ACCEPT) {
+			return(std::string());
+		}
+		if (!edit) {
+			saving = true;
+		} else {
+			std::string edited = name;
+			if (Console_Keyboard("Save As", edited, DESCRIP_MAX - 1) && !edited.empty()) {
+				name = edited;
+			}
+		}
 	}
 	LoadOptionsClass saver;
 	char filename[256];

@@ -73,6 +73,8 @@ GamepadStateType Gamepad_Read(void)
 		result.Right = (pad.wButtons & XINPUT_GAMEPAD_DPAD_RIGHT) != 0 || pad.sThumbLX > STICK_DEADZONE;
 		result.Accept = (pad.wButtons & XINPUT_GAMEPAD_A) != 0;
 		result.Back = (pad.wButtons & XINPUT_GAMEPAD_B) != 0;
+		result.Third = (pad.wButtons & XINPUT_GAMEPAD_X) != 0;
+		result.Fourth = (pad.wButtons & XINPUT_GAMEPAD_Y) != 0;
 		result.Fast = (pad.wButtons & (XINPUT_GAMEPAD_RIGHT_SHOULDER|XINPUT_GAMEPAD_LEFT_SHOULDER)) != 0;
 		result.Menu = (pad.wButtons & XINPUT_GAMEPAD_START) != 0;
 		break;
