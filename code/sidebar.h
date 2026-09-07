@@ -432,7 +432,7 @@ class SidebarClass : public PowerClass
 		void Pad_Move(int dx, int dy);
 		void Pad_Accept(void);
 		bool Pad_Back(void);				// False once it has left the sidebar.
-		void Pad_Toggle_Grid(void);
+		void Pad_Toggle_Grid(bool forget = false);	// A forgetting close puts the factory back on an idle section.
 		void Pad_Radar_Nudge(int dx, int dy);
 		void Pad_Radar_Jump(void);
 		void Pad_Focus_Changed(void);

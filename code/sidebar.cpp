@@ -89,6 +89,8 @@
 #include "builtype.h"
 #include "cctooltip.h"
 #include "conquer.h"
+#include "consolemenu.h"
+#include "consolemp.h"
 #include "convert.h"
 #include "data.h"
 #include "dialog.h"
@@ -1144,7 +1146,7 @@ void SidebarClass::Pad_Leave(void)
 {
 	PadFocus = false;
 	if (PadSection >= 0) {
-		Pad_Toggle_Grid();
+		Pad_Toggle_Grid(true);
 	}
 	Pad_Focus_Changed();
 }
@@ -1354,14 +1356,14 @@ bool SidebarClass::Pad_Back(void)
 	if (at < count && Column[items[at].Column].Buildables[items[at].Index].Factory != NULL) {
 		Column[items[at].Column].Activate(items[at].Index, GadgetClass::RIGHTPRESS);
 	} else {
-		Pad_Toggle_Grid();
+		Pad_Toggle_Grid(true);
 	}
 	Pad_Focus_Changed();
 	return(true);
 }
 
 
-void SidebarClass::Pad_Toggle_Grid(void)
+void SidebarClass::Pad_Toggle_Grid(bool forget)
 {
 	if (PadRow == PAD_ROW_MODES || PadRow == PAD_ROW_RADAR) return;
 	if (PadSection < 0) {
@@ -1379,6 +1381,10 @@ void SidebarClass::Pad_Toggle_Grid(void)
 		PadRow = section / PAD_COLUMNS;
 		PadCol = section % PAD_COLUMNS;
 		PadTop = 0;
+		PadItemType active;
+		if (forget && !Pad_Active_Item(section, active)) {
+			PadLast[section] = PadLastType();
+		}
 	}
 	Pad_Focus_Changed();
 }
@@ -1698,6 +1704,14 @@ void SidebarClass::Draw_Pad_View(void)
 					}
 					char const * name = bottom && column != 0 ? _PadSectionNames[5] : _PadSectionNames[row];
 					Print_Cameo_Text(name, Point2D(x, y + StripClass::CAMEO_TEXT_Y_OFFSET), cliprect, StripClass::OBJECT_WIDTH - 2);
+				}
+				if (shown && row == PAD_KIND_STRUCTURES) {
+					// The side's emblem marks whose column this is.
+					Surface * emblem = Console_Side_Icon(Pad_Column_House(column) == HOUSE_GOOD);
+					if (emblem != NULL) {
+						Rect source = emblem->Get_Rect();
+						Console_Draw_Icon(*SidebarSurface, *emblem, x + StripClass::OBJECT_WIDTH - source.Width - 2, cliprect.Y + y + 2);
+					}
 				}
 				if (focus_row == row && PadCol == column) {
 					outline(x, y);
