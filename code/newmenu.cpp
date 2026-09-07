@@ -283,7 +283,8 @@ int NewMenuClass::Select_Game_Type(void)
 // the menu font, the dead services left out, and B returning to game select.
 int NewMenuClass::Console_Menu_Page(GraphicMenu & page, DynamicVectorClass<int> const & disabled)
 {
-	enum { FIRST_ROW_Y = 168, ROW_PITCH = 26, PANEL_PAD = 20 };
+	// The letters start and end inside the menu font's cell, so the box pads them, not the cell.
+	enum { FIRST_ROW_Y = 168, ROW_PITCH = 26, PANEL_PAD = 16, GLYPH_TOP = 4, GLYPH_BOTTOM = 15 };
 	static struct { int ID; char const * Label; } const _rows[] = {
 		{NSEL_START_NEW_GAME, "New Campaign"},
 		{NSEL_LOAD_MISSION, "Load Mission"},
@@ -368,7 +369,9 @@ int NewMenuClass::Console_Menu_Page(GraphicMenu & page, DynamicVectorClass<int> 
 	});
 
 	int panel_width = widest + 2 * PANEL_PAD;
-	menu.Set_Panel(Rect((640 - panel_width) / 2, FIRST_ROW_Y - PANEL_PAD, panel_width, (y - FIRST_ROW_Y) + PANEL_PAD));
+	int box_top = FIRST_ROW_Y + GLYPH_TOP - PANEL_PAD;
+	int box_bottom = y - ROW_PITCH + GLYPH_BOTTOM + PANEL_PAD;
+	menu.Set_Panel(Rect((640 - panel_width) / 2, box_top, panel_width, box_bottom - box_top));
 	menu.Set_Focus(std::max(first_list_row, 0));
 	if (menu.Process() != CONSOLE_MENU_ACCEPT) {
 		return(GMENU_BACK);
