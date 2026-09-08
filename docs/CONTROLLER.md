@@ -83,13 +83,14 @@ on-screen size, is in: the presenter draws the sidebar as its own quad.
    and the credits tab over the sidebar. Decided on Sep 8: the map takes the
    full height (the 16 pixel offset sits in `display.cpp` and
    `mainopt.cpp`), the mission timer stays as an overlay in the map's top
-   right corner, the credits stay in the sidebar's own strip, and an
-   Options cell goes on the sidebar itself, reached by the pad's focus like
-   the rest of the panel as Retaliation's OPTIONS header is, and clickable
-   too. Where it sits is open: the top strip split Options and credits, or
+   right corner, the credits stay in the sidebar's own strip, and the
+   controller gets an Options cell on the sidebar itself, reached by the
+   pad's focus like the rest of the panel as Retaliation's OPTIONS header
+   is. Where it sits is open: the top strip split Options and credits, or
    the foot plate under the five rows, a 63 pixel ornament with nothing on
    it. The pad's Options button is the real way in throughout, so nothing
-   is lost meanwhile. The keyboard scheme keeps the bar.
+   is lost meanwhile. The mouse's Options tab stays where it is: the
+   keyboard scheme keeps the bar.
 2. Untested on the sidebar: the Nod side as the captured column; a grid
    longer than the panel scrolling; the hall of fame name on the on-screen
    keyboard and the score screen's restore after it.
