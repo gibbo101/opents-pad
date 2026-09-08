@@ -3674,6 +3674,10 @@ int SidebarClass::Sidebar_Height(void)
 /// shows the slots it has rather than the slots that would fit.</remarks>
 int SidebarClass::Max_Visible(void)
 {
+	// The pad's panel is five rows over the foot plate, so the foot never gives a sixth.
+	if (Options.ControlScheme == CONTROL_CONTROLLER) {
+		return(PAD_SECTION_ROWS);
+	}
 	if (SidebarSurface != NULL && SidebarShape != NULL) {
 		Rect r = SidebarRect;
 		int fits = (r.Height - SidebarBottomShape->Get_Height() - SidebarShape->Get_Height()) / SidebarMiddleShape->Get_Height();

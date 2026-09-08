@@ -457,14 +457,14 @@ static int Zoom_Nearest_Rung(int height)
 
 /// <summary>
 /// The height the split sidebar is drawn at under the controller scheme: the pad's own
-/// panel, the radar and mode buttons over five rows of two cells with nothing spare below,
-/// so scaled to the screen's height the panel fills it whatever the map is zoomed to.
-/// The panel's pieces are read from the loaded sidebar art; before it loads, a size the
-/// art is known to give.
+/// panel, the radar and mode buttons over five rows of two cells and the foot plate, so
+/// scaled to the screen's height the panel fills it whatever the map is zoomed to.
+/// The panel's pieces are read from the loaded sidebar art; before it loads, the size
+/// the game's art gives.
 /// </summary>
 int Pad_Sidebar_Height(void)
 {
-	enum { ART_HEIGHT = 458 };
+	enum { ART_HEIGHT = 512 };
 	int height = ART_HEIGHT;
 	if (SidebarClass::SidebarShape != NULL && SidebarClass::SidebarMiddleShape != NULL && SidebarClass::SidebarBottomShape != NULL && SidebarClass::SidebarAddonShape != NULL) {
 		height = SidebarClass::SIDE_Y + SidebarClass::SidebarShape->Get_Height()
