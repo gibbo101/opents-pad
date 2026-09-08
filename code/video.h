@@ -26,7 +26,9 @@ enum VideoScaleMode {
 //
 // When the sidebar is split off, the frame's sidebar columns are never shown: the
 // destination covers the frame's other columns, and the sidebar surface, at its own size,
-// is drawn beside them at its own scale so it fills the drawable height.
+// is drawn beside them at its own scale so it fills the drawable height. The top bar can
+// be split off with it: the frame's top rows are never shown either, and a bar surface
+// of the sidebar's scale is drawn above the frame's remaining rows.
 struct VideoScaleInfo
 {
 	int GameWidth;
@@ -49,10 +51,19 @@ struct VideoScaleInfo
 	int SidebarDestHeight;
 	float SidebarScale;
 
+	int BarHeight;				// Frame rows given to the split bar; zero while the bar is in the frame.
+	int BarWidth;				// The bar surface's own width, at the sidebar's scale.
+	int BarDestX;
+	int BarDestY;
+	int BarDestWidth;
+	int BarDestHeight;
+
 	bool Is_Split(void) const { return(SidebarWidth > 0 && SidebarHeight > 0); }
+	bool Bar_Is_Split(void) const { return(Is_Split() && BarHeight > 0 && BarWidth > 0); }
 	int Sidebar_X(void) const { return(SidebarOnRight ? GameWidth - SidebarWidth : 0); }
 	int Tactical_X(void) const { return(SidebarOnRight ? 0 : SidebarWidth); }
 	int Tactical_Width(void) const { return(GameWidth - SidebarWidth); }
+	int Tactical_Height(void) const { return(GameHeight - BarHeight); }
 };
 
 
@@ -60,7 +71,7 @@ bool Video_Init(NativeWindow const & window, int drawablewidth, int drawableheig
 void Video_Shutdown(void);
 
 bool Video_Set_Mode(int width, int height);
-bool Video_Set_Sidebar(int width, int height, bool onright);
+bool Video_Set_Sidebar(int width, int height, bool onright, int barheight);
 bool Video_Sidebar_Is_Split(void);
 void Video_On_Resize(int drawablewidth, int drawableheight);
 void Video_Set_Refresh_Rate(int refreshrate);

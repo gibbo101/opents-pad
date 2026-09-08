@@ -215,6 +215,10 @@ void Reset_Surfaces(void)
 			delete SidebarSurface;
 			SidebarSurface = NULL;
 		}
+		if (TabSurface) {
+			delete TabSurface;
+			TabSurface = NULL;
+		}
 		if (CompositeSurface) {
 			delete CompositeSurface;
 			CompositeSurface = NULL;

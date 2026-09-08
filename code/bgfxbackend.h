@@ -51,10 +51,11 @@ void Backend_Shutdown(void);
 
 bool Backend_Set_Frame_Size(int width, int height);
 bool Backend_Set_Sidebar_Size(int width, int height);		// Zero drops the sidebar layer.
+bool Backend_Set_Bar_Size(int width, int height);			// Zero drops the bar layer.
 void Backend_On_Resize(int drawablewidth, int drawableheight);
 
-// Uploads the frame, and the sidebar when one is given, and presents them. The pixels
+// Uploads the frame, and the sidebar and bar when given, and presents them. The pixels
 // are consumed before this returns.
-void Backend_Present(BackendQuad const & frame, BackendQuad const * sidebar, BackendScaleMode mode);
+void Backend_Present(BackendQuad const & frame, BackendQuad const * sidebar, BackendQuad const * bar, BackendScaleMode mode);
 
 char const * Backend_Renderer_Name(void);

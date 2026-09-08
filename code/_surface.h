@@ -13,6 +13,7 @@ class Surface;
 
 extern Surface * TileSurface;
 extern Surface * SidebarSurface;
+extern Surface * TabSurface;		// The top bar, when it is presented apart from the frame.
 
 extern Surface * Unk1Surface; /// unused
 

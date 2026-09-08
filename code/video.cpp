@@ -49,6 +49,7 @@ static VideoScaleInfo _ScaleInfo;
 static int _SidebarWidth = 0;
 static int _SidebarHeight = 0;
 static bool _SidebarOnRight = true;
+static int _BarHeight = 0;
 
 // Set whenever the visible surface is written to, and cleared once that frame has been
 // presented. A frame that is skipped for pacing stays marked, so the next present shows
@@ -112,6 +113,12 @@ static void Update_Scale_Info(void)
 	_ScaleInfo.SidebarDestWidth = 0;
 	_ScaleInfo.SidebarDestHeight = 0;
 	_ScaleInfo.SidebarScale = 1.0f;
+	_ScaleInfo.BarHeight = 0;
+	_ScaleInfo.BarWidth = 0;
+	_ScaleInfo.BarDestX = 0;
+	_ScaleInfo.BarDestY = 0;
+	_ScaleInfo.BarDestWidth = 0;
+	_ScaleInfo.BarDestHeight = 0;
 
 	if (_ScaleInfo.GameWidth <= 0 || _ScaleInfo.GameHeight <= 0 || _ScaleInfo.DrawableWidth <= 0 || _ScaleInfo.DrawableHeight <= 0) {
 		_ScaleInfo.DestX = 0;
@@ -124,8 +131,11 @@ static void Update_Scale_Info(void)
 	}
 
 	int intox = 0;
+	int intoy = 0;
 	int intowidth = _ScaleInfo.DrawableWidth;
+	int intoheight = _ScaleInfo.DrawableHeight;
 	int framewidth = _ScaleInfo.GameWidth;
+	int frameheight = _ScaleInfo.GameHeight;
 
 	if (_SidebarWidth > 0 && _SidebarHeight > 0 && _SidebarWidth < _ScaleInfo.GameWidth) {
 		double scale = Fit_Scale(_SidebarWidth, _SidebarHeight, _ScaleInfo.DrawableWidth, _ScaleInfo.DrawableHeight);
@@ -144,16 +154,30 @@ static void Update_Scale_Info(void)
 			_ScaleInfo.SidebarDestX = 0;
 			intox = _ScaleInfo.SidebarDestWidth;
 		}
+
+		// The bar takes its rows off the top of the frame and is drawn at the sidebar's
+		// scale across the frame's part of the drawable; its own width follows from that.
+		if (_BarHeight > 0 && _BarHeight < _ScaleInfo.GameHeight) {
+			_ScaleInfo.BarHeight = _BarHeight;
+			_ScaleInfo.BarWidth = std::max((int)((double)intowidth / scale), 1);
+			_ScaleInfo.BarDestX = intox;
+			_ScaleInfo.BarDestY = 0;
+			_ScaleInfo.BarDestWidth = (int)((double)_ScaleInfo.BarWidth * scale);
+			_ScaleInfo.BarDestHeight = (int)((double)_BarHeight * scale);
+			intoy = _ScaleInfo.BarDestHeight;
+			intoheight = std::max(_ScaleInfo.DrawableHeight - _ScaleInfo.BarDestHeight, 1);
+			frameheight = _ScaleInfo.Tactical_Height();
+		}
 	}
 
-	double scale = Fit_Scale(framewidth, _ScaleInfo.GameHeight, intowidth, _ScaleInfo.DrawableHeight);
+	double scale = Fit_Scale(framewidth, frameheight, intowidth, intoheight);
 
 	_ScaleInfo.DestWidth = (int)((double)framewidth * scale);
-	_ScaleInfo.DestHeight = (int)((double)_ScaleInfo.GameHeight * scale);
+	_ScaleInfo.DestHeight = (int)((double)frameheight * scale);
 	_ScaleInfo.DestX = intox + (intowidth - _ScaleInfo.DestWidth) / 2;
-	_ScaleInfo.DestY = (_ScaleInfo.DrawableHeight - _ScaleInfo.DestHeight) / 2;
+	_ScaleInfo.DestY = intoy + (intoheight - _ScaleInfo.DestHeight) / 2;
 	_ScaleInfo.ScaleX = (float)((double)_ScaleInfo.DestWidth / (double)framewidth);
-	_ScaleInfo.ScaleY = (float)((double)_ScaleInfo.DestHeight / (double)_ScaleInfo.GameHeight);
+	_ScaleInfo.ScaleY = (float)((double)_ScaleInfo.DestHeight / (double)frameheight);
 }
 
 
@@ -161,16 +185,18 @@ static void Update_Scale_Info(void)
 // sidebar, if there is one, then lays both out in the window.
 static bool Apply_Layout(void)
 {
-	bool split = _SidebarWidth > 0 && _SidebarHeight > 0 && _SidebarWidth < VideoModeWidth;
-
-	if (!Backend_Set_Frame_Size(VideoModeWidth - (split ? _SidebarWidth : 0), VideoModeHeight)) {
-		return(false);
-	}
-	if (!Backend_Set_Sidebar_Size(split ? _SidebarWidth : 0, split ? _SidebarHeight : 0)) {
-		return(false);
-	}
-
 	Update_Scale_Info();
+
+	if (!Backend_Set_Frame_Size(_ScaleInfo.Tactical_Width(), _ScaleInfo.Tactical_Height())) {
+		return(false);
+	}
+	if (!Backend_Set_Sidebar_Size(_ScaleInfo.SidebarWidth, _ScaleInfo.SidebarHeight)) {
+		return(false);
+	}
+	if (!Backend_Set_Bar_Size(_ScaleInfo.BarWidth, _ScaleInfo.BarHeight)) {
+		return(false);
+	}
+
 	Win_Cursor_Refresh();
 	_FrameIsDirty = true;
 	return(true);
@@ -275,6 +301,7 @@ bool Video_Set_Mode(int width, int height)
 	VideoModeHeight = height;
 	_SidebarWidth = 0;
 	_SidebarHeight = 0;
+	_BarHeight = 0;
 
 	Update_Scale_Info();
 	Win_Cursor_Refresh();
@@ -286,11 +313,14 @@ bool Video_Set_Mode(int width, int height)
 /// <summary>
 /// Splits the sidebar off the frame: the frame's sidebar columns are no longer shown and
 /// the sidebar surface, at the given size, is presented beside the rest at whatever scale
-/// fills the drawable height. A zero size puts the sidebar back in the frame.
-/// The sidebar surface the caller allocates must match the size given here.
+/// fills the drawable height. A zero size puts the sidebar back in the frame. A bar height
+/// splits the top bar off too: that many of the frame's top rows are no longer shown, and
+/// a bar surface at the sidebar's scale is presented above the rest; its width is reported
+/// as BarWidth in the scale info once this returns.
+/// The sidebar and bar surfaces the caller allocates must match the sizes given here.
 /// </summary>
 /// <returns>bool; Is the layout in place? On failure the previous layout stands.</returns>
-bool Video_Set_Sidebar(int width, int height, bool onright)
+bool Video_Set_Sidebar(int width, int height, bool onright, int barheight)
 {
 	if (!_Initialized) {
 		return(false);
@@ -299,15 +329,18 @@ bool Video_Set_Sidebar(int width, int height, bool onright)
 	int oldwidth = _SidebarWidth;
 	int oldheight = _SidebarHeight;
 	bool oldright = _SidebarOnRight;
+	int oldbar = _BarHeight;
 
 	_SidebarWidth = std::max(width, 0);
 	_SidebarHeight = std::max(height, 0);
 	_SidebarOnRight = onright;
+	_BarHeight = std::max(barheight, 0);
 
 	if (!Apply_Layout()) {
 		_SidebarWidth = oldwidth;
 		_SidebarHeight = oldheight;
 		_SidebarOnRight = oldright;
+		_BarHeight = oldbar;
 		Apply_Layout();
 		return(false);
 	}
@@ -382,7 +415,7 @@ void Video_Present(void)
 	}
 
 	BackendQuad frame;
-	frame.Pixels = (char const *)pixels + _ScaleInfo.Tactical_X() * surface->Bytes_Per_Pixel();
+	frame.Pixels = (char const *)pixels + _ScaleInfo.Tactical_X() * surface->Bytes_Per_Pixel() + _ScaleInfo.BarHeight * surface->Stride();
 	frame.Pitch = surface->Stride();
 	frame.DestX = _ScaleInfo.DestX;
 	frame.DestY = _ScaleInfo.DestY;
@@ -404,8 +437,23 @@ void Video_Present(void)
 		}
 	}
 
+	BackendQuad bar;
+	BackendQuad const * barquad = NULL;
+	if (_ScaleInfo.Bar_Is_Split() && TabSurface != NULL) {
+		DSurface * top = (DSurface *)TabSurface;
+		if (top->Get_Buffer() != NULL && top->Get_Width() == _ScaleInfo.BarWidth && top->Get_Height() == _ScaleInfo.BarHeight) {
+			bar.Pixels = top->Get_Buffer();
+			bar.Pitch = top->Stride();
+			bar.DestX = _ScaleInfo.BarDestX;
+			bar.DestY = _ScaleInfo.BarDestY;
+			bar.DestWidth = _ScaleInfo.BarDestWidth;
+			bar.DestHeight = _ScaleInfo.BarDestHeight;
+			barquad = &bar;
+		}
+	}
+
 	_Presenting = true;
-	Backend_Present(frame, sidebarquad, Backend_Scale_Mode());
+	Backend_Present(frame, sidebarquad, barquad, Backend_Scale_Mode());
 	_Presenting = false;
 
 	_FrameIsDirty = false;

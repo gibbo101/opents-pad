@@ -13,6 +13,7 @@
 
 Surface * TileSurface;
 Surface * SidebarSurface;
+Surface * TabSurface;
 Surface * Unk1Surface;
 Surface * VisibleSurface;
 Surface * HiddenSurface;

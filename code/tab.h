@@ -48,7 +48,6 @@ class TabClass: public SidebarClass
 		virtual void Draw_It(bool complete=false) override;
 		static void Draw_Credits_Tab(void);
 		static void Hilite_Tab(int tab);
-		void Draw_Map_Tabs(void);
 		void Flash_Money(void);
 
 		virtual void One_Time(void) override;							// One-time inits

@@ -53,6 +53,8 @@ BOOL CALLBACK Test_Display_Mode_Dialog_Proc(HWND window, UINT message, WPARAM wp
 
 GameOptionsClass TempOptions;
 
+enum { TAB_BAR_HEIGHT = 16 };		// The top bar's rows, the tab art's height.
+
 
 /// <summary>
 /// Brings up the main options dialog.
@@ -235,9 +237,22 @@ bool Change_Display_Mode(int width, int height, int sidebarheight)
 		return(false);
 		}
 
-	if (sidebarheight > 0 && !Video_Set_Sidebar(SidebarClass::SIDE_WIDTH, sidebarheight, Options.IsSidebarOnRight)) {
+	// The bar goes with the sidebar: both are drawn at the sidebar's scale, so neither
+	// changes size with the zoom.
+	if (sidebarheight > 0 && !Video_Set_Sidebar(SidebarClass::SIDE_WIDTH, sidebarheight, Options.IsSidebarOnRight, TAB_BAR_HEIGHT)) {
 		DebugString("Video_Set_Sidebar failed; sidebar stays in the frame.\n");
 		sidebarheight = 0;
+	}
+
+	if (TabSurface != NULL) {
+		delete TabSurface;
+		TabSurface = NULL;
+	}
+	VideoScaleInfo const & layout = Video_Get_Scale_Info();
+	if (sidebarheight > 0 && layout.Bar_Is_Split()) {
+		TabSurface = new DSurface(layout.BarWidth, layout.BarHeight);
+		TabSurface->Fill(0);
+		DebugString("TabSurface (%dx%d)\n", layout.BarWidth, layout.BarHeight);
 	}
 
 	VisibleRect = Rect(0, 0, width, height);
@@ -320,11 +335,9 @@ bool Change_Display_Mode(int width, int height, int sidebarheight)
 
 	Rect temp = VisibleRect;
 	temp.X = ((Options.IsSidebarOnRight || Debug_Map) ? 0 : SidebarClass::SIDE_WIDTH);
-	// The controller scheme has no top bar, so the map takes the full height.
-	int bar = Options.ControlScheme == CONTROL_CONTROLLER ? 0 : 16;
-	temp.Y = bar;
+	temp.Y = TAB_BAR_HEIGHT;
 	temp.Width -= SidebarClass::SIDE_WIDTH;
-	temp.Height -= bar;
+	temp.Height -= TAB_BAR_HEIGHT;
 
 	Allocate_Surfaces(VisibleRect, Rect(0, 0, temp.Width, VisibleRect.Height), Rect(0, 0, temp.Width, VisibleRect.Height), Rect(0, 0, SidebarClass::SIDE_WIDTH, sidebarheight > 0 ? sidebarheight : VisibleRect.Height));
 	LogicalSurface = HiddenSurface;
@@ -482,27 +495,20 @@ int Pad_Sidebar_Height(void)
 }
 
 
-// The panel width the split sidebar takes when it is scaled to fill the panel's height.
-static int Pad_Sidebar_Panel_Width(void)
-{
-	int panel_width;
-	int panel_height;
-	Panel_Size(panel_width, panel_height);
-	int sidebar_height = Pad_Sidebar_Height();
-	return(int(((long long)SidebarClass::SIDE_WIDTH * panel_height * 2 + sidebar_height) / (sidebar_height * 2)));
-}
-
-
 // The frame width for a ladder height: the map's columns follow the shape of the panel
-// left beside the sidebar, and the sidebar's own columns are added, so the frame carries
-// both at the sizes they are presented at.
+// left beside the sidebar and under the bar, both scaled to fill the panel's height with
+// the sidebar's panel, and the sidebar's own columns are added, so the frame carries
+// everything at the sizes it is presented at.
 int Pad_Zoom_Width(int height)
 {
 	int panel_width;
 	int panel_height;
 	Panel_Size(panel_width, panel_height);
-	int map_panel_width = std::max(panel_width - Pad_Sidebar_Panel_Width(), 1);
-	int width = int(((long long)height * map_panel_width * 2 + panel_height) / (panel_height * 2));
+	double scale = double(panel_height) / double(Pad_Sidebar_Height());
+	int map_panel_width = std::max(panel_width - int(SidebarClass::SIDE_WIDTH * scale), 1);
+	int map_panel_height = std::max(panel_height - int(TAB_BAR_HEIGHT * scale), 1);
+	int map_height = std::max(height - TAB_BAR_HEIGHT, 1);
+	int width = int(((long long)map_height * map_panel_width * 2 + map_panel_height) / (map_panel_height * 2));
 	return((width & ~1) + SidebarClass::SIDE_WIDTH);
 }
 

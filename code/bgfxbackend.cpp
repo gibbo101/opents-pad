@@ -42,11 +42,12 @@ static const bgfx::EmbeddedShader _EmbeddedShaders[] = {
 // from this frame rather than the last one.
 static const bgfx::ViewId VIEW_PRESCALE_FRAME = 0;
 static const bgfx::ViewId VIEW_PRESCALE_SIDEBAR = 1;
-static const bgfx::ViewId VIEW_PRESENT = 2;
+static const bgfx::ViewId VIEW_PRESCALE_BAR = 2;
+static const bgfx::ViewId VIEW_PRESENT = 3;
 
 
-// A picture the game uploads each present: the frame, or the sidebar when it is
-// presented apart from the frame.
+// A picture the game uploads each present: the frame, or the sidebar or top bar when
+// they are presented apart from the frame.
 struct BackendLayer
 {
 	bgfx::TextureHandle Texture = BGFX_INVALID_HANDLE;
@@ -64,6 +65,7 @@ static bool _Initialized = false;
 
 static BackendLayer _Frame;
 static BackendLayer _Sidebar;
+static BackendLayer _Bar;
 static bgfx::ProgramHandle _Program = BGFX_INVALID_HANDLE;
 static bgfx::UniformHandle _TextureSampler = BGFX_INVALID_HANDLE;
 static bgfx::VertexLayout _VertexLayout;
@@ -497,6 +499,7 @@ bool Backend_Init(NativeWindow const & window, int drawablewidth, int drawablehe
 
 	_Frame.PrescaleView = VIEW_PRESCALE_FRAME;
 	_Sidebar.PrescaleView = VIEW_PRESCALE_SIDEBAR;
+	_Bar.PrescaleView = VIEW_PRESCALE_BAR;
 
 	_Initialized = true;
 	return(true);
@@ -514,6 +517,7 @@ void Backend_Shutdown(void)
 
 	Destroy_Layer(_Frame);
 	Destroy_Layer(_Sidebar);
+	Destroy_Layer(_Bar);
 
 	if (bgfx::isValid(_TextureSampler)) {
 		bgfx::destroy(_TextureSampler);
@@ -554,6 +558,16 @@ bool Backend_Set_Sidebar_Size(int width, int height)
 
 
 /// <summary>
+/// Gives the top bar a texture of its own at the given size, or drops it at zero.
+/// </summary>
+/// <returns>bool; Is the bar layer as asked?</returns>
+bool Backend_Set_Bar_Size(int width, int height)
+{
+	return(Set_Layer_Size(_Bar, width, height));
+}
+
+
+/// <summary>
 /// Tells the renderer the drawable area changed size.
 /// </summary>
 void Backend_On_Resize(int drawablewidth, int drawableheight)
@@ -573,13 +587,15 @@ void Backend_On_Resize(int drawablewidth, int drawableheight)
 
 
 /// <summary>
-/// Uploads the frame, and the sidebar when one is given, and puts them on the screen.
+/// Uploads the frame, and the sidebar and bar when given, and puts them on the screen.
 /// </summary>
 /// <param name="frame">The frame's pixels and where it lands in the window.</param>
 /// <param name="sidebar">The sidebar's pixels and place, or NULL while it is part of the
 /// frame.</param>
+/// <param name="bar">The top bar's pixels and place, or NULL while it is part of the
+/// frame.</param>
 /// <param name="mode">How the pictures are filtered when drawn larger than they are.</param>
-void Backend_Present(BackendQuad const & frame, BackendQuad const * sidebar, BackendScaleMode mode)
+void Backend_Present(BackendQuad const & frame, BackendQuad const * sidebar, BackendQuad const * bar, BackendScaleMode mode)
 {
 	if (!_Initialized || frame.Pixels == NULL || !bgfx::isValid(_Frame.Texture)) {
 		return;
@@ -599,6 +615,9 @@ void Backend_Present(BackendQuad const & frame, BackendQuad const * sidebar, Bac
 	Present_Layer(_Frame, frame, mode);
 	if (sidebar != NULL) {
 		Present_Layer(_Sidebar, *sidebar, mode);
+	}
+	if (bar != NULL) {
+		Present_Layer(_Bar, *bar, mode);
 	}
 
 	bgfx::frame();

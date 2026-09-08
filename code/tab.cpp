@@ -47,7 +47,6 @@
 #include "dialog.h"
 #include "draw.h"
 #include "goptions.h"
-#include "padglyph.h"
 #include "language/language.h"
 #include "mixfile.h"
 #include "queue.h"
@@ -57,6 +56,7 @@
 #include "scheme.h"
 #include "shapeset.h"
 #include "surface.h"
+#include "video.h"
 
 ShapeSet const * TabClass::TabShape = NULL;
 
@@ -122,9 +122,7 @@ void TabClass::Serialize(SaveStreamClass & stream)
 #define	TAB_HEIGHT		8
 void TabClass::Draw_It(bool complete)
 {
-	// The controller scheme has no top bar; its tabs are drawn over the map's corners once
-	// the map is done.
-	if (!Debug_Map && Options.ControlScheme != CONTROL_CONTROLLER) {
+	if (!Debug_Map) {
 
 		/*
 		**	Redraw the top bar imagery if flagged to do so or if the entire display needs
@@ -132,22 +130,28 @@ void TabClass::Draw_It(bool complete)
 		*/
 		if (complete || IsToRedraw) {
 
-			int width  = CompositeSurface->Get_Width() + SidebarSurface->Get_Width();
+			// A split bar is drawn on its own surface at its own width and never copied
+			// into the frame; the presenter draws it over the map's top edge.
+			Surface & bar = TabSurface != NULL ? *TabSurface : *LogicalSurface;
+			int barwidth = TabSurface != NULL ? TabSurface->Get_Width() : CompositeSurface->Get_Width();
+			int width  = TabSurface != NULL ? barwidth : CompositeSurface->Get_Width() + SidebarSurface->Get_Width();
 			int rightx = width - 1;
 			int tab_height = TAB_HEIGHT * 2/*RESFACTOR*/;
 
-			for (int x = TabShape->Get_Width(); x < CompositeSurface->Get_Width(); x += TabShape->Get_Width()) {
-				Draw_Shape(*CompositeSurface, *SidebarDrawer, TabShape, 1, Point2D(x, 0), CompositeSurface->Get_Rect());
+			for (int x = TabShape->Get_Width(); x < barwidth; x += TabShape->Get_Width()) {
+				Draw_Shape(bar, *SidebarDrawer, TabShape, 1, Point2D(x, 0), bar.Get_Rect());
 			}
 
-			int sidex = Options.IsSidebarOnRight ? 0 : LogicalSurface->Get_Width() - EVA_WIDTH * 2/*RESFACTOR*/;
+			int sidex = Options.IsSidebarOnRight ? 0 : barwidth - EVA_WIDTH * 2/*RESFACTOR*/;
 
-			Draw_Shape(*LogicalSurface, *SidebarDrawer, TabShape, 0, Point2D(sidex, 0), VisibleRect);
+			Draw_Shape(bar, *SidebarDrawer, TabShape, 0, Point2D(sidex, 0), bar.Get_Rect());
 			Draw_Credits_Tab();
-			LogicalSurface->Draw_Line(Point2D(0, tab_height-(1* 2)), Point2D(rightx, tab_height-(1 * 2/*RESFACTOR*/)), TBLACK);
-			Fancy_Text_Print(TXT_TAB_BUTTON_CONTROLS, *LogicalSurface, LogicalSurface->Get_Rect(), Point2D(sidex + (EVA_WIDTH/2) * 2/*RESFACTOR*/, 0), ColorSchemes[0], TBLACK, TextPrintType(TPF_USE_GRAD_PAL | TPF_CENTER | TPF_METAL12));
+			bar.Draw_Line(Point2D(0, tab_height-(1* 2)), Point2D(rightx, tab_height-(1 * 2/*RESFACTOR*/)), TBLACK);
+			Fancy_Text_Print(TXT_TAB_BUTTON_CONTROLS, bar, bar.Get_Rect(), Point2D(sidex + (EVA_WIDTH/2) * 2/*RESFACTOR*/, 0), ColorSchemes[0], TBLACK, TextPrintType(TPF_USE_GRAD_PAL | TPF_CENTER | TPF_METAL12));
 
-			if (LogicalSurface != TileSurface) {
+			if (TabSurface != NULL) {
+				Video_Mark_Dirty();
+			} else if (LogicalSurface != TileSurface) {
 				TileSurface->Blit_From(Rect(0, 0, TileSurface->Get_Width(), tab_height), *LogicalSurface, Rect(0, 0, TileSurface->Get_Width(), tab_height));
 			}
 		}
@@ -172,10 +176,12 @@ void TabClass::Draw_Credits_Tab(void)
 {
 	Draw_Shape(*SidebarSurface, *SidebarDrawer, TabShape, 2, Point2D(0, 0), SidebarSurface->Get_Rect());
 
-	// Under the controller scheme the timer is drawn over the map once the map is done.
-	if (Scen->MissionTimer.Is_Active() && Options.ControlScheme != CONTROL_CONTROLLER) {
+	if (Scen->MissionTimer.Is_Active()) {
 		bool light = ((int)Scen->MissionTimer < TICKS_PER_MINUTE * Rule->TimerWarning) || Map.FlasherTimer > 0;
-		Draw_Shape(*CompositeSurface, *SidebarDrawer, TabShape, /*light ? 4 :*/ 2, Point2D(TacticalRect.Width - TabShape->Get_Width(), 0), VisibleRect);
+		// The timer's tab sits at the bar's right end, on the split bar when there is one.
+		Surface & bar = TabSurface != NULL ? *TabSurface : *CompositeSurface;
+		int barwidth = TabSurface != NULL ? TabSurface->Get_Width() : TacticalRect.Width;
+		Draw_Shape(bar, *SidebarDrawer, TabShape, /*light ? 4 :*/ 2, Point2D(barwidth - TabShape->Get_Width(), 0), bar.Get_Rect());
 
 		int time = Scen->MissionTimer;
 
@@ -187,57 +193,19 @@ void TabClass::Draw_Credits_Tab(void)
 		minutes = minutes % 60;
 
 		if (hours != 0) {
-			Fancy_Text_Print(TXT_TIME_FORMAT_HOURS, *CompositeSurface, CompositeSurface->Get_Rect(),
-				Point2D(TacticalRect.Width - TabShape->Get_Width() / 2, 0), ColorSchemes[0], TBLACK,
+			Fancy_Text_Print(TXT_TIME_FORMAT_HOURS, bar, bar.Get_Rect(),
+				Point2D(barwidth - TabShape->Get_Width() / 2, 0), ColorSchemes[0], TBLACK,
 				TextPrintType(TPF_METAL12 | TPF_CENTER | TPF_USE_GRAD_PAL), hours, minutes, seconds);
 		} else {
-			Fancy_Text_Print(TXT_TIME_FORMAT_NO_HOURS, *CompositeSurface, CompositeSurface->Get_Rect(),
-				Point2D(TacticalRect.Width - TabShape->Get_Width() / 2, 0), ColorSchemes[0], TBLACK,
+			Fancy_Text_Print(TXT_TIME_FORMAT_NO_HOURS, bar, bar.Get_Rect(),
+				Point2D(barwidth - TabShape->Get_Width() / 2, 0), ColorSchemes[0], TBLACK,
 				TextPrintType(TPF_METAL12 | TPF_CENTER | TPF_USE_GRAD_PAL), minutes, seconds);
+		}
+		if (TabSurface != NULL) {
+			Video_Mark_Dirty();
 		}
 	}
 	BASECLASS::IsToBlitSidebar = true;
-}
-
-
-/// <summary>
-/// Draws the controller scheme's tabs over the map's top corners: Options at the left with
-/// the pad's menu button glyph, and the mission timer at the right while one runs. Call it
-/// after the map's foreground pass, since the map covers those corners.
-/// </summary>
-void TabClass::Draw_Map_Tabs(void)
-{
-	if (Debug_Map || Options.ControlScheme != CONTROL_CONTROLLER || TabShape == NULL || Scen == NULL || CompositeSurface == NULL) {
-		return;
-	}
-	enum { GLYPH = 14 };
-	int width = TabShape->Get_Width();
-	Rect clip = CompositeSurface->Get_Rect();
-	TextPrintType style = TextPrintType(TPF_METAL12 | TPF_CENTER | TPF_USE_GRAD_PAL);
-
-	int x = TacticalRect.X;
-	int y = TacticalRect.Y;
-	Draw_Shape(*CompositeSurface, *SidebarDrawer, TabShape, 2, Point2D(x, y), clip);
-	// The glyph sits at the left of the label, so the label is centred a little right of the
-	// tab's middle to balance it; a text style has no glyph and centres the label alone.
-	int glyph = Draw_Pad_Glyph(*CompositeSurface, PAD_BUTTON_MENU, x + width / 2 - 40, y + 1, GLYPH);
-	Fancy_Text_Print(TXT_TAB_BUTTON_CONTROLS, *CompositeSurface, clip, Point2D(x + width / 2 + (glyph > 0 ? 6 : 0), y), ColorSchemes[0], TBLACK, style);
-
-	if (Scen->MissionTimer.Is_Active()) {
-		x = TacticalRect.X + TacticalRect.Width - width;
-		Draw_Shape(*CompositeSurface, *SidebarDrawer, TabShape, 2, Point2D(x, y), clip);
-
-		int seconds = int(Scen->MissionTimer) / TICKS_PER_SECOND;
-		int hours = seconds / 60 / 60;
-		int minutes = (seconds / 60) % 60;
-		seconds = seconds % 60;
-		Point2D at(x + width / 2, y);
-		if (hours != 0) {
-			Fancy_Text_Print(TXT_TIME_FORMAT_HOURS, *CompositeSurface, clip, at, ColorSchemes[0], TBLACK, style, hours, minutes, seconds);
-		} else {
-			Fancy_Text_Print(TXT_TIME_FORMAT_NO_HOURS, *CompositeSurface, clip, at, ColorSchemes[0], TBLACK, style, minutes, seconds);
-		}
-	}
 }
 
 
@@ -289,17 +257,7 @@ void TabClass::Hilite_Tab(int tab)
  *=============================================================================================*/
 void TabClass::AI(KeyNumType &input, Point2D const & xy)
 {
-	if (Options.ControlScheme == CONTROL_CONTROLLER) {
-
-		// The Options tab lies over the map's top left corner; the rest of the top row is map.
-		if (!Map.IsRubberBand && input == KN_LMOUSE && TabShape != NULL
-			&& xy.Y >= TacticalRect.Y && xy.Y < TacticalRect.Y + TAB_HEIGHT * 2
-			&& xy.X >= TacticalRect.X && xy.X < TacticalRect.X + TabShape->Get_Width()) {
-			Set_Active(0);
-			input = KN_NONE;
-		}
-
-	} else if (!Map.IsRubberBand) {
+	if (!Map.IsRubberBand) {
 
 		if (xy.Y >= 0 && xy.Y < (TAB_HEIGHT * 2/*RESFACTOR*/) && xy.X < (VisibleSurface->Get_Width() - 1) && xy.X > 0) {
 
@@ -317,10 +275,16 @@ void TabClass::AI(KeyNumType &input, Point2D const & xy)
 			if (ok) {
 				if (input == KN_LMOUSE) {
 					int sel = 0;
+					// A split bar's positions arrive brought onto the frame's map columns, so
+					// the tab's width is brought onto them too.
+					int tabwidth = EVA_WIDTH * 2/*RESFACTOR*/;
+					if (TabSurface != NULL && TabSurface->Get_Width() > 0) {
+						tabwidth = tabwidth * TacticalRect.Width / TabSurface->Get_Width();
+					}
 					if (Options.IsSidebarOnRight) {
-						if (xy.X >= (EVA_WIDTH * 2/*RESFACTOR*/)) sel = -1;
+						if (xy.X >= tabwidth) sel = -1;
 					} else {
-						if (xy.X <= VisibleRect.Width - (EVA_WIDTH * 2/*RESFACTOR*/) || xy.X >= VisibleRect.Width) sel = -1;
+						if (xy.X <= VisibleRect.Width - tabwidth || xy.X >= VisibleRect.Width) sel = -1;
 					}
 					if (sel >= 0) {
 						Set_Active(sel);

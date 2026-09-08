@@ -52,6 +52,24 @@ static bool Game_Point_On_Sidebar(VideoScaleInfo const & scale, POINT const & po
 }
 
 
+// Does a window position fall on the split bar, or above the frame's rows in the bar's
+// columns? The bar's rows are the frame's top rows, so a bar position is reported in
+// them with its x brought onto the frame's columns.
+static bool Window_Point_On_Bar(VideoScaleInfo const & scale, POINT const & point)
+{
+	if (!scale.Bar_Is_Split()) {
+		return(false);
+	}
+	return(point.y < scale.BarDestY + scale.BarDestHeight);
+}
+
+
+static bool Game_Point_On_Bar(VideoScaleInfo const & scale, POINT const & point)
+{
+	return(scale.Bar_Is_Split() && point.y < scale.BarHeight);
+}
+
+
 /// <summary>
 /// Converts a position in the window's client area into one in the frame.
 /// A position on one of the letterbox bars lands outside the frame rather than being
@@ -68,9 +86,16 @@ void Window_Point_To_Game(POINT & point)
 		return;
 	}
 
+	if (Window_Point_On_Bar(scale, point) && scale.BarDestWidth > 0 && scale.SidebarScale > 0.0f) {
+		point.x = scale.Tactical_X() + (LONG)floor((point.x - scale.BarDestX) * (double)scale.Tactical_Width() / (double)scale.BarDestWidth);
+		point.y = (LONG)floor((point.y - scale.BarDestY) / (double)scale.SidebarScale);
+		if (point.y >= scale.BarHeight) point.y = scale.BarHeight - 1;
+		return;
+	}
+
 	if (scale.DestWidth > 0 && scale.DestHeight > 0) {
 		point.x = scale.Tactical_X() + (LONG)floor((point.x - scale.DestX) * (double)scale.Tactical_Width() / (double)scale.DestWidth);
-		point.y = (LONG)floor((point.y - scale.DestY) * (double)scale.GameHeight / (double)scale.DestHeight);
+		point.y = scale.BarHeight + (LONG)floor((point.y - scale.DestY) * (double)scale.Tactical_Height() / (double)scale.DestHeight);
 	}
 }
 
@@ -90,9 +115,15 @@ void Game_Point_To_Window(POINT & point)
 		return;
 	}
 
-	if (scale.GameWidth > 0 && scale.GameHeight > 0) {
+	if (Game_Point_On_Bar(scale, point) && scale.Tactical_Width() > 0) {
+		point.x = scale.BarDestX + (LONG)floor((point.x - scale.Tactical_X()) * (double)scale.BarDestWidth / (double)scale.Tactical_Width());
+		point.y = scale.BarDestY + (LONG)floor(point.y * (double)scale.SidebarScale);
+		return;
+	}
+
+	if (scale.GameWidth > 0 && scale.Tactical_Height() > 0) {
 		point.x = scale.DestX + (LONG)floor((point.x - scale.Tactical_X()) * (double)scale.DestWidth / (double)scale.Tactical_Width());
-		point.y = scale.DestY + (LONG)floor(point.y * (double)scale.DestHeight / (double)scale.GameHeight);
+		point.y = scale.DestY + (LONG)floor((point.y - scale.BarHeight) * (double)scale.DestHeight / (double)scale.Tactical_Height());
 	}
 }
 
