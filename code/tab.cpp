@@ -46,7 +46,11 @@
 #include "_surface.h"
 #include "dialog.h"
 #include "draw.h"
+#include "_font.h"
+#include "data.h"
+#include "font.h"
 #include "goptions.h"
+#include "padglyph.h"
 #include "language/language.h"
 #include "mixfile.h"
 #include "queue.h"
@@ -147,7 +151,20 @@ void TabClass::Draw_It(bool complete)
 			Draw_Shape(bar, *SidebarDrawer, TabShape, 0, Point2D(sidex, 0), bar.Get_Rect());
 			Draw_Credits_Tab();
 			bar.Draw_Line(Point2D(0, tab_height-(1* 2)), Point2D(rightx, tab_height-(1 * 2/*RESFACTOR*/)), TBLACK);
-			Fancy_Text_Print(TXT_TAB_BUTTON_CONTROLS, bar, bar.Get_Rect(), Point2D(sidex + (EVA_WIDTH/2) * 2/*RESFACTOR*/, 0), ColorSchemes[0], TBLACK, TextPrintType(TPF_USE_GRAD_PAL | TPF_CENTER | TPF_METAL12));
+
+			// Under the controller scheme the pad's menu button glyph sits before the label,
+			// the pair centred on the tab; a text prompt style draws no glyph.
+			int centre = sidex + (EVA_WIDTH/2) * 2/*RESFACTOR*/;
+			if (Options.ControlScheme == CONTROL_CONTROLLER && Metal12FontPtr != NULL) {
+				enum { GLYPH = 14, GAP = 4 };
+				int textwidth = Metal12FontPtr->String_Pixel_Width(Fetch_String(TXT_TAB_BUTTON_CONTROLS));
+				int left = centre - (GLYPH + GAP + textwidth) / 2;
+				int glyph = Draw_Pad_Glyph(bar, PAD_BUTTON_MENU, left, (tab_height - GLYPH) / 2, GLYPH);
+				if (glyph > 0) {
+					centre = left + glyph + GAP + textwidth / 2;
+				}
+			}
+			Fancy_Text_Print(TXT_TAB_BUTTON_CONTROLS, bar, bar.Get_Rect(), Point2D(centre, 0), ColorSchemes[0], TBLACK, TextPrintType(TPF_USE_GRAD_PAL | TPF_CENTER | TPF_METAL12));
 
 			if (TabSurface != NULL) {
 				Video_Mark_Dirty();

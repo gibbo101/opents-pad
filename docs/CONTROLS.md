@@ -164,8 +164,9 @@ Retaliation: two columns, your side on the left and the other on the right,
 with rows for structures, infantry, vehicles and aircraft, and a bottom row
 holding the current superweapon and a cell that cycles to the next. The
 four mode buttons and the radar sit above the grid. The bar across the top
-of the map keeps its size with the sidebar whatever the zoom, Options at
-its left and the mission timer at its right.
+of the map keeps its size with the sidebar whatever the zoom, Options
+with the menu button's glyph at its left and the mission timer at its
+right.
 
 | Action | Button |
 | --- | --- |
