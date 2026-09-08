@@ -740,7 +740,7 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 	static bool _cross_sent = false;
 	static int _cross_stage = 0;		// 0 undecided, 1 type on screen, 3 combat on screen, 2 done.
 	// Triangle slides the panel in with the pad on it and out again; with R1 it slides in
-	// and stays, and a second R1 with triangle lets it go.
+	// and stays, sticky across sessions, and a second R1 with triangle lets it go.
 	if (pressed(pad.Fourth, previous.Fourth) && !pad.LeftTrigger && !pad.LeftShoulder) {
 		if (pad.RightShoulder) {
 			if (Map.PadPinned) {
@@ -749,6 +749,8 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 			} else {
 				Map.Pad_Panel_Show(true, true);
 			}
+			Options.PadSidebarSticky = Map.PadPinned;
+			Options.Save_Settings();
 		} else if (Map.PadFocus) {
 			Map.Pad_Leave();
 		} else {

@@ -413,8 +413,7 @@ void SidebarClass::Init_Clear(void)
 	for (PadLastType & last : PadLast) last = PadLastType();
 	PadPanel = PAD_PANEL_HIDDEN;
 	PadPinned = false;
-	PadBaseSeen = false;
-	PadHadYard = false;
+	PadPanelSettled = false;
 	Video_Slide_Sidebar(false, 0);
 	Pad_Clear_Sprite_Cache();
 
@@ -1205,19 +1204,13 @@ void SidebarClass::Pad_Panel_Hide(void)
 
 void SidebarClass::Pad_Panel_Tick(void)
 {
-	// A base opens the panel of its own accord and keeps it: one the map starts the
-	// player with, or the construction yard an MCV becomes. The pad stays on the map.
-	if (PlayerPtr != NULL) {
-		bool yard = PlayerPtr->ConYards.Count() > 0;
-		if (!PadBaseSeen) {
-			PadBaseSeen = true;
-			if (PlayerPtr->CurBuildings > 0) {
-				Pad_Panel_Show(true, false);
-			}
-		} else if (yard && !PadHadYard) {
+	// A sticky panel from the last session comes back on the scenario's first tick, the
+	// pad staying on the map.
+	if (!PadPanelSettled) {
+		PadPanelSettled = true;
+		if (Options.PadSidebarSticky) {
 			Pad_Panel_Show(true, false);
 		}
-		PadHadYard = yard;
 	}
 
 	if (Video_Sidebar_Sliding()) {

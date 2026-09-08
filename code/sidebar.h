@@ -411,8 +411,7 @@ class SidebarClass : public PowerClass
 		enum PadPanelType { PAD_PANEL_HIDDEN, PAD_PANEL_SLIDING_IN, PAD_PANEL_SHOWN, PAD_PANEL_SLIDING_OUT };
 		PadPanelType PadPanel = PAD_PANEL_HIDDEN;
 		bool PadPinned = false;
-		bool PadBaseSeen = false;		// Has the first tick of the scenario judged whether the player starts with a base?
-		bool PadHadYard = false;		// Did the player own a construction yard at the last tick?
+		bool PadPanelSettled = false;	// Has the scenario's first tick applied the saved sticky state?
 		int PadRow = 0;					// PAD_ROW_MODES, or a row of the sections or of the open grid.
 		int PadCol = 0;					// A column, or the mode button when on that row.
 		int PadSection = -1;			// The open section as row * 2 + column, or -1 on the section grid.

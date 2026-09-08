@@ -135,6 +135,7 @@ class OptionsClass {
 		 * of a cell: 0 is off and 4 half a cell.
 		 */
 		int PadSnap;
+		bool PadSidebarSticky;			// The controller's sidebar stays on screen once slid in.
 		enum { PAD_SNAP_MAX = 10, PAD_SNAP_DEFAULT = 4, PAD_SNAP_STEP = 6 };		// Map pixels per step.
 
 		/*

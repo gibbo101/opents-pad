@@ -121,6 +121,7 @@ OptionsClass::OptionsClass(void) :
 	PadZoomWidth(0),
 	PadZoomHeight(0),
 	PadSnap(PAD_SNAP_DEFAULT),
+	PadSidebarSticky(false),
 	SoundVolume(.7f),
 	VoiceVolume(1.0f),
 	ScoreVolume(.5f),
@@ -482,6 +483,7 @@ void OptionsClass::Load_Settings(void)
 	PadZoomHeight = std::max(ConfigINI.Get_Int("Options", "PadZoomHeight", PadZoomHeight), 0);
 	DebugString("PadZoom = %dx%d\n", PadZoomWidth, PadZoomHeight);
 	PadSnap = std::clamp(ConfigINI.Get_Int("Options", "PadSnap", PadSnap), 0, int(PAD_SNAP_MAX));
+	PadSidebarSticky = ConfigINI.Get_Bool("Options", "PadSidebarSticky", PadSidebarSticky);
 
 	TextBackgroundColor = ConfigINI.Get_Int("Options", "TextBackgroundColor", TextBackgroundColor);
 	DebugString("TextBackgroundColor = %d\n", TextBackgroundColor);
@@ -566,6 +568,7 @@ void OptionsClass::Save_Settings (void)
 	ConfigINI.Put_Int("Options", "PadZoomWidth", PadZoomWidth);
 	ConfigINI.Put_Int("Options", "PadZoomHeight", PadZoomHeight);
 	ConfigINI.Put_Int("Options", "PadSnap", PadSnap);
+	ConfigINI.Put_Bool("Options", "PadSidebarSticky", PadSidebarSticky);
 	ConfigINI.Put_Int("Options", "TextBackgroundColor", TextBackgroundColor);
 	ConfigINI.Put_Int("Options", "AutoSaveInterval", AutoSaveInterval);
 	ConfigINI.Put_Int("Video", "ScreenWidth", ScreenWidth);
