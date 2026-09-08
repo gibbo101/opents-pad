@@ -20,6 +20,7 @@
 #include "consolemenu.h"
 #include "consolemp.h"
 #include "data.h"
+#include "gametime.h"
 #include "globals.h"
 #include "goptions.h"
 #include "houstype.h"
@@ -56,13 +57,8 @@ enum {
 	PLAYERS_BOTTOM = 364,
 	PLAYERS_NAME_WIDTH = 100,
 	PLAYERS_GAP = 6,
+	LOBBY_REFRESH_MS = 100,
 };
-
-/*
- * The console-style LAN screens. The game list runs the same discovery as the dialog and
- * shows the games it finds as rows. Hosting and joining run the same join protocol as the
- * dialogs through the shared handlers; only the screens differ.
- */
 
 
 static Surface * Cached_Icon(char const * name)
@@ -103,7 +99,7 @@ static bool Color_Taken(int color, int self)
 }
 
 
-// Steps a colour past any another player already holds.
+// Steps a colour past any other player already holds.
 static int Free_Color(int from, int step, int self)
 {
 	int color = Console_Wrap(from + step, 0, MAX_MPLAYER_COLORS - 1);
@@ -192,7 +188,7 @@ static void Add_Option_Rows(ConsoleMenuClass & menu, bool host, std::function<vo
 	menu.Add_Row({"AI Players", [&]{ return(std::to_string(Session.Options.AIPlayers)); },
 		step_if_host([max_ai](int step) { Session.Options.AIPlayers = std::clamp(Session.Options.AIPlayers + step, 0, max_ai()); }), nullptr});
 	menu.Add_Row({"Game Speed", [&]{ return(std::to_string(6 - Session.Options.GameSpeed)); },
-		step_if_host([](int step) { Session.Options.GameSpeed = 6 - std::clamp(6 - Session.Options.GameSpeed + step, 0, 6); Options.GameSpeed = Session.Options.GameSpeed; }), nullptr});
+		step_if_host([](int step) { Session.Options.GameSpeed = 6 - std::clamp(6 - Session.Options.GameSpeed + step, 0, 6); }), nullptr});
 	menu.Add_Row({"Credits", [&]{ return(std::to_string(Session.Options.Credits)); },
 		step_if_host([](int step) { Session.Options.Credits = std::clamp(Session.Options.Credits + step * LAN_MONEY_STEP, int(LAN_MIN_MONEY), Rule->MPMaxMoney); }), nullptr});
 	menu.Add_Row({"Bases", [&]{ return(Console_On_Off(Session.Options.Bases)); },
@@ -398,8 +394,7 @@ static std::string Join_Problem(int index)
 
 /// <summary>
 /// Runs the host's lobby: the skirmish rows, live for the host, with the joined players
-/// listed under the map preview. Returns true once the game has been started, with the
-/// players told to go; false when the host backs out, with the game disbanded.
+/// listed under the map preview.
 /// </summary>
 static bool Console_Host_Screen(std::string & notice)
 {
@@ -407,7 +402,6 @@ static bool Console_Host_Screen(std::string & notice)
 	Session.NetOpen = true;
 	Session.NetStealth = false;
 	Session.Options.ScenarioIndex = 0;
-	Session.Options.GameSpeed = std::clamp(Options.GameSpeed, 0, 6);
 	Session.PlayingAgainstVersion = VerNum.Version_Number();
 	Set_Scenario_Info_From_Index(0);
 	Clear_Vector(&Session.Players);
@@ -449,6 +443,7 @@ static bool Console_Host_Screen(std::string & notice)
 	int focus = 0;
 	while (!started) {
 		std::string signature;
+		unsigned int next_check = 0;
 		ConsoleMenuClass menu("Host Game");
 		menu.Set_Prompts("Start", "Back");
 		menu.Set_Side_Panel(Console_Draw_Map_Preview);
@@ -502,6 +497,8 @@ static bool Console_Host_Screen(std::string & notice)
 		menu.Set_Idle([&]{
 			Service_Lobby();
 			PumpGameopts(false);
+			if (Get_Game_Time() < next_check) return;
+			next_check = Get_Game_Time() + LOBBY_REFRESH_MS;
 			std::string now = Lobby_Signature();
 			if (now != signature) {
 				signature = now;
@@ -549,9 +546,7 @@ static bool Console_Host_Screen(std::string & notice)
 
 /// <summary>
 /// Runs a guest's lobby: the host's rows read only, the guest's own side and colour live,
-/// and Ready as the accept. Returns true when the host starts the game and this machine is
-/// ready to play; false when the guest leaves or the game goes away, with the reason in
-/// the notice.
+/// and Ready as the accept.
 /// </summary>
 static bool Console_Guest_Screen(std::string & notice)
 {
@@ -589,6 +584,7 @@ static bool Console_Guest_Screen(std::string & notice)
 	int focus = 0;
 	while (!started && !gone) {
 		std::string signature;
+		unsigned int next_check = 0;
 		ConsoleMenuClass menu(title);
 		menu.Set_Prompts("Ready", "Leave");
 		menu.Set_Side_Panel(Console_Draw_Map_Preview);
@@ -631,11 +627,13 @@ static bool Console_Guest_Screen(std::string & notice)
 				menu.Finish(CONSOLE_MENU_ACCEPT);
 				return;
 			}
-			if (_netresponse == 2 || _netresponse == IDCANCEL || JoinState == JOIN_REJECTED) {
+			if (_netresponse == NET2_RESPONSE_JOIN_ENDED || _netresponse == IDCANCEL || JoinState == JOIN_REJECTED) {
 				gone = true;
 				menu.Finish(CONSOLE_MENU_BACK);
 				return;
 			}
+			if (Get_Game_Time() < next_check) return;
+			next_check = Get_Game_Time() + LOBBY_REFRESH_MS;
 			std::string now = Lobby_Signature() + std::to_string(wanted_side) + ',' + std::to_string(wanted_color);
 			if (now != signature) {
 				signature = now;
@@ -675,8 +673,7 @@ static bool Console_Guest_Screen(std::string & notice)
 
 /// <summary>
 /// Runs the console LAN screens in place of the dialogs: the game list, then the host or
-/// guest lobby. Returns true with the session set up and the players told to go; false
-/// when the player backs out of the list.
+/// guest lobby.
 /// </summary>
 bool Net2Console_Remote_Connect(void)
 {

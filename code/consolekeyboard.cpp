@@ -34,14 +34,12 @@
 #include <cctype>
 #include <vector>
 
-extern PaletteClass CCPalette;
-
 enum {
-	MENU_WIDTH = 640,
-	MENU_HEIGHT = 400,
-	PANEL_INSET = 8,
-	PANEL_OPACITY = 80,
-	TITLE_Y = 12,
+	MENU_WIDTH = CONSOLE_SHELL_WIDTH,
+	MENU_HEIGHT = CONSOLE_SHELL_HEIGHT,
+	PANEL_INSET = CONSOLE_PANEL_INSET,
+	PANEL_OPACITY = CONSOLE_PANEL_OPACITY,
+	TITLE_Y = CONSOLE_TITLE_Y,
 	FIELD_X = 120,
 	FIELD_Y = 52,
 	FIELD_WIDTH = 400,
@@ -54,14 +52,10 @@ enum {
 	KEY_GAP = 4,
 	COLUMNS = 10,
 	WIDE_WIDTH = 96,
-	PROMPT_Y = 368,
-	PROMPT_INSET = 24,
-	GLYPH_INSET = 2,
-	GLYPH_GAP = 6,
+	PROMPT_Y = CONSOLE_PROMPT_Y,
+	PROMPT_INSET = CONSOLE_PROMPT_INSET,
 	PROMPT_GAP = 28,
-	REPEAT_FIRST_MS = 350,
-	REPEAT_NEXT_MS = 90,
-	FRAME_NORMAL = 2,
+	FRAME_NORMAL = CONSOLE_FRAME_NORMAL,
 	HIGHLIGHT_OPACITY = 35,
 };
 
@@ -74,8 +68,6 @@ static char const * const _rows[] = {
 enum { LETTER_ROWS = 4, WIDE_ROW = LETTER_ROWS };
 enum WideKeyType { WIDE_SPACE, WIDE_DELETE, WIDE_CAPS, WIDE_DONE, WIDE_COUNT };
 static char const * const _wide[WIDE_COUNT] = {"Space", "Delete", "Caps", "Done"};
-
-enum NavType { NAV_NONE, NAV_UP, NAV_DOWN, NAV_LEFT, NAV_RIGHT };
 
 
 // Where a key sits within the 640x400 area.
@@ -104,8 +96,7 @@ bool Console_Keyboard(char const * title, std::string & text, int max_length)
 	bool finished = false;
 	bool accepted = false;
 	bool dirty = true;
-	NavType held = NAV_NONE;
-	unsigned int repeat_at = 0;
+	ConsoleRepeatClass repeat;
 
 	Keyboard->Clear();
 	// Start finishes here, so the poll must not turn it into Escape while the keyboard is up.
@@ -114,13 +105,11 @@ bool Console_Keyboard(char const * title, std::string & text, int max_length)
 	GamepadStateType previous = Gamepad_Read();
 	Point2D last_mouse(Get_Mouse_X(), Get_Mouse_Y());
 
-	DSurface backdrop(HiddenSurface->Get_Width(), HiddenSurface->Get_Height());
-	backdrop.Fill(0);
-	Load_Title_Screen(Console_Backdrop_File(), &backdrop, &CCPalette);
+	Surface & backdrop = Console_Backdrop_Surface();
 
 	MSFont font(false);
 	MSFont focus_font(false);
-	focus_font.Set_Color(RGBClass(48, 224, 248));
+	focus_font.Set_Color(CONSOLE_FOCUS_COLOR);
 	MSSfxEntry click("HighlightSound", (char *)"CHOICE1.AUD");
 	int height = font.Get_Font_Height();
 
@@ -155,23 +144,35 @@ bool Console_Keyboard(char const * title, std::string & text, int max_length)
 	auto activate = [&](void) {
 		if (row == WIDE_ROW) {
 			switch (column) {
-				case WIDE_SPACE: add(' '); break;
-				case WIDE_DELETE: erase(); break;
-				case WIDE_CAPS: caps_lock = !caps_lock; upper = caps_lock ? true : (edit.empty() || edit.back() == ' '); dirty = true; break;
-				case WIDE_DONE: finished = true; accepted = true; break;
+				case WIDE_SPACE:
+					add(' ');
+					break;
+				case WIDE_DELETE:
+					erase();
+					break;
+				case WIDE_CAPS:
+					caps_lock = !caps_lock;
+					upper = true;
+					settle_case();
+					dirty = true;
+					break;
+				case WIDE_DONE:
+					finished = true;
+					accepted = true;
+					break;
 			}
 		} else {
 			add(key_label(row, column)[0]);
 		}
 	};
-	auto move = [&](NavType nav) {
+	auto move = [&](ConsoleNavType nav) {
 		int was_row = row;
 		int was_column = column;
 		switch (nav) {
-			case NAV_UP: row = (row + LETTER_ROWS) % (LETTER_ROWS + 1); break;
-			case NAV_DOWN: row = (row + 1) % (LETTER_ROWS + 1); break;
-			case NAV_LEFT: column = (column + Columns_In(row) - 1) % Columns_In(row); break;
-			case NAV_RIGHT: column = (column + 1) % Columns_In(row); break;
+			case CONSOLE_NAV_UP: row = (row + LETTER_ROWS) % (LETTER_ROWS + 1); break;
+			case CONSOLE_NAV_DOWN: row = (row + 1) % (LETTER_ROWS + 1); break;
+			case CONSOLE_NAV_LEFT: column = (column + Columns_In(row) - 1) % Columns_In(row); break;
+			case CONSOLE_NAV_RIGHT: column = (column + 1) % Columns_In(row); break;
 			default: break;
 		}
 		// Moving between the letter rows and the wide keys keeps the same place across the width.
@@ -182,8 +183,10 @@ bool Console_Keyboard(char const * title, std::string & text, int max_length)
 			click.Play();
 			dirty = true;
 		}
-		held = nav;
-		repeat_at = Get_Game_Time() + REPEAT_FIRST_MS;
+	};
+	auto navigate = [&](ConsoleNavType nav) {
+		move(nav);
+		repeat.Press(nav);
 	};
 
 	while (!finished) {
@@ -233,10 +236,10 @@ bool Console_Keyboard(char const * title, std::string & text, int max_length)
 					continue;
 				}
 				switch (key) {
-					case KN_UP: move(NAV_UP); break;
-					case KN_DOWN: move(NAV_DOWN); break;
-					case KN_LEFT: move(NAV_LEFT); break;
-					case KN_RIGHT: move(NAV_RIGHT); break;
+					case KN_UP: navigate(CONSOLE_NAV_UP); break;
+					case KN_DOWN: navigate(CONSOLE_NAV_DOWN); break;
+					case KN_LEFT: navigate(CONSOLE_NAV_LEFT); break;
+					case KN_RIGHT: navigate(CONSOLE_NAV_RIGHT); break;
 					case KN_RETURN: finished = true; accepted = true; break;
 					case KN_ESC: finished = true; break;
 					case KN_BACKSPACE: erase(); break;
@@ -248,10 +251,10 @@ bool Console_Keyboard(char const * title, std::string & text, int max_length)
 				}
 			}
 
-			if (pad.Up && !previous.Up) move(NAV_UP);
-			if (pad.Down && !previous.Down) move(NAV_DOWN);
-			if (pad.Left && !previous.Left) move(NAV_LEFT);
-			if (pad.Right && !previous.Right) move(NAV_RIGHT);
+			if (pad.Up && !previous.Up) navigate(CONSOLE_NAV_UP);
+			if (pad.Down && !previous.Down) navigate(CONSOLE_NAV_DOWN);
+			if (pad.Left && !previous.Left) navigate(CONSOLE_NAV_LEFT);
+			if (pad.Right && !previous.Right) navigate(CONSOLE_NAV_RIGHT);
 			if (pad.Accept && !previous.Accept) activate();
 			if (pad.Back && !previous.Back) finished = true;
 			if (pad.Menu && !previous.Menu) { finished = true; accepted = true; }
@@ -259,23 +262,9 @@ bool Console_Keyboard(char const * title, std::string & text, int max_length)
 			if (pad.Fourth && !previous.Fourth) add(' ');
 			previous = pad;
 
-			auto still_held = [&](NavType nav) {
-				switch (nav) {
-					case NAV_UP: return(Keyboard->Down(KN_UP) != 0 || pad.Up);
-					case NAV_DOWN: return(Keyboard->Down(KN_DOWN) != 0 || pad.Down);
-					case NAV_LEFT: return(Keyboard->Down(KN_LEFT) != 0 || pad.Left);
-					case NAV_RIGHT: return(Keyboard->Down(KN_RIGHT) != 0 || pad.Right);
-					default: return(false);
-				}
-			};
-			if (held != NAV_NONE) {
-				if (!still_held(held)) {
-					held = NAV_NONE;
-				} else if (Get_Game_Time() >= repeat_at) {
-					NavType nav = held;
-					move(nav);
-					repeat_at = Get_Game_Time() + REPEAT_NEXT_MS;
-				}
+			ConsoleNavType due = repeat.Due(pad);
+			if (due != CONSOLE_NAV_NONE) {
+				move(due);
 			}
 		}
 
@@ -294,7 +283,7 @@ bool Console_Keyboard(char const * title, std::string & text, int max_length)
 
 			Rect field(left + FIELD_X, top + FIELD_Y, FIELD_WIDTH, FIELD_HEIGHT);
 			surface.Fill_Rect_Trans(field, RGBClass(0, 0, 0), 60);
-			surface.Draw_Rect(field, DSurface::Build_Hicolor_Pixel(RGBClass(96, 208, 248)));
+			surface.Draw_Rect(field, DSurface::Build_Hicolor_Pixel(CONSOLE_IDLE_COLOR));
 			std::string shown = edit + "_";
 			while (shown.size() > 1 && width(shown) > FIELD_WIDTH - 2 * FIELD_PAD) shown.erase(0, 1);
 			print(shown, field.X + FIELD_PAD, field.Y + (FIELD_HEIGHT - height) / 2, false);
@@ -306,22 +295,18 @@ bool Console_Keyboard(char const * title, std::string & text, int max_length)
 					area.Y += top;
 					bool focused = r == row && c == column;
 					if (focused) {
-						surface.Fill_Rect_Trans(area, RGBClass(48, 224, 248), HIGHLIGHT_OPACITY);
+						surface.Fill_Rect_Trans(area, CONSOLE_FOCUS_COLOR, HIGHLIGHT_OPACITY);
 					}
 					std::string label = key_label(r, c);
 					print(label, area.X + (area.Width - width(label)) / 2, area.Y + (area.Height - height) / 2, focused);
 				}
 			}
 
-			// Back and Delete at the left, Done, Space and Select at the right.
-			int glyph = height + 2 * GLYPH_INSET;
-			bool glyphs = Resolved_Prompt_Style() != PROMPT_STYLE_TEXT;
-			auto prompt = [&](std::string const & label, PadButtonType button, int x, bool at_right) -> int {
-				int used = glyphs ? glyph + GLYPH_GAP : 0;
+			int used = Pad_Prompt_Inset(height);
+			auto prompt = [&](char const * label, PadButtonType button, int x, bool at_right) -> int {
 				int total = used + width(label);
 				int start = at_right ? x - total : x;
-				if (glyphs) Draw_Pad_Glyph(surface, button, start, top + PROMPT_Y - GLYPH_INSET, glyph);
-				print(label, start + used, top + PROMPT_Y, false);
+				Draw_Pad_Prompt(surface, font, button, label, start, top + PROMPT_Y);
 				return(total);
 			};
 			int x = left + PROMPT_INSET;

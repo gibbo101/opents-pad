@@ -36,10 +36,10 @@
 extern PaletteClass CCPalette;
 
 enum {
-	MENU_WIDTH = 640,
-	MENU_HEIGHT = 400,
-	PANEL_INSET = 8,
-	TITLE_Y = 12,
+	MENU_WIDTH = CONSOLE_SHELL_WIDTH,
+	MENU_HEIGHT = CONSOLE_SHELL_HEIGHT,
+	PANEL_INSET = CONSOLE_PANEL_INSET,
+	TITLE_Y = CONSOLE_TITLE_Y,
 	ROWS_TOP = 44,
 	ROWS_BOTTOM = 356,
 	LABEL_RIGHT = 316,
@@ -49,19 +49,27 @@ enum {
 	SIDE_Y = 44,
 	SIDE_WIDTH = 176,
 	SIDE_HEIGHT = 176,
-	PROMPT_Y = 368,
-	PROMPT_INSET = 24,
+	PROMPT_Y = CONSOLE_PROMPT_Y,
+	PROMPT_INSET = CONSOLE_PROMPT_INSET,
 	GLYPH_INSET = 2,
 	GLYPH_GAP = 6,
 	SWATCH_GAP = 10,
 	COLUMN_GAP = 16,
 	SWATCH_INSET = 2,
-	PANEL_OPACITY = 80,
+	PANEL_OPACITY = CONSOLE_PANEL_OPACITY,
 	REPEAT_FIRST_MS = 350,
 	REPEAT_NEXT_MS = 90,
 	FAST_STEP = 5,
-	FRAME_NORMAL = 2,
+	FRAME_NORMAL = CONSOLE_FRAME_NORMAL,
+	BOX_ROW_PITCH = 26,
+	BOX_PAD = 16,
+	// Where the menu font's letters start and end within its cell, so a box pads the letters.
+	BOX_GLYPH_TOP = 4,
+	BOX_GLYPH_BOTTOM = 15,
 };
+
+RGBClass const CONSOLE_FOCUS_COLOR(48, 224, 248);
+RGBClass const CONSOLE_IDLE_COLOR(96, 208, 248);
 
 
 static char const * _BackdropFile = NULL;
@@ -78,6 +86,28 @@ char const * Console_Backdrop_File(void)
 }
 
 
+// The map preview loader scribbles on AlternateSurface, so the backdrop is kept on a
+// surface of its own.
+Surface & Console_Backdrop_Surface(void)
+{
+	static std::unique_ptr<DSurface> _backdrop;
+	static std::string _loaded;
+	std::string name = Console_Backdrop_File();
+	int width = HiddenSurface->Get_Width();
+	int height = HiddenSurface->Get_Height();
+	if (_backdrop == nullptr || _backdrop->Get_Width() != width || _backdrop->Get_Height() != height) {
+		_backdrop = std::make_unique<DSurface>(width, height);
+		_loaded.clear();
+	}
+	if (_loaded != name) {
+		_backdrop->Fill(0);
+		Load_Title_Screen(name.c_str(), _backdrop.get(), &CCPalette);
+		_loaded = name;
+	}
+	return(*_backdrop);
+}
+
+
 void Console_Draw_Icon(Surface & surface, Surface & icon, int x, int y)
 {
 	Rect source = icon.Get_Rect();
@@ -85,17 +115,69 @@ void Console_Draw_Icon(Surface & surface, Surface & icon, int x, int y)
 }
 
 
+int Pad_Prompt_Glyph_Size(int line_height)
+{
+	return(line_height + 2 * GLYPH_INSET);
+}
+
+
+int Pad_Prompt_Inset(int line_height)
+{
+	return(Resolved_Prompt_Style() == PROMPT_STYLE_TEXT ? 0 : Pad_Prompt_Glyph_Size(line_height) + GLYPH_GAP);
+}
+
+
+int Draw_Pad_Prompt(Surface & surface, MSFont & font, PadButtonType button, char const * text, int x, int y)
+{
+	int height = font.Get_Font_Height();
+	int used = Pad_Prompt_Inset(height);
+	if (used > 0) {
+		Draw_Pad_Glyph(surface, button, x, y - GLYPH_INSET, Pad_Prompt_Glyph_Size(height));
+	}
+	font.Draw_String(&surface, (unsigned char const *)text, x + used, y, FRAME_NORMAL);
+	return(used + font.Get_String_Width(text));
+}
+
+
+static bool Nav_Held(ConsoleNavType nav, GamepadStateType const & pad)
+{
+	switch (nav) {
+		case CONSOLE_NAV_UP: return(Keyboard->Down(KN_UP) != 0 || pad.Up);
+		case CONSOLE_NAV_DOWN: return(Keyboard->Down(KN_DOWN) != 0 || pad.Down);
+		case CONSOLE_NAV_LEFT: return(Keyboard->Down(KN_LEFT) != 0 || pad.Left);
+		case CONSOLE_NAV_RIGHT: return(Keyboard->Down(KN_RIGHT) != 0 || pad.Right);
+		default: return(false);
+	}
+}
+
+
+void ConsoleRepeatClass::Press(ConsoleNavType nav)
+{
+	Held = nav;
+	RepeatAt = Get_Game_Time() + REPEAT_FIRST_MS;
+}
+
+
+ConsoleNavType ConsoleRepeatClass::Due(GamepadStateType const & pad)
+{
+	if (Held == CONSOLE_NAV_NONE) return(CONSOLE_NAV_NONE);
+	if (!Nav_Held(Held, pad)) {
+		Held = CONSOLE_NAV_NONE;
+		return(CONSOLE_NAV_NONE);
+	}
+	if (Get_Game_Time() < RepeatAt) return(CONSOLE_NAV_NONE);
+	RepeatAt = Get_Game_Time() + REPEAT_NEXT_MS;
+	return(Held);
+}
+
+
 ConsoleMenuClass::ConsoleMenuClass(char const * title) :
 	Title(title != NULL ? title : ""),
 	AcceptPrompt("Accept"),
 	BackPrompt("Back"),
-	Font(NULL),
-	FocusFont(NULL),
-	Click(NULL),
 	PanelOpacity(PANEL_OPACITY),
 	IdleFont(NULL),
 	FocusOverride(NULL),
-	Backdrop(NULL),
 	PreviousPad(),
 	Focus(0),
 	First(0),
@@ -106,31 +188,30 @@ ConsoleMenuClass::ConsoleMenuClass(char const * title) :
 }
 
 
-ConsoleMenuClass::~ConsoleMenuClass(void)
-{
-	delete Font;
-	delete FocusFont;
-	delete Click;
-	for (auto & entry : ColorFonts) {
-		delete entry.second;
-	}
-	delete Backdrop;
-}
+ConsoleMenuClass::~ConsoleMenuClass(void) = default;
 
 
 MSFont * ConsoleMenuClass::Font_For(RGBClass const & color)
 {
 	unsigned key = (unsigned(color.Get_Red()) << 16) | (unsigned(color.Get_Green()) << 8) | unsigned(color.Get_Blue());
 	for (auto & entry : ColorFonts) {
-		if (entry.first == key) return(entry.second);
+		if (entry.first == key) return(entry.second.get());
 	}
-	MSFont * font = new MSFont(false);
+	auto font = std::make_unique<MSFont>(false);
 	font->Set_Color(color);
-	ColorFonts.push_back({key, font});
-	return(font);
+	ColorFonts.emplace_back(key, std::move(font));
+	return(ColorFonts.back().second.get());
 }
 
 
+void ConsoleMenuClass::Ensure_Fonts(void)
+{
+	if (Font == nullptr) {
+		Font = std::make_unique<MSFont>(false);
+		FocusFont = std::make_unique<MSFont>(false);
+		FocusFont->Set_Color(CONSOLE_FOCUS_COLOR);
+	}
+}
 
 
 int ConsoleMenuClass::Add_Row(ConsoleRowType const & row)
@@ -182,11 +263,7 @@ int ConsoleMenuClass::Value_Left(void)
 
 int ConsoleMenuClass::Text_Width(char const * text)
 {
-	if (Font == NULL) {
-		Font = new MSFont(false);
-		FocusFont = new MSFont(false);
-		FocusFont->Set_Color(RGBClass(48, 224, 248));
-	}
+	Ensure_Fonts();
 	return(Font->Get_String_Width(text));
 }
 
@@ -209,10 +286,17 @@ void ConsoleMenuClass::Set_Focus(int focus)
 
 void ConsoleMenuClass::Play_Click(void)
 {
-	if (Click == NULL) {
-		Click = new MSSfxEntry("HighlightSound", (char *)"CHOICE1.AUD");
+	if (Click == nullptr) {
+		Click = std::make_unique<MSSfxEntry>("HighlightSound", (char *)"CHOICE1.AUD");
 	}
 	Click->Play();
+}
+
+
+// A button still held from a screen that ran under the menu must not count as a press here.
+void ConsoleMenuClass::Absorb_Held_Buttons(void)
+{
+	PreviousPad = Gamepad_Read();
 }
 
 
@@ -230,7 +314,7 @@ void ConsoleMenuClass::Move_Focus(int step)
 
 void ConsoleMenuClass::Step_Value(int step)
 {
-	if (Focus < 0 || Focus >= int(Rows.size())) return;
+	if (!Valid_Row(Focus)) return;
 	ConsoleRowType & row = Rows[Focus];
 	if (row.Step) {
 		row.Step(step);
@@ -239,42 +323,32 @@ void ConsoleMenuClass::Step_Value(int step)
 }
 
 
-enum NavType {
-	NAV_NONE,
-	NAV_UP,
-	NAV_DOWN,
-	NAV_LEFT,
-	NAV_RIGHT,
-};
-
-
-// Turns key presses and controller input into menu movement. A held direction repeats,
-// since the engine drops the system's key repeat. Returns true when the menu is finished.
+// Turns key presses and controller input into menu movement. Returns true when the menu
+// is finished.
 bool ConsoleMenuClass::Poll_Input(ConsoleMenuResult & result)
 {
-	static unsigned int _repeat_at = 0;
-	static NavType _held = NAV_NONE;
 	GamepadStateType pad = Gamepad_Read();
 
 	// A held shift or shoulder button steps values five at a time.
 	int stride = (Keyboard->Down(KN_LSHIFT) || pad.Fast) ? FAST_STEP : 1;
 
-	auto navigate = [&](NavType nav) {
+	auto move = [&](ConsoleNavType nav) {
 		switch (nav) {
-			case NAV_UP: Move_Focus(-1); break;
-			case NAV_DOWN: Move_Focus(1); break;
-			case NAV_LEFT: Step_Value(-stride); break;
-			case NAV_RIGHT: Step_Value(stride); break;
+			case CONSOLE_NAV_UP: Move_Focus(-1); break;
+			case CONSOLE_NAV_DOWN: Move_Focus(1); break;
+			case CONSOLE_NAV_LEFT: Step_Value(-stride); break;
+			case CONSOLE_NAV_RIGHT: Step_Value(stride); break;
 			default: break;
 		}
-		_held = nav;
-		_repeat_at = Get_Game_Time() + REPEAT_FIRST_MS;
+	};
+	auto navigate = [&](ConsoleNavType nav) {
+		move(nav);
+		Repeat.Press(nav);
 	};
 	auto accept = [&](void) -> bool {
-		if (Focus >= 0 && Focus < int(Rows.size()) && Rows[Focus].Activate) {
+		if (Valid_Row(Focus) && Rows[Focus].Activate) {
 			Rows[Focus].Activate();
-			// A button still held from a screen the row opened must not count as a press here.
-			PreviousPad = Gamepad_Read();
+			Absorb_Held_Buttons();
 			IsDirty = true;
 			return(false);
 		}
@@ -340,10 +414,10 @@ bool ConsoleMenuClass::Poll_Input(ConsoleMenuResult & result)
 			continue;
 		}
 		switch (key) {
-			case KN_UP: navigate(NAV_UP); break;
-			case KN_DOWN: navigate(NAV_DOWN); break;
-			case KN_LEFT: navigate(NAV_LEFT); break;
-			case KN_RIGHT: navigate(NAV_RIGHT); break;
+			case KN_UP: navigate(CONSOLE_NAV_UP); break;
+			case KN_DOWN: navigate(CONSOLE_NAV_DOWN); break;
+			case KN_LEFT: navigate(CONSOLE_NAV_LEFT); break;
+			case KN_RIGHT: navigate(CONSOLE_NAV_RIGHT); break;
 			case KN_RETURN:
 			case KN_SPACE:
 				if (accept()) return(true);
@@ -356,10 +430,10 @@ bool ConsoleMenuClass::Poll_Input(ConsoleMenuResult & result)
 		}
 	}
 
-	if (pad.Up && !PreviousPad.Up) navigate(NAV_UP);
-	if (pad.Down && !PreviousPad.Down) navigate(NAV_DOWN);
-	if (pad.Left && !PreviousPad.Left) navigate(NAV_LEFT);
-	if (pad.Right && !PreviousPad.Right) navigate(NAV_RIGHT);
+	if (pad.Up && !PreviousPad.Up) navigate(CONSOLE_NAV_UP);
+	if (pad.Down && !PreviousPad.Down) navigate(CONSOLE_NAV_DOWN);
+	if (pad.Left && !PreviousPad.Left) navigate(CONSOLE_NAV_LEFT);
+	if (pad.Right && !PreviousPad.Right) navigate(CONSOLE_NAV_RIGHT);
 	bool accept_pressed = pad.Accept && !PreviousPad.Accept;
 	bool back_pressed = pad.Back && !PreviousPad.Back;
 	// A screen may give the pad's menu button a job of its own, done from any row.
@@ -367,8 +441,7 @@ bool ConsoleMenuClass::Poll_Input(ConsoleMenuResult & result)
 	PreviousPad = pad;
 	if (menu_pressed) {
 		MenuAction();
-		// A button still held from a screen the action opened must not count as a press here.
-		PreviousPad = Gamepad_Read();
+		Absorb_Held_Buttons();
 		IsDirty = true;
 		return(false);
 	}
@@ -378,23 +451,9 @@ bool ConsoleMenuClass::Poll_Input(ConsoleMenuResult & result)
 		return(true);
 	}
 
-	auto still_held = [&](NavType nav) {
-		switch (nav) {
-			case NAV_UP: return(Keyboard->Down(KN_UP) != 0 || pad.Up);
-			case NAV_DOWN: return(Keyboard->Down(KN_DOWN) != 0 || pad.Down);
-			case NAV_LEFT: return(Keyboard->Down(KN_LEFT) != 0 || pad.Left);
-			case NAV_RIGHT: return(Keyboard->Down(KN_RIGHT) != 0 || pad.Right);
-			default: return(false);
-		}
-	};
-	if (_held != NAV_NONE) {
-		if (!still_held(_held)) {
-			_held = NAV_NONE;
-		} else if (Get_Game_Time() >= _repeat_at) {
-			NavType nav = _held;
-			navigate(nav);
-			_repeat_at = Get_Game_Time() + REPEAT_NEXT_MS;
-		}
+	ConsoleNavType due = Repeat.Due(pad);
+	if (due != CONSOLE_NAV_NONE) {
+		move(due);
 	}
 	return(false);
 }
@@ -407,23 +466,21 @@ void ConsoleMenuClass::Draw(void)
 	int left = (frame.Width - MENU_WIDTH) / 2;
 	int top = (frame.Height - MENU_HEIGHT) / 2;
 
-	surface.Blit_From(*Backdrop);
-	if (PanelOpacity <= 0) {
-		// Bare backdrop.
-	} else if (Panel.Is_Valid()) {
-		surface.Fill_Rect_Trans(Rect(left + Panel.X, top + Panel.Y, Panel.Width, Panel.Height), RGBClass(0, 0, 0), PanelOpacity);
-	} else {
-		surface.Fill_Rect_Trans(Rect(left + PANEL_INSET, top + PANEL_INSET, MENU_WIDTH - 2 * PANEL_INSET, MENU_HEIGHT - 2 * PANEL_INSET), RGBClass(0, 0, 0), PanelOpacity);
+	Surface & backdrop = Console_Backdrop_Surface();
+	surface.Blit_From(backdrop);
+	if (PanelOpacity > 0) {
+		Rect panel = Panel.Is_Valid()
+			? Rect(left + Panel.X, top + Panel.Y, Panel.Width, Panel.Height)
+			: Rect(left + PANEL_INSET, top + PANEL_INSET, MENU_WIDTH - 2 * PANEL_INSET, MENU_HEIGHT - 2 * PANEL_INSET);
+		surface.Fill_Rect_Trans(panel, RGBClass(0, 0, 0), PanelOpacity);
 	}
-	if (Font == NULL) {
-		Font = new MSFont(false);
-		FocusFont = new MSFont(false);
-		FocusFont->Set_Color(RGBClass(48, 224, 248));
-	}
+	Ensure_Fonts();
 	int height = Font->Get_Font_Height();
+	auto font_for = [&](bool focused) -> MSFont & {
+		return(*(focused ? (FocusOverride != NULL ? FocusOverride : FocusFont.get()) : (IdleFont != NULL ? IdleFont : Font.get())));
+	};
 	auto print = [&](std::string const & text, int x, int y, bool focused = false) {
-		MSFont * font = focused ? (FocusOverride != NULL ? FocusOverride : FocusFont) : (IdleFont != NULL ? IdleFont : Font);
-		font->Draw_String(&surface, (unsigned char const *)text.c_str(), x, y, FRAME_NORMAL);
+		font_for(focused).Draw_String(&surface, (unsigned char const *)text.c_str(), x, y, FRAME_NORMAL);
 	};
 	auto width = [&](std::string const & text) {
 		return(Font->Get_String_Width(text.c_str()));
@@ -431,7 +488,7 @@ void ConsoleMenuClass::Draw(void)
 
 	if (BackdropPanel) {
 		ConsoleCanvas canvas = {
-			surface, *Backdrop, Rect(left, top, MENU_WIDTH, MENU_HEIGHT),
+			surface, backdrop, Rect(left, top, MENU_WIDTH, MENU_HEIGHT),
 			print,
 			[&](std::string const & text, int x, int y, RGBClass const & color) {
 				Font_For(color)->Draw_String(&surface, (unsigned char const *)text.c_str(), x, y, FRAME_NORMAL);
@@ -528,44 +585,34 @@ void ConsoleMenuClass::Draw(void)
 				int selected = row.Selected ? row.Selected() : -1;
 				int big = height - 2 * SWATCH_INSET;
 				int small = big / 2;
-				for (int index = 0; index < int(colors.size()); index++) {
-					int size = index == selected ? big : small;
-					surface.Fill_Rect(Rect(x, y + SWATCH_INSET + (big - size) / 2, size, size), colors[index]);
+				for (int swatch = 0; swatch < int(colors.size()); swatch++) {
+					int size = swatch == selected ? big : small;
+					surface.Fill_Rect(Rect(x, y + SWATCH_INSET + (big - size) / 2, size, size), colors[swatch]);
 					x += big + SWATCH_GAP;
 				}
 			}
 		}
 	}
 
-	// A prompt is its button's glyph, when the style has one, then its text.
-	int glyph = height + 2 * GLYPH_INSET;
+	int used = Pad_Prompt_Inset(height);
 	auto prompt = [&](std::string const & text, PadButtonType button, bool at_right) -> Rect {
 		if (text.empty()) return(Rect());
-		int used = Resolved_Prompt_Style() == PROMPT_STYLE_TEXT ? 0 : glyph + GLYPH_GAP;
 		int total = used + width(text);
 		int x = at_right ? left + MENU_WIDTH - PROMPT_INSET - total : left + PROMPT_INSET;
-		if (used > 0) {
-			Draw_Pad_Glyph(surface, button, x, top + PROMPT_Y - GLYPH_INSET, glyph);
-		}
-		print(text, x + used, top + PROMPT_Y);
+		Draw_Pad_Prompt(surface, font_for(false), button, text.c_str(), x, top + PROMPT_Y);
 		return(Rect(x - 8, top + PROMPT_Y - 4, total + 16, height + 8));
 	};
 	// A row with an action of its own takes the accept button, so the prompt says what it does.
 	std::string accept_text = AcceptPrompt;
-	if (Focus >= 0 && Focus < count && Rows[Focus].Activate && !AcceptPrompt.empty()) {
+	if (Valid_Row(Focus) && Rows[Focus].Activate && !AcceptPrompt.empty()) {
 		accept_text = Rows[Focus].Prompt.empty() ? "Select" : Rows[Focus].Prompt;
 	}
 	BackRect = prompt(BackPrompt, PAD_BUTTON_BACK, false);
 	AcceptRect = prompt(accept_text, PAD_BUTTON_ACCEPT, true);
 	// The menu button's prompt sits in the middle on a screen that gives it a job.
 	if (MenuAction) {
-		int used = Resolved_Prompt_Style() == PROMPT_STYLE_TEXT ? 0 : glyph + GLYPH_GAP;
 		int total = used + width(MenuPrompt);
-		int x = left + (MENU_WIDTH - total) / 2;
-		if (used > 0) {
-			Draw_Pad_Glyph(surface, PAD_BUTTON_MENU, x, top + PROMPT_Y - GLYPH_INSET, glyph);
-		}
-		print(MenuPrompt, x + used, top + PROMPT_Y);
+		Draw_Pad_Prompt(surface, font_for(false), PAD_BUTTON_MENU, MenuPrompt.c_str(), left + (MENU_WIDTH - total) / 2, top + PROMPT_Y);
 	}
 
 	Update_Visible_Surface(&surface);
@@ -579,16 +626,8 @@ ConsoleMenuResult ConsoleMenuClass::Process(void)
 
 	Keyboard->Clear();
 	Gamepad_Menu_Starts(bool(MenuAction));
-	// A button still held from the screen before must not count as a press here.
-	PreviousPad = Gamepad_Read();
+	Absorb_Held_Buttons();
 	LastMouse = Point2D(Get_Mouse_X(), Get_Mouse_Y());
-
-	// The map preview loader scribbles on AlternateSurface, so the backdrop is kept on a surface of its own.
-	if (Backdrop == NULL) {
-		Backdrop = new DSurface(HiddenSurface->Get_Width(), HiddenSurface->Get_Height());
-	}
-	Backdrop->Fill(0);
-	Load_Title_Screen(Console_Backdrop_File(), Backdrop, &CCPalette);
 	IsDirty = true;
 
 	while (true) {
@@ -619,4 +658,39 @@ ConsoleMenuResult ConsoleMenuClass::Process(void)
 	Gamepad_Menu_Starts(false);
 	Keyboard->Clear();
 	return(result);
+}
+
+
+Rect Console_Box_Rows(ConsoleMenuClass & menu, int first_y, int min_width, int value_width)
+{
+	int count = int(menu.Row_Count());
+	int labelled = 0;
+	int widest = min_width;
+	for (int index = 0; index < count; index++) {
+		if (!menu.Row_Label(index).empty()) {
+			labelled++;
+			widest = std::max(widest, menu.Text_Width(menu.Row_Label(index).c_str()));
+		}
+	}
+	if (first_y <= 0) {
+		first_y = (MENU_HEIGHT - labelled * BOX_ROW_PITCH) / 2 + 8;
+	}
+	int y = first_y;
+	for (int index = 0; index < count; index++) {
+		if (menu.Row_Label(index).empty()) continue;
+		menu.Set_Row_Y(index, y);
+		y += BOX_ROW_PITCH;
+	}
+	int box_top = first_y + BOX_GLYPH_TOP - BOX_PAD;
+	int box_bottom = first_y + std::max(labelled - 1, 0) * BOX_ROW_PITCH + BOX_GLYPH_BOTTOM + BOX_PAD;
+	Rect panel((MENU_WIDTH - widest) / 2 - BOX_PAD, box_top, widest + 2 * BOX_PAD, box_bottom - box_top);
+	if (value_width > 0) {
+		int left = ConsoleMenuClass::Label_Right() - widest - BOX_PAD;
+		int right = ConsoleMenuClass::Value_Left() + value_width + BOX_PAD;
+		panel.X = left;
+		panel.Width = right - left;
+	}
+	menu.Set_Panel(panel);
+	menu.Set_Row_Colors(CONSOLE_IDLE_COLOR, RGBClass(255, 255, 255));
+	return(panel);
 }

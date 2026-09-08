@@ -52,17 +52,16 @@
 #include "_surface.h"
 #include "_timer.h"
 #include "conquer.h"
+#include "consolekeyboard.h"
+#include "consolemenu.h"
 #include "convert.h"
 #include "data.h"
 #include "dbgprint.h"
 #include "draw.h"
 #include "dsaudio.h"
 #include "dsurface.h"
-#include "goptions.h"
-#include "consolekeyboard.h"
-#include "options.h"
 #include "gamepad.h"
-#include "padglyph.h"
+#include "goptions.h"
 #include "houstype.h"
 #include "keyboard.h"
 #include "language/language.h"
@@ -70,6 +69,8 @@
 #include "mixfile.h"
 #include "movie.h"
 #include "msgloop.h"
+#include "options.h"
+#include "padglyph.h"
 #include "scenario.h"
 #include "session.h"
 #include "shapeset.h"
@@ -84,6 +85,7 @@
 
 #define SIZEGBAR			140
 #define HALLFAME_X		11
+#define HALLFAME_NAME_WIDTH	90		// The name field, in pixels.
 #define HALLFAME_Y		242
 
 #define NUMFAMENAMES				9
@@ -447,8 +449,8 @@ void ScoreClass::Presentation(void)
 		// Under the controller scheme the prompt names the accept button with its glyph.
 		bool padded = Options.ControlScheme == CONTROL_CONTROLLER;
 		str = Fetch_String(padded ? TXT_CONTINUE : TXT_CLICK_CONTINUE);
-		int glyph = FullFont->Get_Height() + 4;
-		int used = padded && Resolved_Prompt_Style() != PROMPT_STYLE_TEXT ? glyph + 6 : 0;
+		int glyph = Pad_Prompt_Glyph_Size(FullFont->Get_Height());
+		int used = padded ? Pad_Prompt_Inset(FullFont->Get_Height()) : 0;
 		x = XPos + (640 - FullFont->String_Width(str) - used) / 2;
 		y = YPos - FullFont->Get_Height() / 2 + 357;
 		if (used > 0) {
@@ -926,6 +928,9 @@ void ScoreClass::Input_Name(char str[], int xpos, int ypos)
 	if (Options.ControlScheme == CONTROL_CONTROLLER) {
 		std::string name(str);
 		Console_Keyboard("Hall of Fame", name, 11);
+		while (!name.empty() && FullFont->String_Width(name.c_str()) > HALLFAME_NAME_WIDTH) {
+			name.pop_back();
+		}
 		HiddenSurface->Blit_From(*AlternateSurface);
 		Rect field(xpos, ypos + 1, 96, 16);
 		HiddenSurface->Blit_From(field, *SurfacePtr, field);
@@ -948,7 +953,7 @@ void ScoreClass::Input_Name(char str[], int xpos, int ypos)
 			 * Once the cursor has run off the right edge of the name field,
 			 * throw away any further queued keys.
 			 */
-			if (x >= xpos + 90) {
+			if (x >= xpos + HALLFAME_NAME_WIDTH) {
 				while (Keyboard->Check()) {
 					Keyboard->Get();
 				}
@@ -987,7 +992,7 @@ void ScoreClass::Input_Name(char str[], int xpos, int ypos)
 				 * Draw the new (or overwritten) character and advance the cursor.
 				 */
 				int cw = FullFont->Char_Width(key) + 1;
-				if (x + FullFont->Get_Width() <= xpos + 90) {
+				if (x + FullFont->Get_Width() <= xpos + HALLFAME_NAME_WIDTH) {
 					if (x + cw >= xpos + 84) {
 						Rect rect(x, ypos + 1, FullFont->Char_Width(str[index]) + 1, 16);
 						HiddenSurface->Blit_From(rect, *SurfacePtr, rect);

@@ -13,14 +13,6 @@
 
 #include "always.h"
 
-#include "data.h"
-#include "gamepad.h"
-#include "goptions.h"
-#include "mainopt.h"
-#include "misc.h"
-#include "options.h"
-#include "padglyph.h"
-
 #include "_keyboar.h"
 #include "_palette.h"
 #include "_rules.h"
@@ -28,16 +20,24 @@
 #include "_xmouse.h"
 #include "addon.h"
 #include "ccfile.h"
+#include "consolemenu.h"
 #include "convert.h"
+#include "data.h"
 #include "dbgprint.h"
+#include "gamepad.h"
 #include "globals.h"
+#include "goptions.h"
 #include "keyboard.h"
 #include "language/language.h"
+#include "mainopt.h"
+#include "misc.h"
 #include "movie.h"
 #include "msanim.h"
 #include "msengine.h"
 #include "msfont.h"
+#include "options.h"
 #include "ownrdraw.h"
+#include "padglyph.h"
 #include "rules.h"
 #include "scenario.h"
 #include "srfcache.h"
@@ -243,6 +243,9 @@ RestateButtonStruct _buttons[BUTTON_COUNT] = {
 };
 
 
+static bool _ResumesMission = false;	// The briefing was opened from within the mission.
+
+
 /***********************************************************************************************
  * Restate_Mission -- Handles restating the mission objective.                                 *
  *                                                                                             *
@@ -261,16 +264,13 @@ RestateButtonStruct _buttons[BUTTON_COUNT] = {
  *   06/23/1995 JLB : Created.                                                                 *
  *   08/06/1995 JLB : Uses preloaded briefing text.                                            *
  *=============================================================================================*/
-static bool _ResumesMission = false;	// The briefing was opened from within the mission.
-
 void Restate_Mission(ScenarioClass * scen)
 {
 	bool save_started = ScenarioActive;
 	ScenarioActive = false;
 	_ResumesMission = save_started;
 
-	// Under the controller scheme the page is shown at the shell's size like the other
-	// console screens; the size it was opened at returns afterwards.
+	// Under the controller scheme the page is shown at the shell's size, like the console screens.
 	bool padded = Options.ControlScheme == CONTROL_CONTROLLER;
 	bool from_shell = padded && Shell_Display_Mode_Active();
 	if (padded) {
@@ -523,12 +523,11 @@ bool RestateMission::Init(ScenarioClass * scen)
 	/*
 	**	Add and initialize the buttons to the button list.
 	*/
-	ButtonList = Buttons[0];
-	for (i = 1; i < Buttons.Count(); i++) {
-		Buttons[i]->Add(*ButtonList);
-	}
-	if (Padded) {
-		ButtonList = NULL;
+	if (!Padded) {
+		ButtonList = Buttons[0];
+		for (i = 1; i < Buttons.Count(); i++) {
+			Buttons[i]->Add(*ButtonList);
+		}
 	}
 
 	MyButton *resume = Get_Button(BUTTON_RESUME);
@@ -611,17 +610,14 @@ void RestateMission::Draw_Prompts(Surface * surface)
 	if (!Padded || PromptFont == NULL || Prompt == PROMPT_NONE) {
 		return;
 	}
-	int y = CenterY + 368;
-	int glyph = PromptFont->Get_Font_Height() + 4;
-	int used = Resolved_Prompt_Style() == PROMPT_STYLE_TEXT ? 0 : glyph + 6;
+	int y = CenterY + CONSOLE_PROMPT_Y;
+	int used = Pad_Prompt_Inset(PromptFont->Get_Font_Height());
 	// Before the mission starts there is nothing to resume, so the last page just closes.
 	char const * accept = Fetch_String(Prompt == PROMPT_MORE ? TXT_MORE : _ResumesMission ? TXT_RESUME_MISSION : TXT_OK);
-	int x = CenterX + 640 - 24 - used - PromptFont->Get_String_Width(accept);
-	Draw_Pad_Glyph(*surface, PAD_BUTTON_ACCEPT, x, y - 2, glyph);
-	PromptFont->Draw_String(surface, (unsigned char const *)accept, x + used, y, 2);
+	int x = CenterX + CONSOLE_SHELL_WIDTH - CONSOLE_PROMPT_INSET - used - PromptFont->Get_String_Width(accept);
+	Draw_Pad_Prompt(*surface, *PromptFont, PAD_BUTTON_ACCEPT, accept, x, y);
 	if (Prompt == PROMPT_FINAL && Scenario != NULL && Scenario->BriefMovie != VQ_NONE) {
-		Draw_Pad_Glyph(*surface, PAD_BUTTON_BACK, CenterX + 24, y - 2, glyph);
-		PromptFont->Draw_String(surface, (unsigned char const *)Fetch_String(TXT_VIDEO), CenterX + 24 + used, y, 2);
+		Draw_Pad_Prompt(*surface, *PromptFont, PAD_BUTTON_BACK, Fetch_String(TXT_VIDEO), CenterX + CONSOLE_PROMPT_INSET, y);
 	}
 }
 

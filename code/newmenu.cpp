@@ -14,22 +14,22 @@
 #include "_pk.h"
 #include "addon.h"
 #include "ccfile.h"
+#include "consolemenu.h"
+#include "goptions.h"
 #include "grphmenu.h"
+#include "grphmimg.h"
 #include "init.h"
 #include "loaddlg.h"
 #include "mainopt.h"
 #include "mixfile.h"
 #include "movie.h"
-#include "vector.h"
-#include "consolemenu.h"
-#include "goptions.h"
-#include "options.h"
-#include "theme.h"
-#include "grphmimg.h"
 #include "msanim.h"
-#include "surface.h"
-#include "xsurface.h"
+#include "options.h"
 #include "rgb.h"
+#include "surface.h"
+#include "theme.h"
+#include "vector.h"
+#include "xsurface.h"
 
 #include <algorithm>
 #include <vector>
@@ -293,11 +293,10 @@ int NewMenuClass::Select_Game_Type(void)
 
 
 // The console-style menu page: the page's backdrop and theme with the choices as rows in
-// the menu font, the dead services left out, and B returning to game select.
+// the menu font, the dead services left out, and back returning to game select.
 int NewMenuClass::Console_Menu_Page(GraphicMenu & page, DynamicVectorClass<int> const & disabled)
 {
-	// The letters start and end inside the menu font's cell, so the box pads them, not the cell.
-	enum { FIRST_ROW_Y = 168, ROW_PITCH = 26, PANEL_PAD = 16, GLYPH_TOP = 4, GLYPH_BOTTOM = 15 };
+	enum { FIRST_ROW_Y = 168 };
 	static struct { int ID; char const * Label; } const _rows[] = {
 		{NSEL_START_NEW_GAME, "New Campaign"},
 		{NSEL_LOAD_MISSION, "Load Mission"},
@@ -312,12 +311,9 @@ int NewMenuClass::Console_Menu_Page(GraphicMenu & page, DynamicVectorClass<int> 
 	int chosen = GMENU_BACK;
 	ConsoleMenuClass menu("");
 	menu.Set_Prompts("", "");
-	menu.Set_Row_Colors(RGBClass(96, 208, 248), RGBClass(255, 255, 255));
 
-	// The intro and exit buttons keep their artwork where the page puts it. Each is a row
-	// with no text, so the focus can land on it and its strip lights instead: intro is the
-	// first row, above the list and also reached with Right; exit is the last, below the
-	// list and also reached with Left.
+	// The intro and exit buttons keep their artwork where the page puts it, each a row with
+	// no text: intro first, above the list, and exit last, below it.
 	struct ArtType { int Row; MSPCXAnim * Idle; MSPCXAnim * Lit; };
 	std::vector<ArtType> art;
 	auto add_art = [&](int id) {
@@ -332,8 +328,6 @@ int NewMenuClass::Console_Menu_Page(GraphicMenu & page, DynamicVectorClass<int> 
 	};
 	int intro_row = add_art(NSEL_INTRO);
 
-	int y = FIRST_ROW_Y;
-	int widest = 0;
 	int first_list_row = -1;
 	for (auto const & entry : _rows) {
 		bool off = false;
@@ -341,14 +335,11 @@ int NewMenuClass::Console_Menu_Page(GraphicMenu & page, DynamicVectorClass<int> 
 			if (disabled[index] == entry.ID) off = true;
 		}
 		if (off) continue;
-		ConsoleRowType row = {entry.Label, nullptr, nullptr, [&, id = entry.ID]{ chosen = id; menu.Finish(CONSOLE_MENU_ACCEPT); }};
-		row.Y = y;
-		int index = menu.Add_Row(row);
+		int index = menu.Add_Row({entry.Label, nullptr, nullptr, [&, id = entry.ID]{ chosen = id; menu.Finish(CONSOLE_MENU_ACCEPT); }});
 		if (first_list_row < 0) first_list_row = index;
-		widest = std::max(widest, menu.Text_Width(entry.Label));
-		y += ROW_PITCH;
 	}
 	int exit_row = add_art(NSEL_EXIT);
+	Console_Box_Rows(menu, FIRST_ROW_Y);
 
 	// Left and Right on a list row jump to the exit and intro artwork; Left on the intro
 	// and Right on the exit come back to the top and bottom of the list.
@@ -360,15 +351,15 @@ int NewMenuClass::Console_Menu_Page(GraphicMenu & page, DynamicVectorClass<int> 
 			int target = step > 0 ? intro_row : exit_row;
 			if (target >= 0) {
 				menu.Set_Focus(target);
-				menu.Play_Click_Public();
+				menu.Play_Click();
 			}
 		});
 	}
 	if (intro_row >= 0) {
-		menu.Set_Row_Step(intro_row, [&, first_list_row](int step) { if (step < 0 && first_list_row >= 0) { menu.Set_Focus(first_list_row); menu.Play_Click_Public(); } });
+		menu.Set_Row_Step(intro_row, [&, first_list_row](int step) { if (step < 0 && first_list_row >= 0) { menu.Set_Focus(first_list_row); menu.Play_Click(); } });
 	}
 	if (exit_row >= 0) {
-		menu.Set_Row_Step(exit_row, [&, last_list_row](int step) { if (step > 0 && last_list_row >= 0) { menu.Set_Focus(last_list_row); menu.Play_Click_Public(); } });
+		menu.Set_Row_Step(exit_row, [&, last_list_row](int step) { if (step > 0 && last_list_row >= 0) { menu.Set_Focus(last_list_row); menu.Play_Click(); } });
 	}
 
 	menu.Set_Backdrop_Panel([&](ConsoleCanvas & canvas) {
@@ -381,10 +372,6 @@ int NewMenuClass::Console_Menu_Page(GraphicMenu & page, DynamicVectorClass<int> 
 		}
 	});
 
-	int panel_width = widest + 2 * PANEL_PAD;
-	int box_top = FIRST_ROW_Y + GLYPH_TOP - PANEL_PAD;
-	int box_bottom = y - ROW_PITCH + GLYPH_BOTTOM + PANEL_PAD;
-	menu.Set_Panel(Rect((640 - panel_width) / 2, box_top, panel_width, box_bottom - box_top));
 	menu.Set_Focus(std::max(first_list_row, 0));
 	if (menu.Process() != CONSOLE_MENU_ACCEPT) {
 		return(GMENU_BACK);

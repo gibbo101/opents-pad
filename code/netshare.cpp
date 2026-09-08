@@ -143,7 +143,7 @@ void __cdecl PMessagePrintf(int color, const char * fmt, ...)
 
 	if (Net2IsConsole) {
 		Net2ConsoleMessages.push_back(buffer);
-		while (Net2ConsoleMessages.size() > 12) {
+		while (Net2ConsoleMessages.size() > NET2_CONSOLE_MESSAGE_CAP) {
 			Net2ConsoleMessages.pop_front();
 		}
 		return;

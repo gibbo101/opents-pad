@@ -25,8 +25,6 @@
 #include "dbgprint.h"
 #include "globals.h"
 #include "goptions.h"
-
-#include <string>
 #include "houstype.h"
 #include "init.h"
 #include "ipxmgr.h"
@@ -49,6 +47,7 @@
 #include "wsproto.h"
 
 #include <algorithm>
+#include <string>
 
 
 /*
@@ -608,21 +607,6 @@ bool Decrypt_Serial(char * buffer)
 }
 
 
-/***********************************************************************************************
- * Remote_Connect -- handles connecting this user to others                                    *
- *                                                                                             *
- * INPUT:                                                                                      *
- *      none.                                                                                  *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *      true = connections established; false = not                                            *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *      none.                                                                                  *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   02/14/1995 BR : Created.                                                                  *
- *=============================================================================================*/
 /// <summary>
 /// Starts the game this machine has joined: applies the agreed options and derives the packet
 /// timing from the measured response time.
@@ -649,8 +633,7 @@ void Net2Start_Joined_Game(void)
 
 
 /// <summary>
-/// Starts the hosted game: broadcasts the final options, tells every player to go, sends the
-/// scenario to any player that lacks it, and primes the network timing for play.
+/// Starts the hosted game and returns once every player is told to go.
 /// </summary>
 void Net2Start_Hosted_Game(void)
 {
@@ -757,17 +740,24 @@ void Net2Start_Hosted_Game(void)
 	// of what our retry delta & timeout should be.
 	//------------------------------------------------------------------------
 	Ipx.Set_Timing(std::max<unsigned>(Ipx.Global_Response_Time() + 2, TIMER_SECOND / 2), (unsigned int)-1, std::max<unsigned>(2 * TIMER_SECOND, Ipx.Global_Response_Time() * 8));
-
-	//------------------------------------------------------------------------
-	// Restore screen
-	//------------------------------------------------------------------------
-	Hide_Mouse();
-	Draw_Menu_Background();
-	Show_Mouse();
-	WS_Destroy_Dialog(NULL, 0);
 }
 
 
+/***********************************************************************************************
+ * Remote_Connect -- handles connecting this user to others                                    *
+ *                                                                                             *
+ * INPUT:                                                                                      *
+ *      none.                                                                                  *
+ *                                                                                             *
+ * OUTPUT:                                                                                     *
+ *      true = connections established; false = not                                            *
+ *                                                                                             *
+ * WARNINGS:                                                                                   *
+ *      none.                                                                                  *
+ *                                                                                             *
+ * HISTORY:                                                                                    *
+ *   02/14/1995 BR : Created.                                                                  *
+ *=============================================================================================*/
 bool Net2Remote_Connect(void)
 {
 	RulesID = RulesClass::Get_Rule_Unique_ID();
@@ -1086,6 +1076,14 @@ bool Net2Remote_Connect(void)
 
 			} else {
 				Net2Start_Hosted_Game();
+
+				//------------------------------------------------------------------------
+				// Restore screen
+				//------------------------------------------------------------------------
+				Hide_Mouse();
+				Draw_Menu_Background();
+				Show_Mouse();
+				WS_Destroy_Dialog(NULL, 0);
 				break;
 			}
 		}
@@ -2751,7 +2749,7 @@ void Get_Join_Responses(void)
 					if (i==CurGame) {
 						Clear_Vector (&Session.Players);
 						if (WS_Top_Window_ID() != IDD_MPLAYER_GAME_LIST && WS_Top_Window_ID() == IDD_MPLAYER_GUEST) {
-							_netresponse = 2;
+							_netresponse = NET2_RESPONSE_JOIN_ENDED;
 						}
 					}
 
@@ -2864,7 +2862,7 @@ void Get_Join_Responses(void)
 				if (Session.GPacket.Command==NET_GO) {
 					JoinState = JOIN_GAME_START;
 					if (!Net2ReadyToGo(0)) {
-						_netresponse = 2;
+						_netresponse = NET2_RESPONSE_JOIN_ENDED;
 						Net2GameStarted = false;
 					} else {
 						Net2GameStarted = true;

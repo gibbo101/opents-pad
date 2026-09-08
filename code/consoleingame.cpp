@@ -42,40 +42,18 @@ static bool Single_Player(void)
 
 
 enum {
-	ROW_PITCH = 26,
-	PANEL_PAD = 16,
 	TITLE_GAP = 36,
-	MENU_HEIGHT = 400,
-	GLYPH_TOP = 4,			// Where the menu font's letters start and end within its cell,
-	GLYPH_BOTTOM = 15,		// so the box pads the letters evenly rather than the cell.
 };
 
-// Boxes the rows in the manner of the menu pages: each on its own line, centred as a group,
-// the panel sized to the widest, the title above the box and any note beneath it. A value
-// width means the rows carry values, so the box spans the label and value columns.
+// Boxes the rows in the manner of the menu pages, centred as a group, with the title above
+// the box and any note beneath it.
 static void Box_Rows(ConsoleMenuClass & menu, std::string const & title, std::string const & note = std::string(), int value_width = 0)
 {
-	int count = int(menu.Row_Count());
-	int first_y = (MENU_HEIGHT - count * ROW_PITCH) / 2 + 8;
-	int widest = menu.Text_Width(title.c_str());
-	for (int index = 0; index < count; index++) {
-		menu.Set_Row_Y(index, first_y + index * ROW_PITCH);
-		widest = std::max(widest, menu.Text_Width(menu.Row_Label(index).c_str()));
-	}
-	int box_top = first_y + GLYPH_TOP - PANEL_PAD;
-	int box_bottom = first_y + (count - 1) * ROW_PITCH + GLYPH_BOTTOM + PANEL_PAD;
-	Rect panel((640 - widest) / 2 - PANEL_PAD, box_top, widest + 2 * PANEL_PAD, box_bottom - box_top);
-	if (value_width > 0) {
-		int left = ConsoleMenuClass::Label_Right() - widest - PANEL_PAD;
-		int right = ConsoleMenuClass::Value_Left() + value_width + PANEL_PAD;
-		panel.X = left;
-		panel.Width = right - left;
-	}
-	menu.Set_Panel(panel);
-	menu.Set_Row_Colors(RGBClass(96, 208, 248), RGBClass(255, 255, 255));
-	int note_y = box_bottom + TITLE_GAP / 2;
-	menu.Set_Backdrop_Panel([title, note, first_y, note_y](ConsoleCanvas & canvas) {
-		canvas.Print(title, canvas.Box.X + (canvas.Box.Width - canvas.Width(title)) / 2, canvas.Box.Y + first_y - TITLE_GAP - PANEL_PAD + GLYPH_TOP, false);
+	Rect panel = Console_Box_Rows(menu, 0, menu.Text_Width(title.c_str()), value_width);
+	int title_y = panel.Y - TITLE_GAP;
+	int note_y = panel.Y + panel.Height + TITLE_GAP / 2;
+	menu.Set_Backdrop_Panel([title, note, title_y, note_y](ConsoleCanvas & canvas) {
+		canvas.Print(title, canvas.Box.X + (canvas.Box.Width - canvas.Width(title)) / 2, canvas.Box.Y + title_y, false);
 		if (!note.empty()) {
 			canvas.Print(note, canvas.Box.X + (canvas.Box.Width - canvas.Width(note)) / 2, canvas.Box.Y + note_y, false);
 		}
@@ -133,7 +111,6 @@ static std::string Save_Box(void)
 	std::string name = Suggested_Save_Name();
 	bool saving = false;
 	while (!saving) {
-		// As on the skirmish screen: accept saves, and the pad's menu button edits the name.
 		ConsoleMenuClass menu("");
 		menu.Set_Prompts("Save", "Back");
 		bool edit = false;
@@ -167,9 +144,10 @@ ConsoleIngameResult Console_Ingame_Menu(void)
 
 	IgnoreInput = true;
 	Keyboard->Clear();
+	Pad_Zoom_Save();
 
 	// The menu is its own screen at the shell's size, like the main menus, so its text and
-	// artwork are the same on every panel; the play size returns on the way out.
+	// artwork are the same on every panel.
 	Shell_Display_Mode();
 	// The mission's own plate rather than the shell's backdrop: the campaign's, which only
 	// its side archive carries, else the multiplayer score plate.
@@ -179,6 +157,11 @@ ConsoleIngameResult Console_Ingame_Menu(void)
 	std::string notice;
 	int focus = -1;
 	bool done = false;
+	auto can_load = [](void) {
+		if (Single_Player()) return(LoadOptionsClass().Files_Present());
+		return(SaveManager.Multiplayer_Load_Is_Allowed() && MultiplayerLoadOptionsClass().Files_Present());
+	};
+	bool loadable = can_load();
 	while (!done) {
 		int action = ACTION_NONE;
 		ConsoleMenuClass menu("");
@@ -195,7 +178,7 @@ ConsoleIngameResult Console_Ingame_Menu(void)
 		if (Single_Player() || SaveManager.Is_Multiplayer_Saving_Allowed()) {
 			add("Save Game", ACTION_SAVE);
 		}
-		if (Single_Player() ? LoadOptionsClass().Files_Present() : (SaveManager.Multiplayer_Load_Is_Allowed() && MultiplayerLoadOptionsClass().Files_Present())) {
+		if (loadable) {
 			add("Load Game", ACTION_LOAD);
 		}
 		if (Single_Player()) {
@@ -239,6 +222,7 @@ ConsoleIngameResult Console_Ingame_Menu(void)
 			case ACTION_SAVE:
 				if (Single_Player()) {
 					notice = Save_Box();
+					loadable = can_load();
 				} else {
 					OutList.push_back(EventClass(PlayerPtr->HeapID, EventClass::SAVEGAME));
 					done = true;

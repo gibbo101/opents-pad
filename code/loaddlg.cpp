@@ -133,6 +133,7 @@ bool LoadOptionsClass::Load(void)
 {
 	Style = LOAD;
 	Description = NULL;
+	// In play only the multiplayer list comes this way, and it stays a dialog.
 	if (Options.ControlScheme == CONTROL_CONTROLLER && !ScenarioActive) {
 		return(Console_Load());
 	}
@@ -683,22 +684,6 @@ void LoadOptionsClass::Clear_List(void)
 }
 
 
-/***********************************************************************************************
- * LoadOptionsClass::Fill_List -- fills the list box & GameNum arrays                          *
- *                                                                                             *
- * INPUT:                                                                                      *
- *      none.                                                                                  *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *      none.                                                                                  *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *      none.                                                                                  *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   02/14/1995 BR : Created.                                                                  *
- *   06/25/1995 JLB : Shows which saved games are "(old)".                                     *
- *=============================================================================================*/
 // Reads the save games into Files, newest first, with the empty slot ahead of them when saving.
 void LoadOptionsClass::Scan_Files(void)
 {
@@ -789,6 +774,22 @@ void LoadOptionsClass::Scan_Files(void)
 }
 
 
+/***********************************************************************************************
+ * LoadOptionsClass::Fill_List -- fills the list box & GameNum arrays                          *
+ *                                                                                             *
+ * INPUT:                                                                                      *
+ *      none.                                                                                  *
+ *                                                                                             *
+ * OUTPUT:                                                                                     *
+ *      none.                                                                                  *
+ *                                                                                             *
+ * WARNINGS:                                                                                   *
+ *      none.                                                                                  *
+ *                                                                                             *
+ * HISTORY:                                                                                    *
+ *   02/14/1995 BR : Created.                                                                  *
+ *   06/25/1995 JLB : Shows which saved games are "(old)".                                     *
+ *=============================================================================================*/
 void LoadOptionsClass::Fill_List(HWND window)
 {
 	OwnerDraw::CellData thecell;

@@ -16,6 +16,7 @@
 #include "_rect.h"
 #include "_surface.h"
 #include "_tactica.h"
+#include "consolemenu.h"
 #include "convert.h"
 #include "data.h"
 #include "dbgprint.h"
@@ -44,6 +45,7 @@
 #include "color.hh"
 
 #include <algorithm>
+#include <iterator>
 
 
 BOOL CALLBACK Main_Options_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
@@ -143,8 +145,8 @@ void Main_Options_Dialog(void)
 			}
 			break;
 
-			// The shell takes the other set of screens as soon as the driver returns.
 			case IDC_OPTMAIN_CONTROLLER:
+				// The shell takes the other set of screens as soon as the driver returns.
 				Options.ControlScheme = CONTROL_CONTROLLER;
 				Options.ControlSchemeAuto = false;
 				Options.Save_Settings();
@@ -216,15 +218,6 @@ bool Change_Display_Mode(int width, int height)
 
 
 /// <summary>
-/// Switches the game over to a new render resolution with a split sidebar beside the map.
-/// </summary>
-bool Change_Display_Mode(int width, int height, int sidebarheight)
-{
-	return(Change_Display_Mode(width, height, sidebarheight, false));
-}
-
-
-/// <summary>
 /// Switches the game over to a new render resolution.
 /// Every drawing surface is destroyed and recreated at the new size, so any pointer held
 /// across this call is stale.
@@ -233,8 +226,8 @@ bool Change_Display_Mode(int width, int height, int sidebarheight)
 /// <param name="height">The height to render at.</param>
 /// <param name="sidebarheight">A height for the sidebar's own surface, which the presenter
 /// then shows beside the frame at its own scale; zero keeps the sidebar in the frame.</param>
-/// <param name="overlay">Should the split sidebar slide over the frame rather than sit
-/// beside it, the frame's map columns then spanning the whole width?</param>
+/// <param name="overlay">True slides the split sidebar over the frame rather than beside
+/// it, so the frame's map columns span the whole width.</param>
 /// <returns>bool; Was the mode changed? If not, nothing has been disturbed.</returns>
 bool Change_Display_Mode(int width, int height, int sidebarheight, bool overlay)
 {
@@ -309,7 +302,7 @@ bool Change_Display_Mode(int width, int height, int sidebarheight, bool overlay)
 	 * A window that is tracking the frame follows it to the new size. One the player
 	 * sized themselves, and a window covering the screen, both stay as they are and the
 	 * frame is scaled into them instead. Under the controller scheme the window is the
-	 * panel the zoom fits, so it never follows the frame.
+	 * panel, so it never follows the frame.
 	 */
 	if (WindowedMode && Options.WindowWidth <= 0 && Options.WindowHeight <= 0 && Options.ControlScheme != CONTROL_CONTROLLER) {
 		RECT windowrect;
@@ -377,12 +370,6 @@ bool Change_Display_Mode(int width, int height, int sidebarheight, bool overlay)
 }
 
 
-enum {
-	SHELL_WIDTH = 640,
-	SHELL_HEIGHT = 400,
-};
-
-
 static bool Set_Display_Mode_If_Needed(int width, int height, int sidebarheight, bool overlay)
 {
 	VideoScaleInfo const & layout = Video_Get_Scale_Info();
@@ -404,7 +391,8 @@ bool Shell_Display_Mode(void)
 	if (Options.ControlScheme != CONTROL_CONTROLLER) {
 		return(Play_Display_Mode());
 	}
-	return(Set_Display_Mode_If_Needed(SHELL_WIDTH, SHELL_HEIGHT, 0, false));
+	Pad_Zoom_Save();
+	return(Set_Display_Mode_If_Needed(CONSOLE_SHELL_WIDTH, CONSOLE_SHELL_HEIGHT, 0, false));
 }
 
 
@@ -413,7 +401,7 @@ bool Shell_Display_Mode(void)
 /// </summary>
 bool Shell_Display_Mode_Active(void)
 {
-	return(Options.ControlScheme == CONTROL_CONTROLLER && VideoModeWidth == SHELL_WIDTH && VideoModeHeight == SHELL_HEIGHT);
+	return(Options.ControlScheme == CONTROL_CONTROLLER && VideoModeWidth == CONSOLE_SHELL_WIDTH && VideoModeHeight == CONSOLE_SHELL_HEIGHT);
 }
 
 
@@ -429,7 +417,7 @@ bool Play_Display_Mode(void)
 	}
 	int width;
 	int height;
-	Pad_Zoom_Size(width, height);
+	Pad_Zoom_Settle(width, height);
 	return(Set_Display_Mode_If_Needed(width, height, Pad_Sidebar_Height(), true));
 }
 
@@ -438,7 +426,7 @@ bool Play_Display_Mode(void)
 // shape, so no panel shows bars; the scale never drops below one.
 static int const _ZoomLadder[] = {480, 540, 600, 660, 720, 768, 840, 900, 1080, 1200, 1440};
 enum {
-	ZOOM_RUNGS = sizeof(_ZoomLadder) / sizeof(_ZoomLadder[0]),
+	ZOOM_RUNGS = int(std::size(_ZoomLadder)),
 	ZOOM_BASELINE = 768,
 	ZOOM_BASELINE_DECK = 600,		// A seven inch panel wants bigger sprites from the start.
 };
@@ -483,11 +471,8 @@ static int Zoom_Nearest_Rung(int height)
 
 
 /// <summary>
-/// The height the split sidebar is drawn at under the controller scheme: the pad's own
-/// panel, the radar and mode buttons over five rows of two cells and the foot plate, so
-/// scaled to the screen's height the panel fills it whatever the map is zoomed to.
-/// The panel's pieces are read from the loaded sidebar art; before it loads, the size
-/// the game's art gives.
+/// Height of the pad's split sidebar panel: header, five section rows, foot and addon
+/// plates, from the loaded art (512 before it loads).
 /// </summary>
 int Pad_Sidebar_Height(void)
 {
@@ -497,21 +482,13 @@ int Pad_Sidebar_Height(void)
 		height = SidebarClass::SIDE_Y + SidebarClass::SidebarShape->Get_Height()
 			+ SidebarClass::PAD_SECTION_ROWS * SidebarClass::SidebarMiddleShape->Get_Height()
 			+ SidebarClass::SidebarBottomShape->Get_Height() + SidebarClass::SidebarAddonShape->Get_Height();
-		static int _logged = 0;
-		if (_logged != height) {
-			DebugString("Pad sidebar panel is %d high\n", height);
-			_logged = height;
-		}
 	}
 	return(std::max(height, 1));
 }
 
 
-// The frame width for a ladder height: the map's columns follow the shape of the panel
-// under the bar, both scaled to fill the panel's height with the sidebar's panel, and the
-// sidebar's own columns are added, so the frame carries everything at the sizes it is
-// presented at. The sidebar only ever slides over the map, so the map takes the whole
-// width.
+// Frame width for a ladder height: the map keeps the panel's shape under the bar, plus
+// the sidebar's columns.
 int Pad_Zoom_Width(int height)
 {
 	int panel_width;
@@ -557,7 +534,7 @@ static bool Zoom_Fits_Panel(int width, int height)
 }
 
 
-void Pad_Zoom_Size(int & width, int & height)
+void Pad_Zoom_Settle(int & width, int & height)
 {
 	if (!Zoom_Fits_Panel(Options.PadZoomWidth, Options.PadZoomHeight)) {
 		int baseline = On_Steam_Deck() ? ZOOM_BASELINE_DECK : ZOOM_BASELINE;
@@ -570,16 +547,18 @@ void Pad_Zoom_Size(int & width, int & height)
 }
 
 
+static bool _ZoomUnsaved = false;
+
 /// <summary>
 /// Steps the controller's zoom while a game is on, positive to zoom in. The view keeps
-/// its centre and the new size is saved.
+/// its centre; the new size waits for Pad_Zoom_Save.
 /// </summary>
 /// <returns>bool; Did the size change?</returns>
 bool Pad_Zoom_Step(int steps)
 {
 	int width;
 	int height;
-	Pad_Zoom_Size(width, height);
+	Pad_Zoom_Settle(width, height);
 	int next_height = Pad_Zoom_Neighbour(height, steps);
 	int next_width = Pad_Zoom_Width(next_height);
 	if (next_width == width && next_height == height) {
@@ -587,16 +566,23 @@ bool Pad_Zoom_Step(int steps)
 	}
 
 	Point2D centre = TacticalMap->Get_Tactical_Position() + Point2D(TacticalRect.Width / 2, TacticalRect.Height / 2);
-	unsigned long started = timeGetTime();
 	if (!Change_Display_Mode(next_width, next_height, Pad_Sidebar_Height(), true)) {
 		return(false);
 	}
-	DebugString("Pad zoom %dx%d took %lu ms\n", next_width, next_height, timeGetTime() - started);
 	TacticalMap->Set_Tactical_Position(centre - Point2D(TacticalRect.Width / 2, TacticalRect.Height / 2));
 	Options.PadZoomWidth = next_width;
 	Options.PadZoomHeight = next_height;
-	Options.Save_Settings();
+	_ZoomUnsaved = true;
 	return(true);
+}
+
+
+void Pad_Zoom_Save(void)
+{
+	if (_ZoomUnsaved) {
+		_ZoomUnsaved = false;
+		Options.Save_Settings();
+	}
 }
 
 

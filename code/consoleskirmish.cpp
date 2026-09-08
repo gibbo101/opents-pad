@@ -135,7 +135,7 @@ bool Console_Skirmish_Screen(void)
 			sides.push_back(index);
 		}
 	}
-	int side = std::clamp(Session.House <= HOUSE_BAD ? Session.House : int(HOUSE_BAD), 0, std::max(int(sides.size()) - 1, 0));
+	int side = std::clamp(std::min(int(Session.House), int(HOUSE_BAD)), 0, std::max(int(sides.size()) - 1, 0));
 
 	int const color_count = MAX_MPLAYER_COLORS;
 	int color = std::clamp(Session.PrefColor, 0, color_count - 1);
@@ -144,7 +144,7 @@ bool Console_Skirmish_Screen(void)
 	int tech = BuildLevel;
 	int difficulty = int(Session.Options.AIDifficulty);
 	int ai_players = std::max(Session.Options.AIPlayers, 1);
-	int speed = std::clamp(6 - Options.GameSpeed, 0, 6);
+	int speed = std::clamp(6 - int(Session.Options.GameSpeed), 0, 6);
 	int credits = Session.Options.Credits;
 	bool bases = Session.Options.Bases;
 	bool crates = Session.Options.Goodies;

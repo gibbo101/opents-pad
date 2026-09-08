@@ -20,23 +20,24 @@
 #include "_surface.h"
 #include "ccrand.h"
 #include "conquer.h"
+#include "consolemenu.h"
 #include "data.h"
 #include "dbgprint.h"
 #include "dsurface.h"
+#include "gamepad.h"
 #include "globals.h"
 #include "goptions.h"
-#include "mainopt.h"
-#include "misc.h"
-#include "options.h"
-#include "gamepad.h"
-#include "padglyph.h"
 #include "houstype.h"
 #include "incdec.h"
 #include "keyboard.h"
 #include "language/language.h"
+#include "mainopt.h"
+#include "misc.h"
 #include "msanim.h"
 #include "msengine.h"
 #include "msfont.h"
+#include "options.h"
+#include "padglyph.h"
 #include "scheme.h"
 #include "session.h"
 #include "stats.h"
@@ -114,8 +115,7 @@ bool Single_Score_Presentation(HouseClass *house)
 /// </summary>
 void Multi_Score_Presentation(void)
 {
-	// Under the controller scheme the screen fills the display at the shell's size like
-	// the other console screens; the size it was opened at returns afterwards.
+	// Under the controller scheme the screen is shown at the shell's size, like the console screens.
 	bool padded = Options.ControlScheme == CONTROL_CONTROLLER;
 	if (padded) {
 		Shell_Display_Mode();
@@ -318,19 +318,22 @@ bool MultiScore::User_Input(void)
 	// Under the controller scheme the prompt names the accept button with its glyph.
 	bool padded = Options.ControlScheme == CONTROL_CONTROLLER;
 	char const * text = Fetch_String(padded ? TXT_CONTINUE : TXT_CLICK_CONTINUE);
-	int glyph = Font->Get_Font_Height() + 4;
-	int used = padded && Resolved_Prompt_Style() != PROMPT_STYLE_TEXT ? glyph + 6 : 0;
+	int glyph = Pad_Prompt_Glyph_Size(Font->Get_Font_Height());
+	int used = padded ? Pad_Prompt_Inset(Font->Get_Font_Height()) : 0;
 	int x = 320 - (Font->Get_String_Width(text) + used) / 2;
 
 	MSWordAnim * anim = new MSWordAnim(text, XPos + x + used, YPos + 370, Font);
 	Add_Animation(anim);
 	Wait_For_Anim(anim);
 
-	Font->Draw_String(ScoreSurface, (unsigned char const *)text, x + used, 370, 2);
-	Font->Draw_String(AlternateSurface, (unsigned char const *)text, XPos + x + used, YPos + 370, 2);
+	if (padded) {
+		Draw_Pad_Prompt(*ScoreSurface, *Font, PAD_BUTTON_ACCEPT, text, x, 370);
+		Draw_Pad_Prompt(*AlternateSurface, *Font, PAD_BUTTON_ACCEPT, text, XPos + x, YPos + 370);
+	} else {
+		Font->Draw_String(ScoreSurface, (unsigned char const *)text, x, 370, 2);
+		Font->Draw_String(AlternateSurface, (unsigned char const *)text, XPos + x, YPos + 370, 2);
+	}
 	if (used > 0) {
-		Draw_Pad_Glyph(*ScoreSurface, PAD_BUTTON_ACCEPT, x, 370 - 2, glyph);
-		Draw_Pad_Glyph(*AlternateSurface, PAD_BUTTON_ACCEPT, XPos + x, YPos + 370 - 2, glyph);
 		// The animation put the text on the screen itself, so the glyph goes there too.
 		Draw_Pad_Glyph(*HiddenSurface, PAD_BUTTON_ACCEPT, XPos + x, YPos + 370 - 2, glyph);
 		Blit_Rect(HiddenSurface, Rect(XPos + x, YPos + 370 - 2, glyph, glyph));
@@ -349,8 +352,12 @@ bool MultiScore::User_Input(void)
 			case VK_LBUTTON:
 			case VK_ESCAPE:
 			case VK_SPACE:
-			case VK_RETURN:
 				running = false;
+				break;
+			case VK_RETURN:
+				if (padded) {
+					running = false;
+				}
 				break;
 		}
 		GamepadStateType pad = Gamepad_Read();
