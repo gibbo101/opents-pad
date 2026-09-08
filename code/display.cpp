@@ -117,6 +117,7 @@
 #include "dsurface.h"
 #include "effects.h"
 #include "foot.h"
+#include "gametime.h"
 #include "globals.h"
 #include "goptions.h"
 #include "incdec.h"
@@ -174,6 +175,34 @@ void const * DisplayClass::PlacementShapes;
 DisplayClass::TacticalClass DisplayClass::TacButton;
 
 void Bandbox_Selection_Callback(ObjectClass *object);
+
+
+// A fixed pixel count shrinks with the render resolution, so the drag needed for a band follows the view height.
+static int Band_Threshold(int view_height)
+{
+	return(std::max(4, view_height / 25));
+}
+
+
+// When the left button went down, so that a brief band can be told from a deliberate one.
+static unsigned int _BandPressTime = 0;
+
+
+// A trackpad click drifts and a quick order flicks onward, so a band that stayed small, or was
+// both brief and modest, is treated as the click the player meant.
+static bool Band_Is_Click(Point2D const & size, int view_height, unsigned int held_ms)
+{
+	enum { BAND_FLICK_MS = 200 };
+	int tiny = Band_Threshold(view_height);
+	int modest = view_height / 6;
+	int w = std::abs(size.X);
+	int h = std::abs(size.Y);
+	if (w <= tiny && h <= tiny) {
+		return(true);
+	}
+	return(held_ms < BAND_FLICK_MS && w <= modest && h <= modest);
+}
+
 
 
 /***********************************************************************************************
@@ -2316,6 +2345,15 @@ void DisplayClass::Mouse_Left_Release(Coord const & coord, Cell const & cell, Ob
 	} else {
 
 		if (IsRubberBand) {
+			Point2D size = TacticalMap->RubberBandEnd - TacticalMap->RubberBandStart;
+			unsigned int held = Get_Game_Time() - _BandPressTime;
+			if (Band_Is_Click(size, TacticalRect.Height, held)) {
+				TacticalMap->End_Rubber_Band();
+				IsRubberBand = false;
+				Set_Default_Mouse(MOUSE_NORMAL, wsmall);
+			}
+		}
+		if (IsRubberBand) {
 			TacticalMap->IsToRedraw = true;
 
 			if (!Keyboard->Down(KN_LSHIFT)) {
@@ -2526,6 +2564,7 @@ void DisplayClass::Mouse_Left_Press(Point2D const & point)
 		BandY = point.Y;
 		NewX = point.X;
 		NewY = point.Y;
+		_BandPressTime = Get_Game_Time();
 	}
 }
 
@@ -2587,7 +2626,8 @@ void DisplayClass::Mouse_Left_Held(Point2D const & point)
 			**	The mouse must have moved a minimum distance before rubber band mode can be
 			**	initiated.
 			*/
-			if ((point - (Point2D &)BandX).Length() > 4) {
+			int threshold = Band_Threshold(TacticalRect.Height);
+			if ((point - (Point2D &)BandX).Length() > threshold) {
 				IsRubberBand = true;
 				IsTentative = false;
 				if (!IsWaypointMode) {
