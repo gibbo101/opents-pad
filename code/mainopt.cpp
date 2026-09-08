@@ -472,17 +472,17 @@ static int Zoom_Nearest_Rung(int height)
 
 
 /// <summary>
-/// Height of the pad's split sidebar panel: header, five section rows, foot and addon
-/// plates, from the loaded art (512 before it loads).
+/// Height of the pad's split sidebar panel: header, five section rows and the bottom cap,
+/// from the loaded art (449 before it loads). The foot plate is left off.
 /// </summary>
 int Pad_Sidebar_Height(void)
 {
-	enum { ART_HEIGHT = 512 };
+	enum { ART_HEIGHT = 449 };
 	int height = ART_HEIGHT;
-	if (SidebarClass::SidebarShape != nullptr && SidebarClass::SidebarMiddleShape != nullptr && SidebarClass::SidebarBottomShape != nullptr && SidebarClass::SidebarAddonShape != nullptr) {
+	if (SidebarClass::SidebarShape != nullptr && SidebarClass::SidebarMiddleShape != nullptr && SidebarClass::SidebarBottomShape != nullptr) {
 		height = SidebarClass::SIDE_Y + SidebarClass::SidebarShape->Get_Height()
 			+ SidebarClass::PAD_SECTION_ROWS * SidebarClass::SidebarMiddleShape->Get_Height()
-			+ SidebarClass::SidebarBottomShape->Get_Height() + SidebarClass::SidebarAddonShape->Get_Height();
+			+ SidebarClass::SidebarBottomShape->Get_Height();
 	}
 	return(std::max(height, 1));
 }

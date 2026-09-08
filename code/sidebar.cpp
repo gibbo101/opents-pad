@@ -989,7 +989,10 @@ void SidebarClass::Draw_It(bool complete)
 			}
 
 			Draw_Shape(*SidebarSurface, *SidebarDrawer, SidebarBottomShape, 0, Point2D(0, y), window, SHAPE_WIN_REL);
-			Draw_Shape(*SidebarSurface, *SidebarDrawer, SidebarAddonShape, 0, Point2D(0, y + SidebarBottomShape->Get_Height()), window, SHAPE_WIN_REL);
+			// The pad's panel ends at the cap; the foot plate only fills a taller frame sidebar.
+			if (Options.ControlScheme != CONTROL_CONTROLLER) {
+				Draw_Shape(*SidebarSurface, *SidebarDrawer, SidebarAddonShape, 0, Point2D(0, y + SidebarBottomShape->Get_Height()), window, SHAPE_WIN_REL);
+			}
 
 			Column[0].IsToRedraw = true;
 			Column[1].IsToRedraw = true;
@@ -1607,16 +1610,31 @@ static bool Pad_Section_Shown(int row, int column)
 }
 
 
+// Whether a type can stand for the column's factory. The construction yard is shared by
+// both sides in the game's rules, so for structures any yard the column's side may own counts.
+static bool Pad_Factory_Belongs(BuildingTypeClass const * type, int column, int row)
+{
+	if (row == PAD_KIND_STRUCTURES) {
+		return((type->Get_Ownable() & (1 << Pad_Column_House(column))) != 0);
+	}
+	return(Pad_Type_Belongs(type, column));
+}
+
+
 // The building type standing for a section: the factory the player holds, else the side's
 // factory for that kind.
 static BuildingTypeClass const * Pad_Section_Factory(int row, int column)
 {
 	BuildingTypeClass const * owned = Pad_Owned_Factory(column, row);
 	if (owned != nullptr) return(owned);
+	for (int index = 0; index < Buildings.Count(); index++) {
+		BuildingClass const * building = Buildings[index];
+		if (building == nullptr || building->IsInLimbo || building->House != PlayerPtr) continue;
+		if (Pad_Factory_Belongs(building->Class, column, row) && Pad_Kind_Matches(building->Class, row)) return(building->Class);
+	}
 	for (int index = 0; index < BuildingTypes.Count(); index++) {
 		BuildingTypeClass const * type = BuildingTypes[index];
-		if (!Pad_Type_Belongs(type, column)) continue;
-		if (Pad_Kind_Matches(type, row)) return(type);
+		if (Pad_Factory_Belongs(type, column, row) && Pad_Kind_Matches(type, row)) return(type);
 	}
 	return(nullptr);
 }
@@ -1726,27 +1744,13 @@ static BSurface const * Pad_Building_Sprite(BuildingTypeClass const * type)
 }
 
 
-// The cameo standing for a section: the factory the player holds, else the side's factory for
-// that kind, else for structures any building of that side; nullptr leaves the cell blank.
+// The cameo of the section's factory when it has no sprite; nullptr leaves the cell blank.
 static ShapeSet const * Pad_Section_Icon(int row, int column)
 {
 	if (row >= PAD_KIND_SPECIAL) return(nullptr);
-	BuildingTypeClass const * owned = Pad_Owned_Factory(column, row);
-	if (owned != nullptr && owned->Get_Cameo_Data() != nullptr) {
-		return(static_cast<ShapeSet const *>(owned->Get_Cameo_Data()));
-	}
-	for (int pass = 0; pass < 2; pass++) {
-		for (int index = 0; index < BuildingTypes.Count(); index++) {
-			BuildingTypeClass const * type = BuildingTypes[index];
-			if (!Pad_Type_Belongs(type, column)) continue;
-			bool match = pass == 0 ? Pad_Kind_Matches(type, row) : type->Level >= 0;
-			if (!match) continue;
-			ShapeSet const * cameo = static_cast<ShapeSet const *>(type->Get_Cameo_Data());
-			if (cameo != nullptr) return(cameo);
-		}
-		if (row != PAD_KIND_STRUCTURES) break;
-	}
-	return(nullptr);
+	BuildingTypeClass const * type = Pad_Section_Factory(row, column);
+	if (type == nullptr) return(nullptr);
+	return(static_cast<ShapeSet const *>(type->Get_Cameo_Data()));
 }
 
 
@@ -3890,7 +3894,7 @@ int SidebarClass::Sidebar_Height(void) const
 /// shows the slots it has rather than the slots that would fit.</remarks>
 int SidebarClass::Max_Visible(void)
 {
-	// The pad's panel is five rows over the foot plate, so the foot never gives a sixth.
+	// The pad's panel is exactly five rows, whatever the frame's height.
 	if (Options.ControlScheme == CONTROL_CONTROLLER) {
 		return(PAD_SECTION_ROWS);
 	}
