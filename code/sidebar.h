@@ -124,7 +124,7 @@ class SidebarClass : public PowerClass
 		bool Factory_Link(FactoryClass * factory, RTTIType type, int id);
 		bool Is_On_Sidebar(RTTIType type, int id) const;
 
-		int Sidebar_Height(void);
+		int Sidebar_Height(void) const;
 		int Max_Visible(void);
 
 		void Set_Cameo_Text(bool state);
@@ -163,7 +163,7 @@ class SidebarClass : public PowerClass
 				bool Scroll(bool up);
 				bool Page(bool up);
 				void Draw_Cameo(int index, int x, int y, Rect const & cliprect);
-				unsigned Activate(int index, unsigned flags);
+				unsigned Press(int index, unsigned flags);
 				bool AI(KeyNumType & input, Point2D const & xy);
 				char const * Help_Text(int id);
 				void Draw_It(bool complete);
@@ -393,18 +393,20 @@ class SidebarClass : public PowerClass
 		bool IsToRedrawCredits;
 
 		/*
-		 * The pad's sidebar: a fixed grid of sections, the player's side in the left column
-		 * and the other side's in the right, structures, infantry, vehicles and aircraft by
-		 * row, then the current superweapon and a cell that cycles to the next. Opening a section shows its buildables
-		 * as a grid of their own. Above the sections sits the row of mode buttons.
+		 * The pad's sidebar: a grid of sections, the player's side in the left column and the
+		 * other side's in the right, with the row of mode buttons above; an open section shows
+		 * its buildables as a grid of their own.
 		 */
 		enum {
 			PAD_COLUMNS = 2,
 			PAD_SECTION_ROWS = 5,
-			PAD_MODE_BUTTONS = 4,
+			PAD_SLIDE_MS = 200,
+		};
+		enum {
 			PAD_ROW_MODES = -1,
 			PAD_ROW_RADAR = -2,
 		};
+		enum PadModeType { PAD_MODE_REPAIR, PAD_MODE_SELL, PAD_MODE_POWER, PAD_MODE_WAYPOINT, PAD_MODE_BUTTONS };
 		bool PadFocus = false;
 		// The panel slides in over the map when the pad takes it and out again when the pad
 		// leaves, unless it is pinned. It only ever covers the map, which keeps its full
@@ -415,10 +417,10 @@ class SidebarClass : public PowerClass
 		bool PadPanelSettled = false;	// Has the scenario's first tick applied the saved sticky state?
 		int PadRow = 0;					// PAD_ROW_MODES, or a row of the sections or of the open grid.
 		int PadCol = 0;					// A column, or the mode button when on that row.
-		int PadSection = -1;			// The open section as row * 2 + column, or -1 on the section grid.
+		int PadSection = -1;			// The open section as row * 2 + column, or -1 on the grid.
 		int PadTop = 0;					// The first grid row shown while a section is open.
 		int PadSuper = 0;				// Which superweapon the bottom row shows.
-		Point2D PadRadar;				// The marker on the radar while cross is held there, sidebar-relative.
+		Point2D PadRadar = Point2D(0, 0);	// The marker while cross is held on the radar, sidebar-relative.
 		bool PadRadarHeld = false;
 		bool PadDirty = false;
 		struct PadItemType {
@@ -431,24 +433,31 @@ class SidebarClass : public PowerClass
 		};
 		PadLastType PadLast[PAD_SECTION_ROWS * PAD_COLUMNS];	// What each section last built.
 		int Pad_Items(int section, PadItemType * items, int max) const;
-		int Pad_Active_Item(int section, PadItemType & item) const;	// The item a factory is working on, if any.
-		int Pad_Last_Item(int section, PadItemType & item) const;	// The section's last build, while it can still be built.
+		int Pad_Supers(PadItemType * supers) const;	// The bottom row's items; supers holds MAX_BUILDABLES.
+		bool Pad_Active_Item(int section, PadItemType & item) const;	// The item a factory is working on.
+		bool Pad_Last_Item(int section, PadItemType & item) const;	// The last build, while still buildable.
 		void Pad_Remember(int section, PadItemType const & item);
 		void Pad_Enter(void);
-		void Pad_Panel_Show(bool pin, bool focus);	// Slides the panel in, pinned or not, with the pad on it or not.
+		void Pad_Panel_Show(bool pin, bool focus);	// Slides the panel in, pinned or not, focused or not.
 		void Pad_Panel_Hide(void);		// Lets the pad go and slides the panel out.
 		void Pad_Panel_Tick(void);		// Settles a finished slide; call from the main loop between frames.
 		void Pad_Panel_Cover(bool covering);	// Tells the view how much of its right the panel hides.
 		void Pad_Leave(void);
-		void Pad_Repeat(void);			// Builds, queues or places what the sidebar's cell holds without taking focus.
+		void Pad_Drop_Focus(void);
+		void Pad_Repeat(void);			// Builds, queues or places the cell's item without taking focus.
 		void Pad_Move(int dx, int dy);
 		void Pad_Accept(void);
 		bool Pad_Back(void);				// False once it has left the sidebar.
-		void Pad_Toggle_Grid(bool forget = false);	// A forgetting close puts the factory back on an idle section.
+		void Pad_Toggle_Grid(bool forget = false);	// A forgetting close puts an idle section's factory back.
 		void Pad_Radar_Nudge(int dx, int dy);
 		void Pad_Radar_Jump(void);
 		void Pad_Focus_Changed(void);
+		void Pad_Focus_Caption(char * buffer, int size);	// Empty when the focused cell has no name.
 		void Draw_Pad_View(void);
+		void Draw_Pad_Section_Cell(int row, int column, Rect const & cliprect, int color);
+		void Draw_Pad_Super_Cell(int column, Rect const & cliprect, int color);
+		void Draw_Pad_Open_Section(Rect const & cliprect, int visible, int color);
+		void Draw_Pad_Focus_Caption(Rect const & cliprect, int visible);
 
 		class SBGadgetClass: public GadgetClass {
 			public:

@@ -42,6 +42,7 @@
 #include "fog.h"
 #include "font.h"
 #include "globals.h"
+#include "goptions.h"
 #include "house.h"
 #include "incdec.h"
 #include "inline.h"
@@ -3008,12 +3009,14 @@ void Tactical::Start_Rubber_Band(Point2D const & point)
 
 
 /// <summary>
-/// The band's fixed corner as it lies in the view now: the point it began at, moved by
-/// however far the view has scrolled since, so the corner stays on the map rather than on
-/// the screen.
+/// The band's fixed corner as it lies in the view now. Under the controller scheme it stays
+/// where it was on the map while the view scrolls; the keyboard scheme keeps it on the screen.
 /// </summary>
 Point2D Tactical::Rubber_Band_Anchor(void)
 {
+	if (Options.ControlScheme != CONTROL_CONTROLLER) {
+		return(RubberBandStart);
+	}
 	return(RubberBandStart + RubberBandView - Get_Tactical_Position());
 }
 
@@ -3317,7 +3320,8 @@ void Tactical::Select_These(Rect const & rect, void (*select_callback)(ObjectCla
 			}
 		};
 
-		bool beyond = rect.X < 0 || rect.Y < 0 || rect.X + rect.Width > TacticalDimensions.Width || rect.Y + rect.Height > TacticalDimensions.Height;
+		bool beyond = Options.ControlScheme == CONTROL_CONTROLLER
+			&& (rect.X < 0 || rect.Y < 0 || rect.X + rect.Width > TacticalDimensions.Width || rect.Y + rect.Height > TacticalDimensions.Height);
 		if (!beyond) {
 
 			/*

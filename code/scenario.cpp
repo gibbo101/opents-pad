@@ -96,6 +96,7 @@
 #include "egos.h"
 #include "empulse.h"
 #include "enviro.h"
+#include "gamepad.h"
 #include "getcpu.h"
 #include "globals.h"
 #include "goptions.h"
@@ -112,7 +113,6 @@
 #include "language/language.h"
 #include "light.h"
 #include "logic.h"
-#include "gamepad.h"
 #include "mainopt.h"
 #include "mapgen.h"
 #include "mapsel.h"
@@ -1193,14 +1193,9 @@ void Do_Win(void)
 		if (!Scen->IsSkipScore) {
 			// Under the controller scheme the score screen fills the display at the shell's
 			// size like the other console screens; the play size returns afterwards.
-			bool padded = Options.ControlScheme == CONTROL_CONTROLLER;
-			if (padded) {
-				Shell_Display_Mode();
-			}
+			Shell_Display_Mode();
 			ScoreClass().Presentation();
-			if (padded) {
-				Play_Display_Mode();
-			}
+			Play_Display_Mode();
 		}
 
 		if (Scen->PostScoreMovie != VQ_NONE) {

@@ -177,10 +177,15 @@ DisplayClass::TacticalClass DisplayClass::TacButton;
 void Bandbox_Selection_Callback(ObjectClass *object);
 
 
-// A fixed pixel count shrinks with the render resolution, so the drag needed for a band follows the view height.
+// Under the controller scheme the drag needed for a band follows the view height, since a
+// fixed count shrinks with the zoom; the keyboard scheme keeps the engine's four pixels.
 static int Band_Threshold(int view_height)
 {
-	return(std::max(4, view_height / 25));
+	enum { BAND_PIXELS = 4 };
+	if (Options.ControlScheme != CONTROL_CONTROLLER) {
+		return(BAND_PIXELS);
+	}
+	return(std::max(int(BAND_PIXELS), view_height / 25));
 }
 
 
@@ -188,11 +193,17 @@ static int Band_Threshold(int view_height)
 static unsigned int _BandPressTime = 0;
 
 
-// A trackpad click drifts and a quick order flicks onward, so a band that stayed small, or was
-// both brief and modest, is treated as the click the player meant.
-static bool Band_Is_Click(Point2D const & size, int view_height, unsigned int held_ms)
+// Under the controller scheme a band that stayed small, or was both brief and modest, is the
+// click the player meant, since a trackpad click drifts and a quick order flicks onward.
+static bool Band_Is_Click(void)
 {
 	enum { BAND_FLICK_MS = 200 };
+	if (Options.ControlScheme != CONTROL_CONTROLLER) {
+		return(false);
+	}
+	Point2D size = TacticalMap->RubberBandEnd - TacticalMap->Rubber_Band_Anchor();
+	unsigned int held_ms = Get_Game_Time() - _BandPressTime;
+	int view_height = TacticalRect.Height;
 	int tiny = Band_Threshold(view_height);
 	int modest = view_height / 6;
 	int w = std::abs(size.X);
@@ -2344,14 +2355,10 @@ void DisplayClass::Mouse_Left_Release(Coord const & coord, Cell const & cell, Ob
 
 	} else {
 
-		if (IsRubberBand) {
-			Point2D size = TacticalMap->RubberBandEnd - TacticalMap->Rubber_Band_Anchor();
-			unsigned int held = Get_Game_Time() - _BandPressTime;
-			if (Band_Is_Click(size, TacticalRect.Height, held)) {
-				TacticalMap->End_Rubber_Band();
-				IsRubberBand = false;
-				Set_Default_Mouse(MOUSE_NORMAL, wsmall);
-			}
+		if (IsRubberBand && Band_Is_Click()) {
+			TacticalMap->End_Rubber_Band();
+			IsRubberBand = false;
+			Set_Default_Mouse(MOUSE_NORMAL, wsmall);
 		}
 		if (IsRubberBand) {
 			TacticalMap->IsToRedraw = true;

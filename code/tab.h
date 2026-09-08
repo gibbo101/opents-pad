@@ -48,7 +48,7 @@ class TabClass: public SidebarClass
 		virtual void Draw_It(bool complete=false) override;
 		static void Draw_Credits_Tab(void);
 		static void Print_Credits(char const * text);	// The readout on the sidebar's strip.
-		static int Bar_Timer_Right(void);
+		static int Bar_Timer_Right(void);	// Only while TabSurface is set.
 		static void Draw_Sidebar_Tab(Surface & surface, int x);
 		static void Hilite_Tab(int tab);
 		void Flash_Money(void);

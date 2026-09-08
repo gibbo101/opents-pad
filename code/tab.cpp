@@ -64,6 +64,8 @@
 
 ShapeSet const * TabClass::TabShape = NULL;
 
+static void Draw_Tab_Label(Surface & surface, int centre, int text, PadButtonType button, bool glyph);
+
 
 /***********************************************************************************************
  * TabClass::TabClass -- Default construct for the tab button class.                           *
@@ -136,9 +138,15 @@ void TabClass::Draw_It(bool complete)
 
 			// A split bar is drawn on its own surface at its own width and never copied
 			// into the frame; the presenter draws it over the map's top edge.
-			Surface & bar = TabSurface != NULL ? *TabSurface : *LogicalSurface;
-			int barwidth = TabSurface != NULL ? TabSurface->Get_Width() : CompositeSurface->Get_Width();
-			int width  = TabSurface != NULL ? barwidth : CompositeSurface->Get_Width() + SidebarSurface->Get_Width();
+			Surface * bar_surface = LogicalSurface;
+			int barwidth = CompositeSurface->Get_Width();
+			int width = CompositeSurface->Get_Width() + SidebarSurface->Get_Width();
+			if (TabSurface != NULL) {
+				bar_surface = TabSurface;
+				barwidth = TabSurface->Get_Width();
+				width = barwidth;
+			}
+			Surface & bar = *bar_surface;
 			int rightx = width - 1;
 			int tab_height = TAB_HEIGHT * 2/*RESFACTOR*/;
 
@@ -152,19 +160,8 @@ void TabClass::Draw_It(bool complete)
 			Draw_Credits_Tab();
 			bar.Draw_Line(Point2D(0, tab_height-(1* 2)), Point2D(rightx, tab_height-(1 * 2/*RESFACTOR*/)), TBLACK);
 
-			// Under the controller scheme the pad's menu button glyph sits before the label,
-			// the pair centred on the tab; a text prompt style draws no glyph.
-			int centre = sidex + (EVA_WIDTH/2) * 2/*RESFACTOR*/;
-			if (Options.ControlScheme == CONTROL_CONTROLLER && Metal12FontPtr != NULL) {
-				enum { GLYPH = 16, GAP = 4 };
-				int textwidth = Metal12FontPtr->String_Pixel_Width(Fetch_String(TXT_TAB_BUTTON_CONTROLS));
-				int left = centre - (GLYPH + GAP + textwidth) / 2;
-				int glyph = Draw_Pad_Glyph_Fitted(bar, PAD_BUTTON_MENU, left, (tab_height - GLYPH) / 2, GLYPH);
-				if (glyph > 0) {
-					centre = left + glyph + GAP + textwidth / 2;
-				}
-			}
-			Fancy_Text_Print(TXT_TAB_BUTTON_CONTROLS, bar, bar.Get_Rect(), Point2D(centre, 0), ColorSchemes[0], TBLACK, TextPrintType(TPF_USE_GRAD_PAL | TPF_CENTER | TPF_METAL12));
+			// Under the controller scheme the pad's menu button glyph sits before the label.
+			Draw_Tab_Label(bar, sidex + (EVA_WIDTH/2) * 2/*RESFACTOR*/, TXT_TAB_BUTTON_CONTROLS, PAD_BUTTON_MENU, Options.ControlScheme == CONTROL_CONTROLLER);
 
 			if (TabSurface != NULL) {
 				Video_Mark_Dirty();
@@ -183,41 +180,48 @@ void TabClass::Draw_It(bool complete)
 }
 
 
+// A tab's label centred on the given x, with the pad button's glyph before it when asked
+// for; the pair is centred together.
+static void Draw_Tab_Label(Surface & surface, int centre, int text, PadButtonType button, bool glyph)
+{
+	if (glyph && Metal12FontPtr != NULL) {
+		enum { GLYPH = 16, GAP = 4 };
+		int tab_height = TAB_HEIGHT * 2/*RESFACTOR*/;
+		int textwidth = Metal12FontPtr->String_Pixel_Width(Fetch_String(text));
+		int left = centre - (GLYPH + GAP + textwidth) / 2;
+		int drawn = Draw_Pad_Glyph_Fitted(surface, button, left, (tab_height - GLYPH) / 2, GLYPH);
+		if (drawn > 0) {
+			centre = left + drawn + GAP + textwidth / 2;
+		}
+	}
+	Fancy_Text_Print(text, surface, surface.Get_Rect(), Point2D(centre, 0), ColorSchemes[0], TBLACK, TextPrintType(TPF_USE_GRAD_PAL | TPF_CENTER | TPF_METAL12));
+}
+
+
+// Where the timer's right edge falls on the split bar, in its own pixels: left of the
+// Sidebar tab at the bar's end, or of the sidebar itself once it has slid over that tab.
+int TabClass::Bar_Timer_Right(void)
+{
+	int width = TabSurface->Get_Width();
+	int uncovered = width - int(float(SidebarClass::SIDE_WIDTH) * Video_Sidebar_Slide());
+	return(std::min(uncovered, width - TabShape->Get_Width()));
+}
+
+
+// The Sidebar tab, its label led by the pad's fourth button glyph, at x on the given surface.
+void TabClass::Draw_Sidebar_Tab(Surface & surface, int x)
+{
+	Draw_Shape(surface, *SidebarDrawer, TabShape, 2, Point2D(x, 0), surface.Get_Rect());
+	Draw_Tab_Label(surface, x + TabShape->Get_Width() / 2, TXT_TAB_SIDEBAR, PAD_BUTTON_FOURTH, true);
+}
+
+
 /// <summary>
 /// Draws the tab backdrop for the credits and the mission timer.
 /// This routine lays down the sidebar tab imagery that the credits readout is printed
 /// over, and prints the mission timer alongside it whenever a timer is running. The
 /// credit display calls this before it prints the new money value.
 /// </summary>
-// Where the timer's right edge falls on the split bar, in its own pixels: left of the
-// Sidebar tab at the bar's end, or of the sidebar itself once it has slid over that tab.
-int TabClass::Bar_Timer_Right(void)
-{
-	int width = TabSurface->Get_Width();
-	int uncovered = width - int(SidebarClass::SIDE_WIDTH * Video_Sidebar_Slide());
-	return(std::min(uncovered, width - TabShape->Get_Width()));
-}
-
-
-// The Sidebar tab: the tab art, the pad's fourth button glyph and the label, the pair
-// centred, at x on the given surface.
-void TabClass::Draw_Sidebar_Tab(Surface & surface, int x)
-{
-	enum { GLYPH = 16, GAP = 4, HEIGHT = 16 };
-	Draw_Shape(surface, *SidebarDrawer, TabShape, 2, Point2D(x, 0), surface.Get_Rect());
-	int centre = x + TabShape->Get_Width() / 2;
-	if (Metal12FontPtr != NULL) {
-		int textwidth = Metal12FontPtr->String_Pixel_Width(Fetch_String(TXT_TAB_SIDEBAR));
-		int left = centre - (GLYPH + GAP + textwidth) / 2;
-		int glyph = Draw_Pad_Glyph_Fitted(surface, PAD_BUTTON_FOURTH, left, (HEIGHT - GLYPH) / 2, GLYPH);
-		if (glyph > 0) {
-			centre = left + glyph + GAP + textwidth / 2;
-		}
-	}
-	Fancy_Text_Print(TXT_TAB_SIDEBAR, surface, surface.Get_Rect(), Point2D(centre, 0), ColorSchemes[0], TBLACK, TextPrintType(TPF_USE_GRAD_PAL | TPF_CENTER | TPF_METAL12));
-}
-
-
 void TabClass::Draw_Credits_Tab(void)
 {
 	Draw_Shape(*SidebarSurface, *SidebarDrawer, TabShape, 2, Point2D(0, 0), SidebarSurface->Get_Rect());
@@ -268,7 +272,7 @@ void TabClass::Draw_Credits_Tab(void)
 /// </summary>
 void TabClass::Print_Credits(char const * text)
 {
-	Fancy_Text_Print(text, *SidebarSurface, SidebarSurface->Get_Rect(), Point2D(SidebarSurface->Get_Width() / 2, 0), ColorSchemes[0], TBLACK, TextPrintType(TPF_USE_GRAD_PAL | TPF_CENTER | TPF_METAL12));
+	Fancy_Text_Print("%s", *SidebarSurface, SidebarSurface->Get_Rect(), Point2D(SidebarSurface->Get_Width() / 2, 0), ColorSchemes[0], TBLACK, TextPrintType(TPF_USE_GRAD_PAL | TPF_CENTER | TPF_METAL12), text);
 }
 
 
@@ -338,13 +342,13 @@ void TabClass::AI(KeyNumType &input, Point2D const & xy)
 			if (ok) {
 				if (input == KN_LMOUSE) {
 					int sel = 0;
-					// A split bar's positions arrive brought onto the frame's map columns, so
-					// the tab's width is brought onto them too, and the Sidebar tab at the
-					// bar's far end slides the panel in.
+					// Clicks on a split bar arrive in the frame's map columns, so the tab widths
+					// are scaled to match; a click on the Sidebar tab slides the panel in.
 					int tabwidth = EVA_WIDTH * 2/*RESFACTOR*/;
 					if (TabSurface != NULL && TabSurface->Get_Width() > 0) {
-						tabwidth = tabwidth * TacticalRect.Width / TabSurface->Get_Width();
-						int sidebartab = (TabSurface->Get_Width() - TabShape->Get_Width()) * TacticalRect.Width / TabSurface->Get_Width();
+						VideoScaleInfo const & layout = Video_Get_Scale_Info();
+						tabwidth = layout.Bar_To_Frame_X(tabwidth) - layout.Tactical_X();
+						int sidebartab = layout.Bar_To_Frame_X(TabSurface->Get_Width() - TabShape->Get_Width());
 						if (xy.X >= sidebartab && xy.X < TacticalRect.X + TacticalRect.Width) {
 							Pad_Panel_Show(false, false);
 							input = KN_NONE;

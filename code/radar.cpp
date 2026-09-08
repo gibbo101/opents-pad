@@ -485,16 +485,10 @@ void RadarClass::AI(KeyNumType & input, Point2D const & xy)
 /// </summary>
 void RadarClass::Jump_To_Radar_Cell(Cell cell)
 {
-	if (cell.X == 0 && cell.Y == 0) return;
+	if (cell == CELL_NONE) return;
 
-	/*
-	 * The tactical map is isometric, so the click is kept on the playable
-	 * area by clamping the diagonal coordinates rather than X and Y directly:
-	 * (cell.X - cell.Y) is the horizontal screen axis (side_edge) and
-	 * (cell.X + cell.Y) is the vertical axis (top_edge/bottom_edge). Each
-	 * limit is the play area pulled in by half the tactical view, so the view
-	 * stays on the map.
-	 */
+	// The map is isometric, so the click is clamped on the diagonal axes (X - Y across,
+	// X + Y down), each limit pulled in by half the view so the view stays on the map.
 	int side_edge = Map.PlayRect.Width - (TacticalRect.Width / ISO_TILE_PIXEL_W + 2) / 2 - 1;
 	int half_view_height = TacticalRect.Height / (2 * ISO_TILE_PIXEL_H);
 	int top_edge = half_view_height + Map.PlayRect.Width + 1;
