@@ -90,7 +90,7 @@ The pointer stays on the map; the sidebar is worked by the pad, below.
 | Cancel a mode, deselect | Circle, as a right mouse tap |
 | Deploy the selected unit | L3 |
 | Centre the view on the base | R3 |
-| Scatter | R2 |
+| Scatter, or in waypoint mode take back the last waypoint | R2 |
 | Guard | R1 with R2 |
 | Force fire at the pointer | R1 with L1 |
 | Force move to the pointer | R1 with L2 |
@@ -126,8 +126,9 @@ against a human player in a game with allies on.
 ### Waypoints
 
 Square cycles the sidebar's modes from the map: repair, sell, power,
-waypoint, off. In waypoint mode Cross places waypoints and Circle takes back
-the last one while the path has one.
+waypoint, off, passing over any the game refuses, so with no buildings it
+goes straight to waypoints. In waypoint mode Cross places waypoints and R2
+takes back the last one while the path has one; Circle stays deselect.
 
 ### Zoom
 

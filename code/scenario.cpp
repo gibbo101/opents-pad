@@ -112,6 +112,7 @@
 #include "language/language.h"
 #include "light.h"
 #include "logic.h"
+#include "gamepad.h"
 #include "mainopt.h"
 #include "mapgen.h"
 #include "mapsel.h"
@@ -794,6 +795,7 @@ bool Read_Scenario(char const * fname)
 	Progress.End();
 	if (!Debug_Map) {
 		Play_Display_Mode();
+		Gamepad_Centre_Pointer();
 	}
 
 	BEnd(BENCH_SCENARIO);

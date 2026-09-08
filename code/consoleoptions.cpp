@@ -14,6 +14,7 @@
 #include "_map.h"
 #include "consolemenu.h"
 #include "data.h"
+#include "dsurface.h"
 #include "gamepad.h"
 #include "globals.h"
 #include "goptions.h"
@@ -25,6 +26,7 @@
 #include "video.h"
 
 #include <algorithm>
+#include <cmath>
 #include <string>
 #include <vector>
 
@@ -155,49 +157,218 @@ bool Console_Audio_Screen(bool in_game)
 /// Lists what the controller's buttons do, each with its glyph, and notes that the bindings
 /// are not final while the in-game scheme is still to come.
 /// </summary>
+// The pad drawn on the Controls screen, in the units of docs/controller-layout.svg with the
+// pad's own origin, scaled to fit beside the labels.
+namespace {
+
+struct PadSpotType
+{
+	int X;
+	int Y;
+};
+
+enum PadPartType {
+	PAD_PART_FOURTH,
+	PAD_PART_BACK,
+	PAD_PART_THIRD,
+	PAD_PART_ACCEPT,
+	PAD_PART_L2,
+	PAD_PART_L1,
+	PAD_PART_R2,
+	PAD_PART_R1,
+	PAD_PART_DPAD,
+	PAD_PART_LEFT_STICK,
+	PAD_PART_RIGHT_STICK,
+	PAD_PART_VIEW,
+	PAD_PART_MENU,
+};
+
+// Where each part sits, in the drawing's units.
+PadSpotType const _PadSpots[] = {
+	{300, 88}, {335, 120}, {265, 120}, {300, 152},
+	{60, 10}, {60, 35}, {300, 10}, {300, 35},
+	{60, 120}, {120, 185}, {240, 185},
+	{154, 104}, {206, 104},
+};
+
+struct PadCalloutType
+{
+	PadPartType Part;
+	char const * Name[4];		// By prompt style: text, Xbox, PlayStation, Deck; NULL draws the face glyph.
+	char const * Line1;
+	char const * Line2;
+};
+
+struct PadPageType
+{
+	char const * Title;
+	PadCalloutType const * Callouts;
+	int Count;
+};
+
+PadCalloutType const _FacePage[] = {
+	{PAD_PART_FOURTH, {NULL, NULL, NULL, NULL}, "Into the sidebar", "and back to the map"},
+	{PAD_PART_BACK, {NULL, NULL, NULL, NULL}, "Cancel, deselect", "Sidebar: hold, cancel, back"},
+	{PAD_PART_ACCEPT, {NULL, NULL, NULL, NULL}, "Select, order, place", "Hold still: all of a type"},
+	{PAD_PART_THIRD, {NULL, NULL, NULL, NULL}, "Cycle repair, sell,", "power and waypoint"},
+};
+PadCalloutType const _ShoulderPage[] = {
+	{PAD_PART_L2, {"LT", "LT", "L2", "L2"}, "Shape: make team 1 to 4", "With R1: force move"},
+	{PAD_PART_L1, {"LB", "LB", "L1", "L1"}, "Shape: select team 1 to 4", "With R1: force fire"},
+	{PAD_PART_R2, {"RT", "RT", "R2", "R2"}, "Scatter. With R1: guard", "Waypoints: undo the last"},
+	{PAD_PART_R1, {"RB", "RB", "R1", "R1"}, "Hold: fast pointer", "With B: build again"},
+};
+PadCalloutType const _StickPage[] = {
+	{PAD_PART_DPAD, {"D-pad", "D-pad", "D-pad", "D-pad"}, "Move the pointer", "Sidebar: move the focus"},
+	{PAD_PART_LEFT_STICK, {"Left stick", "Left stick", "Left stick", "Left stick"}, "Move the pointer", "Click: deploy"},
+	{PAD_PART_VIEW, {"View", "View", "Share", "View"}, "Ally with the owner", "of the selected unit"},
+	{PAD_PART_RIGHT_STICK, {"Right stick", "Right stick", "Right stick", "Right stick"}, "Scroll the map", "With R1: zoom. Click: base"},
+	{PAD_PART_MENU, {"Menu", "Menu", "Options", "Menu"}, "Pause menu", "Setup screens: keyboard"},
+};
+PadPageType const _PadPages[] = {
+	{"Face buttons", _FacePage, 4},
+	{"Shoulders", _ShoulderPage, 4},
+	{"Sticks and menu buttons", _StickPage, 5},
+};
+enum { PAD_PAGE_COUNT = 3 };
+
+
+int Pixel_Of(int red, int green, int blue)
+{
+	return(DSurface::Build_Hicolor_Pixel(red, green, blue));
+}
+
+
+void Fill_Ellipse(Surface & surface, int cx, int cy, int rx, int ry, int color)
+{
+	for (int dy = -ry; dy <= ry; dy++) {
+		double share = 1.0 - (double(dy) * dy) / (double(ry) * ry);
+		int half = int(rx * sqrt(share < 0.0 ? 0.0 : share));
+		surface.Fill_Rect(Rect(cx - half, cy + dy, half * 2 + 1, 1), color);
+	}
+}
+
+
+void Fill_Pill(Surface & surface, Rect const & box, int color)
+{
+	int radius = box.Height / 2;
+	surface.Fill_Rect(Rect(box.X + radius, box.Y, box.Width - radius * 2, box.Height), color);
+	Fill_Ellipse(surface, box.X + radius, box.Y + radius, radius, radius, color);
+	Fill_Ellipse(surface, box.X + box.Width - radius - 1, box.Y + radius, radius, radius, color);
+}
+
+
+// Draws the pad with its origin at x, y and the drawing's units times scale; returns
+// where a part's centre landed.
+Point2D Pad_Point(int x, int y, double scale, PadPartType part)
+{
+	return(Point2D(x + int(_PadSpots[part].X * scale), y + int(_PadSpots[part].Y * scale)));
+}
+
+
+void Draw_Pad(Surface & surface, int x, int y, double scale, int glyph)
+{
+	int body = Pixel_Of(84, 84, 82);
+	int shoulder = Pixel_Of(64, 64, 62);
+	int part = Pixel_Of(120, 120, 116);
+	int cap = Pixel_Of(150, 150, 146);
+	auto at = [&](int px, int py) { return(Point2D(x + int(px * scale), y + int(py * scale))); };
+	auto size = [&](int value) { return(std::max(1, int(value * scale))); };
+
+	Fill_Pill(surface, Rect(at(15, 0).X, at(15, 0).Y, size(90), size(20)), shoulder);
+	Fill_Pill(surface, Rect(at(15, 24).X, at(15, 24).Y, size(90), size(22)), shoulder);
+	Fill_Pill(surface, Rect(at(255, 0).X, at(255, 0).Y, size(90), size(20)), shoulder);
+	Fill_Pill(surface, Rect(at(255, 24).X, at(255, 24).Y, size(90), size(22)), shoulder);
+	Fill_Pill(surface, Rect(at(0, 50).X, at(0, 50).Y, size(360), size(170)), body);
+	Fill_Ellipse(surface, at(45, 230).X, at(45, 230).Y, size(55), size(85), body);
+	Fill_Ellipse(surface, at(315, 230).X, at(315, 230).Y, size(55), size(85), body);
+	// The d-pad.
+	surface.Fill_Rect(Rect(at(48, 85).X, at(48, 85).Y, size(24), size(70)), part);
+	surface.Fill_Rect(Rect(at(25, 108).X, at(25, 108).Y, size(70), size(24)), part);
+	// The sticks.
+	Fill_Ellipse(surface, at(120, 185).X, at(120, 185).Y, size(26), size(26), part);
+	Fill_Ellipse(surface, at(240, 185).X, at(240, 185).Y, size(26), size(26), part);
+	Fill_Ellipse(surface, at(120, 185).X, at(120, 185).Y, size(16), size(16), cap);
+	Fill_Ellipse(surface, at(240, 185).X, at(240, 185).Y, size(16), size(16), cap);
+	// View and menu.
+	surface.Fill_Rect(Rect(at(142, 98).X, at(142, 98).Y, size(24), size(12)), part);
+	surface.Fill_Rect(Rect(at(194, 98).X, at(194, 98).Y, size(24), size(12)), part);
+	// The face buttons carry the player's glyphs.
+	static PadButtonType const _faces[4] = {PAD_BUTTON_FOURTH, PAD_BUTTON_BACK, PAD_BUTTON_THIRD, PAD_BUTTON_ACCEPT};
+	for (int index = 0; index < 4; index++) {
+		Point2D centre = Pad_Point(x, y, scale, PadPartType(PAD_PART_FOURTH + index));
+		Fill_Ellipse(surface, centre.X, centre.Y, size(14), size(14), cap);
+		// Plain text prompts draw no glyph; the callout names the button instead.
+		Draw_Pad_Glyph(surface, _faces[index], centre.X - glyph / 2, centre.Y - glyph / 2, glyph);
+	}
+}
+
+}  // namespace
+
+
+/// <summary>
+/// Runs the Controls screen: the pad drawn beside a page of its buttons, each ringed and
+/// joined to what it does, with left and right stepping through the pages.
+/// </summary>
 void Console_Controls_Screen(void)
 {
-	enum { FIRST_Y = 48, PITCH = 24, GLYPH_GAP = 8, NOTE_Y = 336 };
-	struct BindingType {
-		char const * Action;
-		char const * Button;
-		int Glyph;			// A PadButtonType, or -1 for none.
-	};
-	static BindingType const _bindings[] = {
-		{"Move", "D-pad or left stick", -1},
-		{"Change a value", "Left or Right", -1},
-		{"Step by five", "LB or RB with Left or Right", -1},
-		{"Accept, select", "A", PAD_BUTTON_ACCEPT},
-		{"Back", "B", PAD_BUTTON_BACK},
-		{"Start the game", "Start, on a setup screen", PAD_BUTTON_MENU},
-		{"Pause menu", "Start, in play", PAD_BUTTON_MENU},
-		{"Keyboard delete", "X", PAD_BUTTON_THIRD},
-		{"Keyboard space", "Y", PAD_BUTTON_FOURTH},
-		{"Switch to controller", "Start and B held together", -1},
-	};
+	// The pad sits mid-screen; parts on its left half are labelled to the left and the rest
+	// to the right, so every line is short and none crosses the pad or another line.
+	enum { PAGE_Y = 44, PAD_Y = 110, PAD_WIDTH = 222, COLUMN_GAP = 14, LABEL_TOP = 96, LABEL_GAP = 10, RING = 3 };
+	const double PAD_SCALE = PAD_WIDTH / 360.0;
+	int page = 0;
 
 	ConsoleMenuClass menu("Controls");
 	menu.Set_Prompts("", "Back");
-	int y = FIRST_Y;
-	for (BindingType const & binding : _bindings) {
-		ConsoleRowType row = {binding.Action, [&binding]{ return(std::string(binding.Button)); }, nullptr, nullptr};
-		row.Y = y;
-		menu.Add_Row(row);
-		y += PITCH;
-	}
-	ConsoleRowType note = {"Controls are not final yet: the in-game scheme is still to come", nullptr, nullptr, nullptr};
-	note.Y = NOTE_Y;
-	note.Quiet = true;
-	menu.Add_Row(note);
+	ConsoleRowType row = {"Page", [&]{ return(std::string(_PadPages[page].Title) + "  " + std::to_string(page + 1) + "/" + std::to_string(int(PAD_PAGE_COUNT))); },
+		[&](int step) { page = Wrap(page + step, 0, PAD_PAGE_COUNT - 1); }, nullptr};
+	row.Y = PAGE_Y;
+	menu.Add_Row(row);
 	menu.Set_Backdrop_Panel([&](ConsoleCanvas & canvas) {
-		int glyph = canvas.LineHeight + 4;
-		int row_y = FIRST_Y;
-		for (BindingType const & binding : _bindings) {
-			if (binding.Glyph >= 0) {
-				int x = canvas.Box.X + ConsoleMenuClass::Value_Left() + canvas.Width(binding.Button) + GLYPH_GAP;
-				Draw_Pad_Glyph(canvas.Frame, PadButtonType(binding.Glyph), x, canvas.Box.Y + row_y - 2, glyph);
+		int glyph = canvas.LineHeight + 2;
+		int x = canvas.Box.X + (canvas.Box.Width - PAD_WIDTH) / 2;
+		int y = canvas.Box.Y + PAD_Y;
+		Draw_Pad(canvas.Frame, x, y, PAD_SCALE, glyph);
+
+		int yellow = Pixel_Of(248, 216, 48);
+		RGBClass gold(248, 216, 48);
+		PadPageType const & shown = _PadPages[page];
+		int style = Resolved_Prompt_Style();
+		int name_index = style == PROMPT_STYLE_XBOX ? 1 : style == PROMPT_STYLE_PLAYSTATION ? 2 : style == PROMPT_STYLE_DECK ? 3 : 0;
+		int pitch = canvas.LineHeight * 3 + LABEL_GAP;
+		int radius = int(16 * PAD_SCALE) + RING;
+		int next_y[2] = {canvas.Box.Y + LABEL_TOP, canvas.Box.Y + LABEL_TOP};
+		for (int index = 0; index < shown.Count; index++) {
+			PadCalloutType const & callout = shown.Callouts[index];
+			Point2D centre = Pad_Point(x, y, PAD_SCALE, callout.Part);
+			bool right = _PadSpots[callout.Part].X >= 180;
+			// A label sits level with its part when the column has room, else below the last.
+			int label_y = std::max(next_y[right], centre.Y - canvas.LineHeight - canvas.LineHeight / 2);
+			next_y[right] = label_y + pitch;
+			int column_x = right ? x + PAD_WIDTH + COLUMN_GAP : canvas.Box.X + 12;
+			int column_edge = right ? column_x - 6 : x - COLUMN_GAP + 6;
+
+			canvas.Frame.Draw_Ellipse(centre, radius, radius, canvas.Box, yellow);
+			// From the ring, level to the column's edge, up or down to the label, then in.
+			int line_y = label_y + canvas.LineHeight / 2;
+			Point2D from(centre.X + (right ? radius + 1 : -radius - 1), centre.Y);
+			canvas.Frame.Draw_Line(from, Point2D(column_edge, from.Y), yellow);
+			canvas.Frame.Draw_Line(Point2D(column_edge, from.Y), Point2D(column_edge, line_y), yellow);
+			canvas.Frame.Draw_Line(Point2D(column_edge, line_y), Point2D(column_edge + (right ? 4 : -4), line_y), yellow);
+
+			if (callout.Name[name_index] != NULL) {
+				canvas.PrintColor(callout.Name[name_index], column_x, label_y, gold);
+			} else {
+				static PadButtonType const _faces[4] = {PAD_BUTTON_FOURTH, PAD_BUTTON_BACK, PAD_BUTTON_THIRD, PAD_BUTTON_ACCEPT};
+				static char const * const _face_names[4] = {"Y", "B", "X", "A"};
+				if (Draw_Pad_Glyph(canvas.Frame, _faces[callout.Part - PAD_PART_FOURTH], column_x, label_y - 1, glyph) == 0) {
+					canvas.PrintColor(_face_names[callout.Part - PAD_PART_FOURTH], column_x, label_y, gold);
+				}
 			}
-			row_y += PITCH;
+			canvas.Print(callout.Line1, column_x, label_y + canvas.LineHeight, false);
+			if (callout.Line2[0] != '\0') {
+				canvas.Print(callout.Line2, column_x, label_y + canvas.LineHeight * 2, false);
+			}
 		}
 	});
 	menu.Process();

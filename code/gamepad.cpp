@@ -434,10 +434,10 @@ static void Select_Combat_On_Map(void)
 }
 
 
-// The pointer's motion is applied by a multimedia timer every few milliseconds, so it
-// moves in small steps however slowly the game draws frames. The game thread sets the
-// velocity and the box the pointer keeps to; the timer moves the OS pointer and banks
-// the travel the box refused, which the game thread turns into map scrolling.
+// The pointer's motion is applied by a multimedia timer at 60 Hz, so it moves in small
+// steps however slowly the game draws frames. The game thread sets the velocity and the
+// box the pointer keeps to; the timer moves the OS pointer and banks the travel the box
+// refused, which the game thread turns into map scrolling.
 struct PointerMotionType
 {
 	float VelocityX;		// Screen pixels per second.
@@ -454,10 +454,21 @@ static PointerMotionType _Motion = {};
 static CRITICAL_SECTION _MotionLock;
 static bool _MotionLockReady = false;
 static MMRESULT _MotionTimer = 0;
+static DWORD _MotionOwner = 0;			// The game thread, whose input state the mover shares.
+static DWORD _MotionAttached = 0;		// The timer thread already attached to it, or zero.
+static bool _MotionAttachFailed = false;
 
 static void CALLBACK Pointer_Motion_Tick(UINT, UINT, DWORD_PTR, DWORD_PTR, DWORD_PTR)
 {
 	enum { TICK_CAP_MS = 50 };
+	// The pointer shown belongs to the thread that moves it, so the mover shares the game
+	// thread's input state and the game's cursor and its hiding stay the game thread's.
+	DWORD self = GetCurrentThreadId();
+	if (_MotionAttached != self && _MotionOwner != 0 && _MotionOwner != self) {
+		_MotionAttachFailed = !AttachThreadInput(self, _MotionOwner, TRUE);
+		_MotionAttached = self;
+		DebugString("Pad pointer thread %s the game thread's input\n", _MotionAttachFailed ? "could not join" : "joined");
+	}
 	EnterCriticalSection(&_MotionLock);
 	unsigned long now = timeGetTime();
 	float dt = std::min<unsigned long>(now - _Motion.Last, TICK_CAP_MS) / 1000.0f;
@@ -476,9 +487,18 @@ static void CALLBACK Pointer_Motion_Tick(UINT, UINT, DWORD_PTR, DWORD_PTR, DWORD
 			long wanted_y = at.y + dy;
 			at.x = std::clamp<long>(wanted_x, _Motion.Box.left, _Motion.Box.right - 1);
 			at.y = std::clamp<long>(wanted_y, _Motion.Box.top, _Motion.Box.bottom - 1);
-			// The pointer shown follows the thread that moves it, so this thread carries the
-			// game's own; without it the pointer vanished while the pad moved it.
-			SetCursor(Win_Cursor_Current());
+			// Without the shared input state this thread carries the game's cursor itself,
+			// never the hidden one the game shows for a moment around each draw.
+			if (_MotionAttachFailed) {
+				static HCURSOR _carried = NULL;
+				HCURSOR current = Win_Cursor_Current();
+				if (current != NULL) {
+					_carried = current;
+				}
+				if (_carried != NULL) {
+					SetCursor(_carried);
+				}
+			}
 			SetCursorPos(at.x, at.y);
 			_Motion.EdgeX += float(wanted_x - at.x);
 			_Motion.EdgeY += float(wanted_y - at.y);
@@ -493,11 +513,12 @@ static void CALLBACK Pointer_Motion_Tick(UINT, UINT, DWORD_PTR, DWORD_PTR, DWORD
 // since the last call, in screen pixels.
 static void Pointer_Motion_Set(float vx, float vy, RECT const & box, bool active, float & edge_x, float & edge_y)
 {
-	enum { TICK_MS = 4 };
+	enum { TICK_MS = 16 };		// A warp a frame at 60 Hz; the Deck's compositor hides a pointer warped much faster.
 	if (!_MotionLockReady) {
 		InitializeCriticalSection(&_MotionLock);
 		_MotionLockReady = true;
 	}
+	_MotionOwner = GetCurrentThreadId();
 	EnterCriticalSection(&_MotionLock);
 	_Motion.VelocityX = vx;
 	_Motion.VelocityY = vy;
@@ -768,18 +789,12 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 	// pointer moves never becomes the mouse's drag scroll: it only cancels or deselects.
 	// With R1 it works the sidebar's parked cell from the map: place, build again, or queue.
 	// With L1 or L2 it belongs to the teams below, so no tap goes out to deselect them.
-	// In waypoint mode it takes back the last waypoint placed while the path has one.
 	if (pressed(pad.Back, previous.Back)) {
 		if (pad.RightShoulder) {
 			Map.Pad_Repeat();
 		} else if (!pad.LeftTrigger && !pad.LeftShoulder) {
-			WaypointPathClass * path = (Map.IsWaypointMode && PlayerPtr->SelectedPath != PATH_NONE) ? PlayerPtr->Paths[PlayerPtr->SelectedPath] : NULL;
-			if (path != NULL && path->Waypoint_Count() > 0) {
-				Execute_Command("DeleteWaypoint");
-			} else {
-				click(MOUSEEVENTF_RIGHTDOWN, true);
-				click(MOUSEEVENTF_RIGHTUP, false);
-			}
+			click(MOUSEEVENTF_RIGHTDOWN, true);
+			click(MOUSEEVENTF_RIGHTUP, false);
 		}
 	}
 
@@ -805,19 +820,24 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 		}
 	}
 	if (pressed(pad.Third, previous.Third) && !pad.LeftTrigger && !pad.LeftShoulder) {
-		if (Map.IsRepairMode) {
-			Map.Repair_Mode_Control(0);
-			Map.Sell_Mode_Control(1);
-		} else if (Map.IsSellMode) {
-			Map.Sell_Mode_Control(0);
-			Map.Power_Mode_Control(1);
-		} else if (Map.IsPowerMode) {
-			Map.Power_Mode_Control(0);
-			Map.Waypoint_Mode_Control(1);
-		} else if (Map.IsWaypointMode) {
-			Map.Waypoint_Mode_Control(0);
-		} else {
-			Map.Repair_Mode_Control(1);
+		// The modes in their order, off last. A mode the engine refuses, as repair, sell and
+		// power do without a building, is passed over so the cycle always moves on.
+		enum { MODE_REPAIR, MODE_SELL, MODE_POWER, MODE_WAYPOINT, MODE_OFF };
+		int current = Map.IsRepairMode ? MODE_REPAIR : Map.IsSellMode ? MODE_SELL : Map.IsPowerMode ? MODE_POWER : Map.IsWaypointMode ? MODE_WAYPOINT : MODE_OFF;
+		auto set_mode = [](int mode, int on) {
+			switch (mode) {
+				case MODE_REPAIR: Map.Repair_Mode_Control(on); return(bool(Map.IsRepairMode) == bool(on));
+				case MODE_SELL: Map.Sell_Mode_Control(on); return(bool(Map.IsSellMode) == bool(on));
+				case MODE_POWER: Map.Power_Mode_Control(on); return(bool(Map.IsPowerMode) == bool(on));
+				case MODE_WAYPOINT: Map.Waypoint_Mode_Control(on); return(bool(Map.IsWaypointMode) == bool(on));
+				default: return(true);
+			}
+		};
+		if (current != MODE_OFF) {
+			set_mode(current, 0);
+		}
+		for (int mode = current == MODE_OFF ? MODE_REPAIR : current + 1; mode < MODE_OFF; mode++) {
+			if (set_mode(mode, 1)) break;
 		}
 	}
 
@@ -900,9 +920,29 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 
 	if (pressed(pad.LeftThumb, previous.LeftThumb)) Execute_Command("DeployObject");
 	if (pressed(pad.RightThumb, previous.RightThumb)) Execute_Command("CenterBase");
-	if (pressed(pad.RightTrigger, previous.RightTrigger)) Execute_Command(pad.RightShoulder ? "GuardObject" : "ScatterObject");
+	// R2 scatters, or with R1 guards; in waypoint mode, where neither has a job, it takes back
+	// the last waypoint placed while the path has one.
+	if (pressed(pad.RightTrigger, previous.RightTrigger)) {
+		WaypointPathClass * path = (Map.IsWaypointMode && PlayerPtr->SelectedPath != PATH_NONE) ? PlayerPtr->Paths[PlayerPtr->SelectedPath] : NULL;
+		if (path != NULL && path->Waypoint_Count() > 0) {
+			Execute_Command("DeleteWaypoint");
+		} else {
+			Execute_Command(pad.RightShoulder ? "GuardObject" : "ScatterObject");
+		}
+	}
 	if (pressed(pad.View, previous.View)) Execute_Command("ToggleAlliance");
 }
+
+void Gamepad_Centre_Pointer(void)
+{
+	if (Options.ControlScheme != CONTROL_CONTROLLER || TacticalRect.Width <= 0) {
+		return;
+	}
+	POINT centre = {TacticalRect.X + TacticalRect.Width / 2, TacticalRect.Y + TacticalRect.Height / 2};
+	Game_Point_To_Screen(centre);
+	SetCursorPos(centre.x, centre.y);
+}
+
 
 void Gamepad_Apply_Zoom(void)
 {

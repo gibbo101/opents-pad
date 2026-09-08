@@ -82,6 +82,7 @@ bool Gamepad_Claim_Synthetic_Click(void);
 /// launch selects the controller scheme, and with none yet the call waits up to the given
 /// time for one. After this the scheme no longer follows the pad.
 /// </summary>
+void Gamepad_Centre_Pointer(void);	// Puts the pointer mid-map as a scenario starts under the controller scheme.
 void Gamepad_Apply_Zoom(void);		// Runs a zoom step the pad asked for; call from the main loop between frames.
 void Gamepad_Settle_Auto_Scheme(unsigned wait_ms);
 
