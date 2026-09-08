@@ -184,6 +184,13 @@ ShapeSet const * SidebarClass::StripClass::DarkenShapes;
 
 void Print_Cameo_Text(char const * string, Point2D const & point, Rect const & cliprect, int maxlinelen);
 
+// The pad's focus outline runs two pixels inside a cell's sides, so under the controller
+// scheme a cell's caption keeps clear of it.
+static int Pad_Caption_Inset(void)
+{
+	return(Options.ControlScheme == CONTROL_CONTROLLER ? 3 : 0);
+}
+
 
 enum CameoCategoryType {
 	CAMEO_CATEGORY_SUPERWEAPON,
@@ -1798,7 +1805,7 @@ void SidebarClass::Draw_Pad_View(void)
 						SidebarSurface->Fill_Rect_Trans(wash, RGBClass(0, 0, 0), 55);
 					}
 					char const * name = bottom && column != 0 ? _PadSectionNames[5] : _PadSectionNames[row];
-					Print_Cameo_Text(name, Point2D(x, y + StripClass::CAMEO_TEXT_Y_OFFSET), cliprect, StripClass::OBJECT_WIDTH - 2);
+					Print_Cameo_Text(name, Point2D(x + Pad_Caption_Inset(), y + StripClass::CAMEO_TEXT_Y_OFFSET), cliprect, StripClass::OBJECT_WIDTH - 2 - 2 * Pad_Caption_Inset());
 				}
 				if (factory_face && row == PAD_KIND_STRUCTURES) {
 					// The side's emblem marks whose column this is, over the factory image alone.
@@ -2839,7 +2846,7 @@ void SidebarClass::StripClass::Draw_Cameo(int index, int x, int y, Rect const & 
 	}
 
 	if (name != NULL) {
-		Print_Cameo_Text(name, Point2D(x, y + CAMEO_TEXT_Y_OFFSET), cliprect, OBJECT_WIDTH-2);
+		Print_Cameo_Text(name, Point2D(x + Pad_Caption_Inset(), y + CAMEO_TEXT_Y_OFFSET), cliprect, OBJECT_WIDTH - 2 - 2 * Pad_Caption_Inset());
 	}
 
 	bool hasqueuecount = false;
