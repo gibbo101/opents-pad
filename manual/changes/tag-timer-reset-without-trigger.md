@@ -4,7 +4,7 @@ category: fix
 release: 0.2.0
 targets:
 - type: system
-  id: triggers
+  id: trigger-springing
   effect: changed
 credit: [gibbo101]
 ---
