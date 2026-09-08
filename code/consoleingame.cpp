@@ -133,11 +133,12 @@ static std::string Save_Box(void)
 	std::string name = Suggested_Save_Name();
 	bool saving = false;
 	while (!saving) {
+		// As on the skirmish screen: accept saves, and the pad's menu button edits the name.
 		ConsoleMenuClass menu("");
 		menu.Set_Prompts("Save", "Back");
 		bool edit = false;
-		menu.Add_Row({"Save As", [&]{ return(name); }, nullptr, [&]{ edit = true; menu.Finish(CONSOLE_MENU_ACCEPT); }});
-		menu.Set_Row_Prompt(0, "Edit");
+		menu.Add_Row({"Save As", [&]{ return(name); }, nullptr, nullptr});
+		menu.Set_Menu_Button("Edit", [&]{ edit = true; menu.Finish(CONSOLE_MENU_ACCEPT); });
 		Box_Rows(menu, "Game Paused", std::string(), menu.Text_Width(name.c_str()));
 		if (menu.Process() != CONSOLE_MENU_ACCEPT) {
 			return(std::string());
