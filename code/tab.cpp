@@ -156,7 +156,7 @@ void TabClass::Draw_It(bool complete)
 			// the pair centred on the tab; a text prompt style draws no glyph.
 			int centre = sidex + (EVA_WIDTH/2) * 2/*RESFACTOR*/;
 			if (Options.ControlScheme == CONTROL_CONTROLLER && Metal12FontPtr != NULL) {
-				enum { GLYPH = 14, GAP = 4 };
+				enum { GLYPH = 16, GAP = 4 };
 				int textwidth = Metal12FontPtr->String_Pixel_Width(Fetch_String(TXT_TAB_BUTTON_CONTROLS));
 				int left = centre - (GLYPH + GAP + textwidth) / 2;
 				int glyph = Draw_Pad_Glyph(bar, PAD_BUTTON_MENU, left, (tab_height - GLYPH) / 2, GLYPH);
@@ -190,25 +190,12 @@ void TabClass::Draw_It(bool complete)
 /// credit display calls this before it prints the new money value.
 /// </summary>
 // Where the timer's right edge falls on the split bar, in its own pixels: left of the
-// credits while those are on the bar, else left of the Sidebar tab at the bar's end or of
-// the sidebar itself once it has slid over that tab.
+// Sidebar tab at the bar's end, or of the sidebar itself once it has slid over that tab.
 int TabClass::Bar_Timer_Right(void)
 {
 	int width = TabSurface->Get_Width();
 	int uncovered = width - int(SidebarClass::SIDE_WIDTH * Video_Sidebar_Slide());
-	int right = std::min(uncovered, width - TabShape->Get_Width());
-	if (Credits_On_Bar()) {
-		right -= TabShape->Get_Width();
-	}
-	return(right);
-}
-
-
-// The credits sit on the bar only while the panel is fully away; the panel carries them
-// on its own strip otherwise.
-bool TabClass::Credits_On_Bar(void)
-{
-	return(TabSurface != NULL && Map.PadPanel == PAD_PANEL_HIDDEN);
+	return(std::min(uncovered, width - TabShape->Get_Width()));
 }
 
 
@@ -216,7 +203,7 @@ bool TabClass::Credits_On_Bar(void)
 // centred, at x on the given surface.
 void TabClass::Draw_Sidebar_Tab(Surface & surface, int x)
 {
-	enum { GLYPH = 14, GAP = 4, HEIGHT = 16 };
+	enum { GLYPH = 16, GAP = 4, HEIGHT = 16 };
 	Draw_Shape(surface, *SidebarDrawer, TabShape, 2, Point2D(x, 0), surface.Get_Rect());
 	int centre = x + TabShape->Get_Width() / 2;
 	if (Metal12FontPtr != NULL) {
@@ -235,14 +222,10 @@ void TabClass::Draw_Credits_Tab(void)
 {
 	Draw_Shape(*SidebarSurface, *SidebarDrawer, TabShape, 2, Point2D(0, 0), SidebarSurface->Get_Rect());
 
-	// The split bar ends in the Sidebar tab, which the sidebar covers when it is in, and
-	// the credits sit left of that tab while the sidebar is away.
+	// The split bar ends in the Sidebar tab, which the sidebar covers when it is in; the
+	// credits are the sidebar's alone, as on the PlayStation.
 	if (TabSurface != NULL) {
-		int width = TabSurface->Get_Width();
-		Draw_Sidebar_Tab(*TabSurface, width - TabShape->Get_Width());
-		if (Credits_On_Bar()) {
-			Draw_Shape(*TabSurface, *SidebarDrawer, TabShape, 2, Point2D(width - 2 * TabShape->Get_Width(), 0), TabSurface->Get_Rect());
-		}
+		Draw_Sidebar_Tab(*TabSurface, TabSurface->Get_Width() - TabShape->Get_Width());
 		Video_Mark_Dirty();
 	}
 
@@ -281,17 +264,11 @@ void TabClass::Draw_Credits_Tab(void)
 
 
 /// <summary>
-/// Prints the credits readout over its tab: on the sidebar's strip, and on the split bar
-/// left of the Sidebar tab while the sidebar is away.
+/// Prints the credits readout over its tab on the sidebar's strip.
 /// </summary>
 void TabClass::Print_Credits(char const * text)
 {
-	TextPrintType style = TextPrintType(TPF_USE_GRAD_PAL | TPF_CENTER | TPF_METAL12);
-	Fancy_Text_Print(text, *SidebarSurface, SidebarSurface->Get_Rect(), Point2D(SidebarSurface->Get_Width() / 2, 0), ColorSchemes[0], TBLACK, style);
-	if (Credits_On_Bar()) {
-		Fancy_Text_Print(text, *TabSurface, TabSurface->Get_Rect(), Point2D(TabSurface->Get_Width() - TabShape->Get_Width() * 3 / 2, 0), ColorSchemes[0], TBLACK, style);
-		Video_Mark_Dirty();
-	}
+	Fancy_Text_Print(text, *SidebarSurface, SidebarSurface->Get_Rect(), Point2D(SidebarSurface->Get_Width() / 2, 0), ColorSchemes[0], TBLACK, TextPrintType(TPF_USE_GRAD_PAL | TPF_CENTER | TPF_METAL12));
 }
 
 
