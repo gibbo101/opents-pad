@@ -348,7 +348,7 @@ void TagClass::Delete_All(void)
 void TagClass::Timer_Global_Reset(int global)
 {
 	// A tag outlives a destroyed trigger with no link to take its place.
-	if (Trigger != NULL) {
+	if (Trigger != nullptr) {
 		Trigger->Reset_Global_Linked_Timed_Events(global);
 	}
 }
@@ -360,7 +360,7 @@ void TagClass::Timer_Global_Reset(int global)
 /// <param name="local">The local variable that just changed.</param>
 void TagClass::Timer_Local_Reset(int local)
 {
-	if (Trigger != NULL) {
+	if (Trigger != nullptr) {
 		Trigger->Reset_Local_Linked_Timed_Events(local);
 	}
 }
