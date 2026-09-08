@@ -1654,6 +1654,7 @@ void SidebarClass::Draw_Pad_View(void)
 				bool has_items = bottom ? super_count > 0 : Pad_Items(section, items, 1) > 0;
 				bool shown = has_items || (bottom ? Pad_Owned_Factory(Pad_Column_House(0), PAD_KIND_STRUCTURES) != NULL : Pad_Section_Shown(row, column));
 				PadItemType active;
+				bool factory_face = false;
 				if (!shown) {
 					// Nothing marks a section the player has no way into yet.
 				} else if (bottom && column == 0 && super_count > 0) {
@@ -1682,6 +1683,7 @@ void SidebarClass::Draw_Pad_View(void)
 						Draw_Shape(*SidebarSurface, *CameoDrawer, icon, 0, Point2D(x, y), cliprect, ShapeFlags_Type(SHAPE_WIN_REL));
 					}
 					bool drawn = icon != NULL || sprite != NULL;
+					factory_face = !bottom && drawn;
 					if (!bottom && drawn) {
 						// A shadow of what the section builds stands over the factory, as in Retaliation.
 						int shadow = row * PAD_COLUMNS + (Pad_Column_House(column) == HOUSE_GOOD ? 0 : 1);
@@ -1705,8 +1707,8 @@ void SidebarClass::Draw_Pad_View(void)
 					char const * name = bottom && column != 0 ? _PadSectionNames[5] : _PadSectionNames[row];
 					Print_Cameo_Text(name, Point2D(x, y + StripClass::CAMEO_TEXT_Y_OFFSET), cliprect, StripClass::OBJECT_WIDTH - 2);
 				}
-				if (shown && row == PAD_KIND_STRUCTURES) {
-					// The side's emblem marks whose column this is.
+				if (factory_face && row == PAD_KIND_STRUCTURES) {
+					// The side's emblem marks whose column this is, over the factory image alone.
 					Surface * emblem = Console_Side_Icon(Pad_Column_House(column) == HOUSE_GOOD);
 					if (emblem != NULL) {
 						Rect source = emblem->Get_Rect();
