@@ -445,6 +445,19 @@ void ScoreClass::Presentation(void)
 	Show_Mouse();
 
 	if (index < NUMFAMENAMES) {
+		// The pad starts from a name already on the board, or the player's handle, so a
+		// returning player accepts rather than types.
+		if (Options.ControlScheme == CONTROL_CONTROLLER && hallfame[index].name[0] == '\0') {
+			char const * last = Session.Handle;
+			for (i = 0; i < NUMFAMENAMES; i++) {
+				if (i != index && hallfame[i].name[0] != '\0') {
+					last = hallfame[i].name;
+					break;
+				}
+			}
+			strncpy(hallfame[index].name, last, MAX_FAMENAME_LENGTH - 1);
+			hallfame[index].name[MAX_FAMENAME_LENGTH - 1] = '\0';
+		}
 		Input_Name(hallfame[index].name, XPos + HALLFAME_X - 4, YPos + HALLFAME_Y + (index * 16));
 	} else {
 		// Under the controller scheme the prompt names the accept button with its glyph.
