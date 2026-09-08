@@ -291,6 +291,12 @@ void Win_Cursor_Refresh(void)
 }
 
 
+HCURSOR Win_Cursor_Current(void)
+{
+	return(_CursorVisible ? _CurrentCursor : NULL);
+}
+
+
 /// <summary>
 /// Releases every cursor the game built.
 /// </summary>

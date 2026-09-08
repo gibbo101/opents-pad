@@ -688,6 +688,9 @@ bool Read_Scenario(char const * fname)
 			players = Session.Players.Count();
 		}
 
+		// The loading screen is shell artwork, so under the controller scheme it shows at the
+		// shell's size and the play size returns once the scenario is in.
+		Shell_Display_Mode();
 		Point2D prog_bar_pos;
 		char const * background = Pick_Load_Background_Name(prog_bar_pos);
 		Apply_Custom_Load_Screen(background, prog_bar_pos);
@@ -789,6 +792,9 @@ bool Read_Scenario(char const * fname)
 	Scen->IsReadingScenario = false;
 
 	Progress.End();
+	if (!Debug_Map) {
+		Play_Display_Mode();
+	}
 
 	BEnd(BENCH_SCENARIO);
 

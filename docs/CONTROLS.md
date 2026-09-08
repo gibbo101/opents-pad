@@ -97,10 +97,10 @@ The pointer stays on the map; the sidebar is worked by the pad, below.
 | Ally with the selected unit's owner | Share |
 | Pause menu | Options |
 
-The left stick answers with a squared response, so a light push is slow
-and a full push is fast. The D-pad starts each press as a nudge and ramps to
-its full pace over the first half second held, so a tap moves a few pixels
-and a hold travels. What the pointer cannot travel past the edge scrolls the
+The left stick moves the pointer at a steady rate for how far it is pushed,
+and the D-pad from half its pace to full within the first moment of a
+press, so a tap stays within a cell and a hold travels at once.
+What the pointer cannot travel past the edge scrolls the
 map at the pointer's own pace, so R1 speeds both alike.
 
 Cross held still for half a second on one of your units selects every unit
@@ -137,8 +137,7 @@ up zooms in a step and down zooms out, one step per push and another every
 quarter second the stick stays pushed. The steps are render heights of 480,
 540, 600, 660, 720, 768, 840, 900, 1080, 1200 and 1440, never taller than
 the screen, with the width on the screen's own shape so there are no bars.
-Each step keeps the middle of the view where it was and says the new size
-in the message list. The size is saved as `PadZoomWidth` and `PadZoomHeight`
+Each step keeps the middle of the view where it was. The size is saved as `PadZoomWidth` and `PadZoomHeight`
 in `SUN.INI`; the first game, or one on a screen of a different shape,
 starts at 768 high, or 600 on a Steam Deck. The options screen's Zoom row
 steps the same sizes. The right stick does not scroll while R1 is held.

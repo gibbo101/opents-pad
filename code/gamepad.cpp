@@ -38,6 +38,7 @@
 #include "voc.h"
 #include "waypoint.h"
 #include "win.h"
+#include "wincursor.h"
 
 #include <Xinput.h>
 
@@ -433,31 +434,129 @@ static void Select_Combat_On_Map(void)
 }
 
 
+// The pointer's motion is applied by a multimedia timer every few milliseconds, so it
+// moves in small steps however slowly the game draws frames. The game thread sets the
+// velocity and the box the pointer keeps to; the timer moves the OS pointer and banks
+// the travel the box refused, which the game thread turns into map scrolling.
+struct PointerMotionType
+{
+	float VelocityX;		// Screen pixels per second.
+	float VelocityY;
+	RECT Box;				// Screen pixels; the pointer stays inside, exclusive of right and bottom.
+	bool Active;
+	float CarryX;
+	float CarryY;
+	float EdgeX;			// Travel the box refused, in screen pixels, for the game thread.
+	float EdgeY;
+	unsigned long Last;
+};
+static PointerMotionType _Motion = {};
+static CRITICAL_SECTION _MotionLock;
+static bool _MotionLockReady = false;
+static MMRESULT _MotionTimer = 0;
+
+static void CALLBACK Pointer_Motion_Tick(UINT, UINT, DWORD_PTR, DWORD_PTR, DWORD_PTR)
+{
+	enum { TICK_CAP_MS = 50 };
+	EnterCriticalSection(&_MotionLock);
+	unsigned long now = timeGetTime();
+	float dt = std::min<unsigned long>(now - _Motion.Last, TICK_CAP_MS) / 1000.0f;
+	_Motion.Last = now;
+	if (_Motion.Active) {
+		_Motion.CarryX += _Motion.VelocityX * dt;
+		_Motion.CarryY += _Motion.VelocityY * dt;
+		int dx = int(_Motion.CarryX);
+		int dy = int(_Motion.CarryY);
+		_Motion.CarryX -= dx;
+		_Motion.CarryY -= dy;
+		if (dx != 0 || dy != 0) {
+			POINT at;
+			GetCursorPos(&at);
+			long wanted_x = at.x + dx;
+			long wanted_y = at.y + dy;
+			at.x = std::clamp<long>(wanted_x, _Motion.Box.left, _Motion.Box.right - 1);
+			at.y = std::clamp<long>(wanted_y, _Motion.Box.top, _Motion.Box.bottom - 1);
+			// The pointer shown follows the thread that moves it, so this thread carries the
+			// game's own; without it the pointer vanished while the pad moved it.
+			SetCursor(Win_Cursor_Current());
+			SetCursorPos(at.x, at.y);
+			_Motion.EdgeX += float(wanted_x - at.x);
+			_Motion.EdgeY += float(wanted_y - at.y);
+		}
+	}
+	LeaveCriticalSection(&_MotionLock);
+}
+
+
+// Sets the pointer's motion for the coming polls, starting the timer on the first active
+// call and stopping it when the pointer comes to rest. Returns the travel the box refused
+// since the last call, in screen pixels.
+static void Pointer_Motion_Set(float vx, float vy, RECT const & box, bool active, float & edge_x, float & edge_y)
+{
+	enum { TICK_MS = 4 };
+	if (!_MotionLockReady) {
+		InitializeCriticalSection(&_MotionLock);
+		_MotionLockReady = true;
+	}
+	EnterCriticalSection(&_MotionLock);
+	_Motion.VelocityX = vx;
+	_Motion.VelocityY = vy;
+	_Motion.Box = box;
+	if (active && !_Motion.Active) {
+		_Motion.CarryX = 0.0f;
+		_Motion.CarryY = 0.0f;
+		_Motion.Last = timeGetTime();
+	}
+	_Motion.Active = active;
+	edge_x = _Motion.EdgeX;
+	edge_y = _Motion.EdgeY;
+	_Motion.EdgeX = 0.0f;
+	_Motion.EdgeY = 0.0f;
+	LeaveCriticalSection(&_MotionLock);
+	if (active && _MotionTimer == 0) {
+		_MotionTimer = timeSetEvent(TICK_MS, 1, Pointer_Motion_Tick, 0, TIME_PERIODIC | TIME_CALLBACK_FUNCTION);
+	} else if (!active && _MotionTimer != 0) {
+		timeKillEvent(_MotionTimer);
+		_MotionTimer = 0;
+	}
+}
+
+
+static void Pointer_Motion_Stop(void)
+{
+	if (_MotionTimer == 0) return;
+	RECT none = {};
+	float edge_x;
+	float edge_y;
+	Pointer_Motion_Set(0.0f, 0.0f, none, false, edge_x, edge_y);
+}
+
+
 // The pad in play: the left stick and the d-pad move the pointer, R1 speeds
 // it, and cross and circle are the mouse buttons, posted as the messages a mouse would send
 // so every tactical behaviour follows.
 static void Play_Input(GamepadStateType const & pad, GamepadStateType const & previous, unsigned long now)
 {
 	enum { STEP_CAP_MS = 50 };
-	const float PAD_RAMP_MS = 500.0f;		// How long a d-pad hold takes to reach its rate.
 	// The paces at the default setting, each scaled by the player's setting over the default.
 	const float POINTER_RATE = 1.8f * Options.PadPointerSpeed / OptionsClass::PAD_SPEED_DEFAULT;		// Screen heights per second at full stick.
-	const float PAD_RATE = 1.2f * Options.PadPointerSpeed / OptionsClass::PAD_SPEED_DEFAULT;			// The d-pad's rate once a hold has ramped up.
-	const float PAD_START = 0.2f;		// The share of that rate a press starts at, so a tap nudges.
+	const float PAD_RATE = 1.2f * Options.PadPointerSpeed / OptionsClass::PAD_SPEED_DEFAULT;			// The d-pad's full rate.
+	const float PAD_START = 0.5f;		// The share of that rate a press starts at, so a tap stays within a cell.
+	const float PAD_RAMP_MS = 150.0f;	// How long a press takes to reach the full rate, short enough not to be felt.
 	const float FAST_FACTOR = 1.0f + 1.2f * Options.PadFastSpeed / OptionsClass::PAD_SPEED_DEFAULT;
 	static unsigned long _last = 0;
-	static unsigned long _pad_since = 0;
-	static float _carry_x = 0.0f;
-	static float _carry_y = 0.0f;
 
 	float dt = (_last == 0 ? 16 : std::min<unsigned long>(now - _last, STEP_CAP_MS)) / 1000.0f;
 	_last = now;
 
-	// The stick's response is squared for fine control near the centre.
-	float vx = pad.StickX * (pad.StickX < 0 ? -pad.StickX : pad.StickX) * POINTER_RATE;
-	float vy = -pad.StickY * (pad.StickY < 0 ? -pad.StickY : pad.StickY) * POINTER_RATE;
+	// The stick's response is straight: a squared curve read as the pointer speeding up and
+	// slowing down under the thumb.
+	float vx = pad.StickX * POINTER_RATE;
+	float vy = -pad.StickY * POINTER_RATE;
 
-	// The d-pad ramps from a nudge to its rate over the first half second held.
+	// The d-pad starts at half pace and is at full pace before a tap is over, so a tap
+	// stays short and a hold travels; a slower ramp read as the pointer speeding up.
+	static unsigned long _pad_since = 0;
 	bool pad_held = pad.PadLeft || pad.PadRight || pad.PadUp || pad.PadDown;
 	if (!pad_held) {
 		_pad_since = 0;
@@ -496,29 +595,20 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 		corner.y = std::min(corner.y, bottom_right.y - 1);
 	}
 
-	_carry_x += vx * dt * height;
-	_carry_y += vy * dt * height;
-	int dx = int(_carry_x);
-	int dy = int(_carry_y);
-	_carry_x -= dx;
-	_carry_y -= dy;
-	if ((dx != 0 || dy != 0) && !Map.PadFocus) {
-		POINT at;
-		GetCursorPos(&at);
-		long wanted_x = at.x + dx;
-		long wanted_y = at.y + dy;
-		at.x = std::clamp<long>(wanted_x, origin.x, corner.x - 1);
-		at.y = std::clamp<long>(wanted_y, origin.y, corner.y - 1);
-		SetCursorPos(at.x, at.y);
-
+	RECT box = {origin.x, origin.y, corner.x, corner.y};
+	bool moving = (vx != 0.0f || vy != 0.0f) && !Map.PadFocus;
+	float refused_x;
+	float refused_y;
+	Pointer_Motion_Set(vx * height, vy * height, box, moving, refused_x, refused_y);
+	if (refused_x != 0.0f || refused_y != 0.0f) {
 		// What the pointer could not travel past the screen's edge scrolls the map instead, so
 		// the view moves at the pointer's own pace and the shoulder speeds both alike.
 		float scale_x = float(VideoModeWidth) / float(corner.x - origin.x);
 		float scale_y = float(VideoModeHeight) / float(corner.y - origin.y);
 		static float _edge_x = 0.0f;
 		static float _edge_y = 0.0f;
-		_edge_x += float(wanted_x - at.x) * scale_x;
-		_edge_y += float(wanted_y - at.y) * scale_y;
+		_edge_x += refused_x * scale_x;
+		_edge_y += refused_y * scale_y;
 		int ex = int(_edge_x);
 		int ey = int(_edge_y);
 		_edge_x -= ex;
@@ -821,11 +911,7 @@ void Gamepad_Apply_Zoom(void)
 	if (steps == 0 || !ScenarioActive || Options.ControlScheme != CONTROL_CONTROLLER) {
 		return;
 	}
-	if (Pad_Zoom_Step(steps)) {
-		char text[64] = "Zoom ";
-		Pad_Zoom_Name(Options.PadZoomWidth, Options.PadZoomHeight, text + strlen(text), int(sizeof(text) - strlen(text)));
-		Announce(text);
-	}
+	Pad_Zoom_Step(steps);
 }
 
 
@@ -955,6 +1041,7 @@ void Gamepad_Pump(void * dialog)
 		_previous = pad;
 		return;
 	}
+	Pointer_Motion_Stop();
 
 	HWND window = (HWND)dialog;
 	if (window != NULL) {
