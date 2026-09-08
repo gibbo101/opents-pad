@@ -99,8 +99,15 @@ The pointer stays on the map; the sidebar is worked by the pad, below.
 
 The left stick moves the pointer at a steady rate for how far it is pushed,
 and the D-pad from half its pace to full within the first moment of a
-press, so a tap stays within a cell and a hold travels at once.
-What the pointer cannot travel past the edge scrolls the
+press, so a tap stays within a cell and a hold travels at once. Both paces
+are distances on the map, so a tap or a push covers the same ground at
+every zoom and on every screen; a wide screen simply takes longer to cross.
+When the stick or D-pad comes to rest with a unit or building near the
+pointer, the pointer settles onto it, so a target is hit without
+pixel-perfect aim; travel is never pulled. The Unit Snap row on the options
+screen sets how near, in eighths of a cell: 4 is half a cell and the
+default, 8 a whole cell, Off leaves the pointer where it stops. It is saved
+as `PadSnap` in `SUN.INI`. What the pointer cannot travel past the edge scrolls the
 map at the pointer's own pace, so R1 speeds both alike.
 
 Cross held still for half a second on one of your units selects every unit

@@ -131,6 +131,13 @@ class OptionsClass {
 		int PadZoomHeight;
 
 		/*
+		 * How far a resting pad pointer is drawn onto a nearby unit or building, in eighths
+		 * of a cell: 0 is off and 4 half a cell.
+		 */
+		int PadSnap;
+		enum { PAD_SNAP_MAX = 10, PAD_SNAP_DEFAULT = 4, PAD_SNAP_STEP = 6 };		// Map pixels per step.
+
+		/*
 		 * This is how much detail the renderer is allowed to draw (0 - 2). Animations, particle
 		 * systems and translucency carry a detail level of their own and are skipped when it
 		 * exceeds this one, so a lower setting buys frame rate at the cost of eye candy.

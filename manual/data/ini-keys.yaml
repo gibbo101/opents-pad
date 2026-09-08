@@ -15215,6 +15215,24 @@ PadScrollSpeed:
       source: code/options.cpp
       guard: null
     level: OptionsClass
+PadSnap:
+  key: PadSnap
+  scopes:
+  - applies_to:
+    - client settings
+    file: sun.ini
+    section:
+      kind: literal
+      name: Options
+    value_type: integer
+    status: generated
+    _provenance:
+      default_candidate: null
+      declared_in: OptionsClass
+      member: null
+      source: code/options.cpp
+      guard: null
+    level: OptionsClass
 PadZoomHeight:
   key: PadZoomHeight
   scopes:

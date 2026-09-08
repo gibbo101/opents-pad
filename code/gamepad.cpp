@@ -15,6 +15,7 @@
 #include "_map.h"
 #include "_rect.h"
 #include "_rules.h"
+#include "_tactica.h"
 #include "builtype.h"
 #include "cell.h"
 #include "dbgprint.h"
@@ -26,12 +27,15 @@
 #include "init.h"
 #include "mainopt.h"
 #include "misc.h"
+#include "object.h"
 #include "options.h"
 #include "rules.h"
 #include "scenario.h"
 #include "session.h"
 #include "super.h"
 #include "suprtype.h"
+#include "tactical.h"
+#include "techno.h"
 #include "unit.h"
 #include "unittype.h"
 #include "vidscale.h"
@@ -513,7 +517,7 @@ static void CALLBACK Pointer_Motion_Tick(UINT, UINT, DWORD_PTR, DWORD_PTR, DWORD
 // since the last call, in screen pixels.
 static void Pointer_Motion_Set(float vx, float vy, RECT const & box, bool active, float & edge_x, float & edge_y)
 {
-	enum { TICK_MS = 16 };		// A warp a frame at 60 Hz; the Deck's compositor hides a pointer warped much faster.
+	enum { TICK_MS = 16 };		// A warp a frame at 60 Hz.
 	if (!_MotionLockReady) {
 		InitializeCriticalSection(&_MotionLock);
 		_MotionLockReady = true;
@@ -550,6 +554,67 @@ static void Pointer_Motion_Stop(void)
 	float edge_x;
 	float edge_y;
 	Pointer_Motion_Set(0.0f, 0.0f, none, false, edge_x, edge_y);
+}
+
+
+// When the pointer comes to rest near a unit or building, it is drawn onto that object's
+// centre, so a target is hit without pixel aim. Travel is untouched, and a pointer already
+// over an object stays where it is.
+static void Snap_Pointer_To_Object(void)
+{
+	enum { SNAP_CELLS = 2 };			// Cells searched each way from the pointer's.
+	int snap_radius = Options.PadSnap * OptionsClass::PAD_SNAP_STEP;		// Map pixels.
+	if (snap_radius <= 0 || Map.PadFocus || TacticalMap == NULL || TacticalRect.Width <= 0) {
+		return;
+	}
+	POINT at;
+	GetCursorPos(&at);
+	Screen_Point_To_Game(at);
+	Point2D local(at.x - TacticalRect.X, at.y - TacticalRect.Y);
+	if (local.X < 0 || local.Y < 0 || local.X >= TacticalRect.Width || local.Y >= TacticalRect.Height) {
+		return;
+	}
+	Cell cell;
+	Coord coord;
+	ObjectClass * under = NULL;
+	bool fog = false;
+	bool shadow = false;
+	Map.Resolve_Point(local, cell, coord, under, fog, shadow);
+	if (under != NULL) {
+		return;
+	}
+	ObjectClass * best = NULL;
+	Point2D best_pixel;
+	int best_distance = snap_radius * snap_radius + 1;
+	for (int dy = -SNAP_CELLS; dy <= SNAP_CELLS; dy++) {
+		for (int dx = -SNAP_CELLS; dx <= SNAP_CELLS; dx++) {
+			Cell around = cell + Cell(dx, dy);
+			if (!Map.In_Radar(around)) continue;
+			for (ObjectClass * object = Map[around].Cell_Occupier(); object != NULL; object = object->Next) {
+				int kind = object->What_Am_I();
+				if (kind != RTTI_UNIT && kind != RTTI_INFANTRY && kind != RTTI_AIRCRAFT && kind != RTTI_BUILDING) continue;
+				// The four kinds are all technos, so the cast holds.
+				TechnoClass * techno = static_cast<TechnoClass *>(object);
+				if (!techno->IsOwnedByPlayer && techno->Cloak == CLOAKED) continue;
+				Point2D pixel;
+				TacticalMap->Coord_To_Pixel(object->Center_Coord(), pixel);
+				int ox = pixel.X - local.X;
+				int oy = pixel.Y - local.Y;
+				int distance = ox * ox + oy * oy;
+				if (distance < best_distance) {
+					best_distance = distance;
+					best = object;
+					best_pixel = pixel;
+				}
+			}
+		}
+	}
+	if (best == NULL || best_pixel == local) {
+		return;
+	}
+	POINT target = {TacticalRect.X + best_pixel.X, TacticalRect.Y + best_pixel.Y};
+	Game_Point_To_Screen(target);
+	SetCursorPos(target.x, target.y);
 }
 
 
@@ -600,7 +665,10 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 	POINT corner = {client.right, client.bottom};
 	ClientToScreen(MainWindow, &origin);
 	ClientToScreen(MainWindow, &corner);
-	float height = float(corner.y - origin.y);
+	// The paces are in map pixels, so a tap or a push covers the same ground at every zoom
+	// and on every panel: a screen of 600 map pixels is the yardstick, the Deck's baseline.
+	enum { PACE_HEIGHT = 600 };
+	float height = float(PACE_HEIGHT) * float(corner.y - origin.y) / float(std::max(VideoModeHeight, 1));
 
 	// In play the pointer keeps to the map: the sidebar is worked by the pad, so reaching
 	// its edge scrolls the view as the screen's edge does.
@@ -621,6 +689,11 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 	float refused_x;
 	float refused_y;
 	Pointer_Motion_Set(vx * height, vy * height, box, moving, refused_x, refused_y);
+	static bool _was_moving = false;
+	if (_was_moving && !moving && !pad.Accept) {
+		Snap_Pointer_To_Object();
+	}
+	_was_moving = moving;
 	if (refused_x != 0.0f || refused_y != 0.0f) {
 		// What the pointer could not travel past the screen's edge scrolls the map instead, so
 		// the view moves at the pointer's own pace and the shoulder speeds both alike.
@@ -661,7 +734,7 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 	enum { SIDEBAR_REPEAT_FIRST_MS = 350, SIDEBAR_REPEAT_NEXT_MS = 120 };
 	static unsigned long _sidebar_repeat_at = 0;
 	static bool _sidebar_held = false;
-	enum { HOLD_MS = 500, WIDEN_MS = 400, DRAG_PIXELS = 3 };
+	enum { HOLD_MS = 500, WIDEN_MS = 400 };
 	static unsigned long _cross_since = 0;
 	static POINT _cross_at = {0, 0};
 	static bool _cross_sent = false;
@@ -747,7 +820,10 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 		int moved_y = at.y - _cross_at.y;
 		if (moved_x < 0) moved_x = -moved_x;
 		if (moved_y < 0) moved_y = -moved_y;
-		if (_cross_stage == 0 && (moved_x > DRAG_PIXELS || moved_y > DRAG_PIXELS)) {
+		// The same distance the engine wants before a held button becomes a band, a
+		// twenty-fifth of the view's height, in the screen's pixels.
+		int drag_pixels = std::max(4, int(float(TacticalRect.Height) / 25.0f * float(corner.y - origin.y) / float(std::max(VideoModeHeight, 1))));
+		if (_cross_stage == 0 && (moved_x > drag_pixels || moved_y > drag_pixels)) {
 			click(MOUSEEVENTF_LEFTDOWN, true);
 			_cross_sent = true;
 		} else if (_cross_stage == 0 && now - _cross_since >= HOLD_MS) {

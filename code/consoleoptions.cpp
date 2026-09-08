@@ -395,6 +395,7 @@ bool Console_Options_Screen(bool in_game)
 	int pointer_speed = Options.PadPointerSpeed;
 	int fast_speed = Options.PadFastSpeed;
 	int scroll_speed = Options.PadScrollSpeed;
+	int snap = Options.PadSnap;
 	int detail = Options.DetailLevel;
 	int difficulty = Options.Difficulty;
 	bool cameo_text = Options.SidebarCameoText;
@@ -429,6 +430,8 @@ bool Console_Options_Screen(bool in_game)
 	menu.Add_Row({"Pointer Speed", [&]{ return(std::to_string(pointer_speed)); }, step_speed(pointer_speed), nullptr});
 	menu.Add_Row({"Fast Pointer", [&]{ return(std::to_string(fast_speed)); }, step_speed(fast_speed), nullptr});
 	menu.Add_Row({"Stick Scroll Speed", [&]{ return(std::to_string(scroll_speed)); }, step_speed(scroll_speed), nullptr});
+	menu.Add_Row({"Unit Snap", [&]{ return(snap == 0 ? std::string("Off") : std::to_string(snap)); },
+		[&](int step) { snap = std::clamp(snap + step, 0, int(OptionsClass::PAD_SNAP_MAX)); }, nullptr});
 	menu.Add_Row({"Detail Level", [&]{ return(std::string(_detail_names[std::clamp(detail, 0, 2)])); },
 		[&](int step) { detail = std::clamp(detail + step, 0, int(OptionsClass::MAX_DETAIL_SETTING) - 1); }, nullptr});
 	// The difficulty is a setting for the next campaign mission, so it is not offered in play.
@@ -471,6 +474,7 @@ bool Console_Options_Screen(bool in_game)
 	Options.PadPointerSpeed = pointer_speed;
 	Options.PadFastSpeed = fast_speed;
 	Options.PadScrollSpeed = scroll_speed;
+	Options.PadSnap = snap;
 	if (Options.DetailLevel != detail) {
 		Options.DetailLevel = detail;
 		Map.Reinit_Cell_Drawers();

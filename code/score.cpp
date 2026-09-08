@@ -61,6 +61,7 @@
 #include "goptions.h"
 #include "consolekeyboard.h"
 #include "options.h"
+#include "gamepad.h"
 #include "padglyph.h"
 #include "houstype.h"
 #include "keyboard.h"
@@ -572,12 +573,20 @@ void ScoreClass::Cycle_Wait_Click(bool cycle)
 	int minclicks = 20;
 
 	Keyboard->Clear();
+	// The pad's accept moves the screen on as a key does, once the opening pause is over.
+	GamepadStateType previous_pad = Gamepad_Read();
 	while (minclicks || (!Keyboard->Check()) ) {
 
 		Call_Back_Delay(1);
 		if (minclicks) {
 			minclicks--;
 			Keyboard->Clear();
+		}
+		GamepadStateType pad = Gamepad_Read();
+		bool accepted = pad.Accept && !previous_pad.Accept;
+		previous_pad = pad;
+		if (!minclicks && accepted) {
+			break;
 		}
 	}
 	Keyboard->Clear();

@@ -28,6 +28,7 @@
 #include "mainopt.h"
 #include "misc.h"
 #include "options.h"
+#include "gamepad.h"
 #include "padglyph.h"
 #include "houstype.h"
 #include "incdec.h"
@@ -332,10 +333,15 @@ bool MultiScore::User_Input(void)
 	if (used > 0) {
 		Draw_Pad_Glyph(*ScoreSurface, PAD_BUTTON_ACCEPT, x, 370 - 2, glyph);
 		Draw_Pad_Glyph(*AlternateSurface, PAD_BUTTON_ACCEPT, XPos + x, YPos + 370 - 2, glyph);
+		// The animation put the text on the screen itself, so the glyph goes there too.
+		Draw_Pad_Glyph(*HiddenSurface, PAD_BUTTON_ACCEPT, XPos + x, YPos + 370 - 2, glyph);
+		Blit_Rect(HiddenSurface, Rect(XPos + x, YPos + 370 - 2, glyph, glyph));
 	}
 
 	Keyboard->Clear();
 
+	// The pad's accept continues too; a button still held from play must not count.
+	GamepadStateType previous_pad = Gamepad_Read();
 	while (running == true) {
 		Wait_For_Focus();
 		if (Keyboard->Check()) {
@@ -349,6 +355,11 @@ bool MultiScore::User_Input(void)
 				running = false;
 				break;
 		}
+		GamepadStateType pad = Gamepad_Read();
+		if (pad.Accept && !previous_pad.Accept) {
+			running = false;
+		}
+		previous_pad = pad;
 		Wait_Delay(1);
 	}
 
