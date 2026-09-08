@@ -165,8 +165,10 @@ with rows for structures, infantry, vehicles and aircraft, and a bottom row
 holding the current superweapon and a cell that cycles to the next. The
 four mode buttons and the radar sit above the grid. The panel starts away
 from the map and slides in over it when the pad takes it, sliding out again
-when the pad leaves unless it is sticky; while it is away the credits sit
-at the right end of the bar. Sticky is remembered between sessions. The bar across the top of the map keeps its
+when the pad leaves unless it is sticky; the bar ends in a Sidebar tab
+with the triangle glyph that a mouse can click, and the credits sit beside
+it while the panel is away and on the panel when it is in. Sticky is
+remembered between sessions. The bar across the top of the map keeps its
 size with the sidebar whatever the zoom, Options with the menu button's
 glyph at its left and the mission timer at its right.
 

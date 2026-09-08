@@ -32,10 +32,17 @@ bool Video_Scaling_Active(void)
 // Does a window position fall on the split sidebar's side of the seam between it and the
 // frame's other columns? Everything past the seam counts, so a position beyond the
 // sidebar's far edge still maps onto the sidebar rather than the map.
+// A split sidebar takes positions beside the frame, or as an overlay once it is fully in;
+// on its way somewhere, or away, nothing lands on it.
+static bool Sidebar_Takes_Points(VideoScaleInfo const & scale)
+{
+	return(scale.Is_Split() && (!scale.SidebarOverlay || Video_Sidebar_Slide() >= 1.0f));
+}
+
+
 static bool Window_Point_On_Sidebar(VideoScaleInfo const & scale, POINT const & point)
 {
-	// An overlay sidebar is on its way somewhere or away, so nothing lands on it.
-	if (!scale.Sidebar_Is_Beside()) {
+	if (!Sidebar_Takes_Points(scale)) {
 		return(false);
 	}
 	return(scale.SidebarOnRight ? point.x >= scale.SidebarDestX : point.x < scale.SidebarDestX + scale.SidebarDestWidth);
@@ -46,7 +53,7 @@ static bool Window_Point_On_Sidebar(VideoScaleInfo const & scale, POINT const & 
 // edge on the sidebar's side counts too.
 static bool Game_Point_On_Sidebar(VideoScaleInfo const & scale, POINT const & point)
 {
-	if (!scale.Sidebar_Is_Beside()) {
+	if (!Sidebar_Takes_Points(scale)) {
 		return(false);
 	}
 	return(scale.SidebarOnRight ? point.x >= scale.Sidebar_X() : point.x < scale.SidebarWidth);

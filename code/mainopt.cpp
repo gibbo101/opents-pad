@@ -430,8 +430,7 @@ bool Play_Display_Mode(void)
 	int width;
 	int height;
 	Pad_Zoom_Size(width, height);
-	bool wide = Map.Pad_Sidebar_Wide();
-	return(Set_Display_Mode_If_Needed(Pad_Frame_Width(height, wide), height, Pad_Sidebar_Height(), wide));
+	return(Set_Display_Mode_If_Needed(width, height, Pad_Sidebar_Height(), true));
 }
 
 
@@ -509,46 +508,20 @@ int Pad_Sidebar_Height(void)
 
 
 // The frame width for a ladder height: the map's columns follow the shape of the panel
-// under the bar and, with the sidebar beside the map, left beside it, both scaled to fill
-// the panel's height with the sidebar's panel; the sidebar's own columns are added, so the
-// frame carries everything at the sizes it is presented at.
-int Pad_Frame_Width(int height, bool wide)
+// under the bar, both scaled to fill the panel's height with the sidebar's panel, and the
+// sidebar's own columns are added, so the frame carries everything at the sizes it is
+// presented at. The sidebar only ever slides over the map, so the map takes the whole
+// width.
+int Pad_Zoom_Width(int height)
 {
 	int panel_width;
 	int panel_height;
 	Panel_Size(panel_width, panel_height);
 	double scale = double(panel_height) / double(Pad_Sidebar_Height());
-	int map_panel_width = std::max(panel_width - (wide ? 0 : int(SidebarClass::SIDE_WIDTH * scale)), 1);
 	int map_panel_height = std::max(panel_height - int(TAB_BAR_HEIGHT * scale), 1);
 	int map_height = std::max(height - TAB_BAR_HEIGHT, 1);
-	int width = int(((long long)map_height * map_panel_width * 2 + map_panel_height) / (map_panel_height * 2));
+	int width = int(((long long)map_height * panel_width * 2 + map_panel_height) / (map_panel_height * 2));
 	return((width & ~1) + SidebarClass::SIDE_WIDTH);
-}
-
-
-// The saved zoom width is the one with the sidebar beside the map.
-int Pad_Zoom_Width(int height)
-{
-	return(Pad_Frame_Width(height, false));
-}
-
-
-/// <summary>
-/// Refits play to the sidebar away from the map or beside it, keeping the map's top left
-/// corner where it is so the picture only grows or shrinks at the sidebar's edge.
-/// </summary>
-void Pad_Sidebar_Frame(bool wide)
-{
-	if (Options.ControlScheme != CONTROL_CONTROLLER || !ScenarioActive || TacticalMap == NULL) {
-		return;
-	}
-	int width;
-	int height;
-	Pad_Zoom_Size(width, height);
-	Point2D corner = TacticalMap->Get_Tactical_Position();
-	if (Set_Display_Mode_If_Needed(Pad_Frame_Width(height, wide), height, Pad_Sidebar_Height(), wide)) {
-		TacticalMap->Set_Tactical_Position(corner);
-	}
 }
 
 
@@ -615,8 +588,7 @@ bool Pad_Zoom_Step(int steps)
 
 	Point2D centre = TacticalMap->Get_Tactical_Position() + Point2D(TacticalRect.Width / 2, TacticalRect.Height / 2);
 	unsigned long started = timeGetTime();
-	bool wide = Map.Pad_Sidebar_Wide();
-	if (!Change_Display_Mode(Pad_Frame_Width(next_height, wide), next_height, Pad_Sidebar_Height(), wide)) {
+	if (!Change_Display_Mode(next_width, next_height, Pad_Sidebar_Height(), true)) {
 		return(false);
 	}
 	DebugString("Pad zoom %dx%d took %lu ms\n", next_width, next_height, timeGetTime() - started);

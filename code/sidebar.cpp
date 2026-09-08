@@ -114,7 +114,8 @@
 #include "savestream.h"
 #include "scheme.h"
 #include "session.h"
-#include "mainopt.h"
+#include "_tactica.h"
+#include "tactical.h"
 #include "video.h"
 #include "shapeset.h"
 #include "super.h"
@@ -414,6 +415,7 @@ void SidebarClass::Init_Clear(void)
 	PadPanel = PAD_PANEL_HIDDEN;
 	PadPinned = false;
 	PadPanelSettled = false;
+	Pad_Panel_Cover(false);
 	Video_Slide_Sidebar(false, 0);
 	Pad_Clear_Sprite_Cache();
 
@@ -1192,13 +1194,29 @@ void SidebarClass::Pad_Panel_Hide(void)
 		}
 		Pad_Focus_Changed();
 	}
-	// The map takes the panel's width back before the panel starts to move, which shows
-	// nothing new since the panel still covers that strip.
-	if (PadPanel == PAD_PANEL_SHOWN) {
-		Pad_Sidebar_Frame(true);
-	}
+	Pad_Panel_Cover(false);
 	PadPanel = PAD_PANEL_SLIDING_OUT;
 	Video_Slide_Sidebar(false, SLIDE_MS);
+}
+
+
+void SidebarClass::Pad_Panel_Cover(bool covering)
+{
+	if (TacticalMap == NULL) {
+		return;
+	}
+	int covered = 0;
+	if (covering) {
+		VideoScaleInfo const & layout = Video_Get_Scale_Info();
+		if (layout.SidebarOverlay && layout.ScaleX > 0.0f) {
+			covered = int(layout.SidebarDestWidth / layout.ScaleX);
+		}
+	}
+	if (TacticalMap->ViewCoveredRight != covered) {
+		TacticalMap->ViewCoveredRight = covered;
+		// A view scrolled into the allowance is pulled back when the allowance goes.
+		TacticalMap->Set_Tactical_Position(TacticalMap->Get_Tactical_Position());
+	}
 }
 
 
@@ -1217,9 +1235,8 @@ void SidebarClass::Pad_Panel_Tick(void)
 		return;
 	}
 	if (PadPanel == PAD_PANEL_SLIDING_IN) {
-		// The panel now covers the strip the map gives up, so the refit shows nothing new.
 		PadPanel = PAD_PANEL_SHOWN;
-		Pad_Sidebar_Frame(false);
+		Pad_Panel_Cover(true);
 	} else if (PadPanel == PAD_PANEL_SLIDING_OUT) {
 		PadPanel = PAD_PANEL_HIDDEN;
 	}

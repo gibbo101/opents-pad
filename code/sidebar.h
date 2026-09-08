@@ -407,7 +407,8 @@ class SidebarClass : public PowerClass
 		};
 		bool PadFocus = false;
 		// The panel slides in over the map when the pad takes it and out again when the pad
-		// leaves, unless it is pinned; beside the map only while fully in.
+		// leaves, unless it is pinned. It only ever covers the map, which keeps its full
+		// width underneath, so showing or hiding it never moves the view.
 		enum PadPanelType { PAD_PANEL_HIDDEN, PAD_PANEL_SLIDING_IN, PAD_PANEL_SHOWN, PAD_PANEL_SLIDING_OUT };
 		PadPanelType PadPanel = PAD_PANEL_HIDDEN;
 		bool PadPinned = false;
@@ -437,7 +438,7 @@ class SidebarClass : public PowerClass
 		void Pad_Panel_Show(bool pin, bool focus);	// Slides the panel in, pinned or not, with the pad on it or not.
 		void Pad_Panel_Hide(void);		// Lets the pad go and slides the panel out.
 		void Pad_Panel_Tick(void);		// Settles a finished slide; call from the main loop between frames.
-		bool Pad_Sidebar_Wide(void) const { return(PadPanel != PAD_PANEL_SHOWN); }	// Does the map take the sidebar's width?
+		void Pad_Panel_Cover(bool covering);	// Tells the view how much of its right the panel hides.
 		void Pad_Leave(void);
 		void Pad_Repeat(void);			// Builds, queues or places what the sidebar's cell holds without taking focus.
 		void Pad_Move(int dx, int dy);

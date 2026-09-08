@@ -38,6 +38,7 @@
 #include "techno.h"
 #include "unit.h"
 #include "unittype.h"
+#include "video.h"
 #include "vidscale.h"
 #include "voc.h"
 #include "waypoint.h"
@@ -682,6 +683,19 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 		origin.y = std::max(origin.y, top_left.y + 1);
 		corner.x = std::min(corner.x, bottom_right.x - 1);
 		corner.y = std::min(corner.y, bottom_right.y - 1);
+		// A panel that is in covers the map's edge, so the pointer stops at the panel instead.
+		VideoScaleInfo const & layout = Video_Get_Scale_Info();
+		if (layout.SidebarOverlay && Map.PadPanel == SidebarClass::PAD_PANEL_SHOWN) {
+			POINT edge = {layout.SidebarDestX, 0};
+			POINT beyond = {layout.SidebarDestX + layout.SidebarDestWidth, 0};
+			ClientToScreen(MainWindow, &edge);
+			ClientToScreen(MainWindow, &beyond);
+			if (layout.SidebarOnRight) {
+				corner.x = std::min(corner.x, edge.x - 1);
+			} else {
+				origin.x = std::max(origin.x, beyond.x + 1);
+			}
+		}
 	}
 
 	RECT box = {origin.x, origin.y, corner.x, corner.y};
@@ -1037,7 +1051,15 @@ void Gamepad_Apply_Zoom(void)
 		_ZoomStep = 0;
 		return;
 	}
+	// The bar's credits ride the panel's edge, so the bar is redrawn through a slide and
+	// once more when it settles.
+	static bool _was_sliding = false;
+	bool sliding = Video_Sidebar_Sliding();
 	Map.Pad_Panel_Tick();
+	if (sliding || _was_sliding) {
+		Map.Redraw_Tab();
+	}
+	_was_sliding = sliding;
 	int steps = _ZoomStep;
 	_ZoomStep = 0;
 	if (steps != 0) {

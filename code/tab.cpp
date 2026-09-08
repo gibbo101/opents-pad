@@ -189,15 +189,45 @@ void TabClass::Draw_It(bool complete)
 /// over, and prints the mission timer alongside it whenever a timer is running. The
 /// credit display calls this before it prints the new money value.
 /// </summary>
-// Where the split bar's right end is, in its own pixels: the bar runs under the sidebar,
-// so the end that shows is short of the sidebar's width while the sidebar is beside the map.
-static int Bar_Visible_Width(void)
+// Where the timer's right edge falls on the split bar, in its own pixels: left of the
+// credits while those are on the bar, else left of the Sidebar tab at the bar's end or of
+// the sidebar itself once it has slid over that tab.
+int TabClass::Bar_Timer_Right(void)
 {
 	int width = TabSurface->Get_Width();
-	if (!Map.Pad_Sidebar_Wide()) {
-		width -= SidebarClass::SIDE_WIDTH;
+	int uncovered = width - int(SidebarClass::SIDE_WIDTH * Video_Sidebar_Slide());
+	int right = std::min(uncovered, width - TabShape->Get_Width());
+	if (Credits_On_Bar()) {
+		right -= TabShape->Get_Width();
 	}
-	return(width);
+	return(right);
+}
+
+
+// The credits sit on the bar only while the panel is fully away; the panel carries them
+// on its own strip otherwise.
+bool TabClass::Credits_On_Bar(void)
+{
+	return(TabSurface != NULL && Map.PadPanel == PAD_PANEL_HIDDEN);
+}
+
+
+// The Sidebar tab: the tab art, the pad's fourth button glyph and the label, the pair
+// centred, at x on the given surface.
+void TabClass::Draw_Sidebar_Tab(Surface & surface, int x)
+{
+	enum { GLYPH = 14, GAP = 4, HEIGHT = 16 };
+	Draw_Shape(surface, *SidebarDrawer, TabShape, 2, Point2D(x, 0), surface.Get_Rect());
+	int centre = x + TabShape->Get_Width() / 2;
+	if (Metal12FontPtr != NULL) {
+		int textwidth = Metal12FontPtr->String_Pixel_Width(Fetch_String(TXT_TAB_SIDEBAR));
+		int left = centre - (GLYPH + GAP + textwidth) / 2;
+		int glyph = Draw_Pad_Glyph(surface, PAD_BUTTON_FOURTH, left, (HEIGHT - GLYPH) / 2, GLYPH);
+		if (glyph > 0) {
+			centre = left + glyph + GAP + textwidth / 2;
+		}
+	}
+	Fancy_Text_Print(TXT_TAB_SIDEBAR, surface, surface.Get_Rect(), Point2D(centre, 0), ColorSchemes[0], TBLACK, TextPrintType(TPF_USE_GRAD_PAL | TPF_CENTER | TPF_METAL12));
 }
 
 
@@ -205,19 +235,23 @@ void TabClass::Draw_Credits_Tab(void)
 {
 	Draw_Shape(*SidebarSurface, *SidebarDrawer, TabShape, 2, Point2D(0, 0), SidebarSurface->Get_Rect());
 
-	// With the sidebar away the credits move to the bar's right end.
-	bool on_bar = TabSurface != NULL && Map.Pad_Sidebar_Wide();
-	if (on_bar) {
-		Draw_Shape(*TabSurface, *SidebarDrawer, TabShape, 2, Point2D(Bar_Visible_Width() - TabShape->Get_Width(), 0), TabSurface->Get_Rect());
+	// The split bar ends in the Sidebar tab, which the sidebar covers when it is in, and
+	// the credits sit left of that tab while the sidebar is away.
+	if (TabSurface != NULL) {
+		int width = TabSurface->Get_Width();
+		Draw_Sidebar_Tab(*TabSurface, width - TabShape->Get_Width());
+		if (Credits_On_Bar()) {
+			Draw_Shape(*TabSurface, *SidebarDrawer, TabShape, 2, Point2D(width - 2 * TabShape->Get_Width(), 0), TabSurface->Get_Rect());
+		}
 		Video_Mark_Dirty();
 	}
 
 	if (Scen->MissionTimer.Is_Active()) {
 		bool light = ((int)Scen->MissionTimer < TICKS_PER_MINUTE * Rule->TimerWarning) || Map.FlasherTimer > 0;
-		// The timer's tab sits at the bar's right end, on the split bar when there is one,
-		// short of the credits when those are on the bar too.
+		// The timer's tab sits at the bar's right end, or on the split bar short of what
+		// else is there.
 		Surface & bar = TabSurface != NULL ? *TabSurface : *CompositeSurface;
-		int barwidth = TabSurface != NULL ? Bar_Visible_Width() - (on_bar ? TabShape->Get_Width() : 0) : TacticalRect.Width;
+		int barwidth = TabSurface != NULL ? Bar_Timer_Right() : TacticalRect.Width;
 		Draw_Shape(bar, *SidebarDrawer, TabShape, /*light ? 4 :*/ 2, Point2D(barwidth - TabShape->Get_Width(), 0), bar.Get_Rect());
 
 		int time = Scen->MissionTimer;
@@ -247,15 +281,15 @@ void TabClass::Draw_Credits_Tab(void)
 
 
 /// <summary>
-/// Prints the credits readout over its tab: on the sidebar, and at the bar's right end
-/// too while the sidebar is away from the map.
+/// Prints the credits readout over its tab: on the sidebar's strip, and on the split bar
+/// left of the Sidebar tab while the sidebar is away.
 /// </summary>
 void TabClass::Print_Credits(char const * text)
 {
 	TextPrintType style = TextPrintType(TPF_USE_GRAD_PAL | TPF_CENTER | TPF_METAL12);
 	Fancy_Text_Print(text, *SidebarSurface, SidebarSurface->Get_Rect(), Point2D(SidebarSurface->Get_Width() / 2, 0), ColorSchemes[0], TBLACK, style);
-	if (TabSurface != NULL && Map.Pad_Sidebar_Wide()) {
-		Fancy_Text_Print(text, *TabSurface, TabSurface->Get_Rect(), Point2D(Bar_Visible_Width() - TabShape->Get_Width() / 2, 0), ColorSchemes[0], TBLACK, style);
+	if (Credits_On_Bar()) {
+		Fancy_Text_Print(text, *TabSurface, TabSurface->Get_Rect(), Point2D(TabSurface->Get_Width() - TabShape->Get_Width() * 3 / 2, 0), ColorSchemes[0], TBLACK, style);
 		Video_Mark_Dirty();
 	}
 }
@@ -328,10 +362,17 @@ void TabClass::AI(KeyNumType &input, Point2D const & xy)
 				if (input == KN_LMOUSE) {
 					int sel = 0;
 					// A split bar's positions arrive brought onto the frame's map columns, so
-					// the tab's width is brought onto them too.
+					// the tab's width is brought onto them too, and the Sidebar tab at the
+					// bar's far end slides the panel in.
 					int tabwidth = EVA_WIDTH * 2/*RESFACTOR*/;
 					if (TabSurface != NULL && TabSurface->Get_Width() > 0) {
 						tabwidth = tabwidth * TacticalRect.Width / TabSurface->Get_Width();
+						int sidebartab = (TabSurface->Get_Width() - TabShape->Get_Width()) * TacticalRect.Width / TabSurface->Get_Width();
+						if (xy.X >= sidebartab && xy.X < TacticalRect.X + TacticalRect.Width) {
+							Pad_Panel_Show(false, false);
+							input = KN_NONE;
+							return;
+						}
 					}
 					if (Options.IsSidebarOnRight) {
 						if (xy.X >= tabwidth) sel = -1;
