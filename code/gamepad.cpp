@@ -29,6 +29,7 @@
 #include "misc.h"
 #include "object.h"
 #include "options.h"
+#include "padglyph.h"
 #include "rules.h"
 #include "scenario.h"
 #include "session.h"
@@ -537,7 +538,11 @@ static void CALLBACK Pointer_Motion_Tick(UINT, UINT, DWORD_PTR, DWORD_PTR, DWORD
 	if (_MotionAttached != self && _MotionOwner != 0 && _MotionOwner != self) {
 		_MotionAttachFailed = !AttachThreadInput(self, _MotionOwner, TRUE);
 		_MotionAttached = self;
-		DebugString("Pad pointer thread %s the game thread's input\n", _MotionAttachFailed ? "could not join" : "joined");
+		static bool _logged_join = false;
+		if (!_logged_join || _MotionAttachFailed) {
+			DebugString("Pad pointer thread %s the game thread's input\n", _MotionAttachFailed ? "could not join" : "joined");
+			_logged_join = true;
+		}
 	}
 	EnterCriticalSection(&_MotionLock);
 	unsigned long now = timeGetTime();
@@ -732,13 +737,6 @@ static void Snap_Pointer_To_Object(void)
 }
 
 
-// What a held cross is deciding: the stage names what it has selected so far.
-enum CrossStageType {
-	CROSS_UNDECIDED,
-	CROSS_TYPE_ON_SCREEN,
-	CROSS_COMBAT_ON_SCREEN,
-	CROSS_DONE,
-};
 
 
 // The pad in play: the left stick and the d-pad move the pointer, R1 speeds
@@ -845,11 +843,13 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 	enum { SIDEBAR_REPEAT_FIRST_MS = 350, SIDEBAR_REPEAT_NEXT_MS = 120 };
 	static unsigned long _sidebar_repeat_at = 0;
 	static bool _sidebar_held = false;
-	enum { HOLD_MS = 500, WIDEN_MS = 400 };
+	enum { TAP_MS = 350 };
 	static unsigned long _cross_since = 0;
 	static POINT _cross_at = {0, 0};
 	static bool _cross_sent = false;
-	static CrossStageType _cross_stage = CROSS_UNDECIDED;
+	static bool _cross_claimed = false;
+	static int _cross_taps = 0;
+	static unsigned long _cross_tapped = 0;
 	if (Pressed(pad.Fourth, previous.Fourth) && !pad.LeftTrigger && !pad.LeftShoulder) {
 		if (pad.RightShoulder) {
 			if (Map.PadPinned) {
@@ -870,7 +870,7 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 		// A cross press spent on the sidebar must not become a click on the map when it is
 		// let go after the sidebar hands the pointer back.
 		if (pad.Accept) {
-			_cross_stage = CROSS_DONE;
+			_cross_claimed = true;
 			_cross_sent = false;
 		}
 		// On the radar, cross held turns the stick and d-pad into a marker over the map, and
@@ -916,20 +916,16 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 	}
 
 	// Cross is the left button, but its press is held back until it is known what the press
-	// is: movement makes it a band box and release a click. A still hold selects the type
-	// under it, or the combat units, on screen; holding on widens that to the whole map.
-	static bool _select_type_pending = false;
-	if (_select_type_pending) {
-		_select_type_pending = false;
-		Execute_Command("SelectType");
-	}
+	// is: movement makes it a band box and release a click. A second tap on one of the
+	// player's units selects its type on screen and a third the type across the map; on the
+	// ground the taps select the combat units on screen, then across the map.
 	if (Pressed(pad.Accept, previous.Accept)) {
 		_cross_since = now;
 		GetCursorPos(&_cross_at);
 		_cross_sent = false;
 		// Under L1 or L2 the press belongs to team 4 below and must never become a click.
-		_cross_stage = (pad.LeftTrigger || pad.LeftShoulder) ? CROSS_DONE : CROSS_UNDECIDED;
-	} else if (pad.Accept && previous.Accept && !_cross_sent && _cross_stage != CROSS_DONE) {
+		_cross_claimed = pad.LeftTrigger || pad.LeftShoulder;
+	} else if (pad.Accept && previous.Accept && !_cross_sent && !_cross_claimed) {
 		POINT at;
 		GetCursorPos(&at);
 		int moved_x = std::abs(at.x - _cross_at.x);
@@ -937,43 +933,35 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 		// The same distance the engine wants before a held button becomes a band, a
 		// twenty-fifth of the view's height, in the screen's pixels.
 		int drag_pixels = std::max(4, int(float(TacticalRect.Height) / 25.0f * float(corner.y - origin.y) / float(std::max(VideoModeHeight, 1))));
-		if (_cross_stage == CROSS_UNDECIDED && (moved_x > drag_pixels || moved_y > drag_pixels)) {
+		if (moved_x > drag_pixels || moved_y > drag_pixels) {
 			Send_Mouse(MOUSEEVENTF_LEFTDOWN);
 			_cross_sent = true;
-		} else if (_cross_stage == CROSS_UNDECIDED && now - _cross_since >= HOLD_MS) {
-			ObjectClass * over = Map.HoverObject;
-			bool own = over != nullptr && over->Owner_HouseClass() != nullptr && over->Owner_HouseClass()->Is_Player_Control();
-			if (own) {
-				Send_Mouse(MOUSEEVENTF_LEFTDOWN);
-				Send_Mouse(MOUSEEVENTF_LEFTUP);
-				_select_type_pending = true;
-				Announce("All units of this type on screen selected");
-				_cross_since = now;
-				_cross_stage = CROSS_TYPE_ON_SCREEN;
-			} else {
-				Select_Combat_On_Screen();
-				Announce("All combat units on screen selected");
-				_cross_since = now;
-				_cross_stage = CROSS_COMBAT_ON_SCREEN;
-			}
-		} else if (_cross_stage == CROSS_TYPE_ON_SCREEN && now - _cross_since >= WIDEN_MS) {
-			Execute_Command("SelectType");
-			Announce("All units of this type on the map selected");
-			_cross_stage = CROSS_DONE;
-		} else if (_cross_stage == CROSS_COMBAT_ON_SCREEN && now - _cross_since >= WIDEN_MS) {
-			Select_Combat_On_Map();
-			Announce("All combat units on the map selected");
-			_cross_stage = CROSS_DONE;
+			_cross_taps = 0;
 		}
 	} else if (!pad.Accept && previous.Accept) {
 		if (_cross_sent) {
 			Send_Mouse(MOUSEEVENTF_LEFTUP);
-		} else if (_cross_stage == CROSS_UNDECIDED) {
-			Send_Mouse(MOUSEEVENTF_LEFTDOWN);
-			Send_Mouse(MOUSEEVENTF_LEFTUP);
+		} else if (!_cross_claimed) {
+			_cross_taps = (now - _cross_tapped <= TAP_MS) ? _cross_taps + 1 : 1;
+			_cross_tapped = now;
+			ObjectClass * over = Map.HoverObject;
+			bool own = over != nullptr && over->Owner_HouseClass() != nullptr && over->Owner_HouseClass()->Is_Player_Control();
+			if (_cross_taps == 1) {
+				Send_Mouse(MOUSEEVENTF_LEFTDOWN);
+				Send_Mouse(MOUSEEVENTF_LEFTUP);
+			} else if (own) {
+				Execute_Command("SelectType");
+				Announce(_cross_taps == 2 ? "All units of this type on screen selected" : "All units of this type on the map selected");
+			} else if (_cross_taps == 2) {
+				Select_Combat_On_Screen();
+				Announce("All combat units on screen selected");
+			} else {
+				Select_Combat_On_Map();
+				Announce("All combat units on the map selected");
+			}
 		}
 		_cross_sent = false;
-		_cross_stage = CROSS_UNDECIDED;
+		_cross_claimed = false;
 	}
 	// Circle is a right-button tap, never a held drag; with R1 it repeats the parked sidebar
 	// cell, and under L1/L2 it belongs to the team chords.
@@ -1092,7 +1080,12 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 			Execute_Command(pad.RightShoulder ? "GuardObject" : "ScatterObject");
 		}
 	}
-	if (Pressed(pad.View, previous.View)) Execute_Command("ToggleAlliance");
+	// View centres on the last radar event in a solo game, where allies mean nothing, and
+	// allies with the selected unit's owner in a network game.
+	if (Pressed(pad.View, previous.View)) {
+		bool solo = Session.Type == GAME_NORMAL || Session.Type == GAME_SKIRMISH;
+		Execute_Command(solo ? "CenterOnRadarEvent" : "ToggleAlliance");
+	}
 }
 
 
@@ -1129,6 +1122,15 @@ void Gamepad_Centre_Pointer(void)
 /// Applies the pad's play input since the last frame, then a zoom step it asked for and the
 /// sidebar panel's slide with the tab bar's redraw. Call from the main loop between frames.
 /// </summary>
+PadButtonType Gamepad_Team_Button(int team)
+{
+	// Teams 1 to 4 are made and selected with the face buttons in this order.
+	static PadButtonType const _buttons[4] = {PAD_BUTTON_THIRD, PAD_BUTTON_FOURTH, PAD_BUTTON_BACK, PAD_BUTTON_ACCEPT};
+	if (team < 0 || team >= 4) return(PAD_BUTTON_COUNT);
+	return(_buttons[team]);
+}
+
+
 void Gamepad_Frame_Tick(void)
 {
 	if (!ScenarioActive || Options.ControlScheme != CONTROL_CONTROLLER) {

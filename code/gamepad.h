@@ -9,6 +9,8 @@
 
 #pragma once
 
+#include "padglyph.h"
+
 /*
  * The state of the first connected controller, reduced to what a menu needs. The
  * directions combine the d-pad and the left stick.
@@ -58,6 +60,8 @@ bool Gamepad_Connected(void);
 void Gamepad_Pump(void * dialog);
 
 // Call from the main loop between frames.
+// The face button that makes and selects team 1 to 4 (0 to 3), or PAD_BUTTON_COUNT past them.
+PadButtonType Gamepad_Team_Button(int team);
 void Gamepad_Frame_Tick(void);
 
 // Puts the pointer mid-map as a scenario starts under the controller scheme.

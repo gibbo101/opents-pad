@@ -179,6 +179,8 @@
 #include "partsys.h"
 #include "psystype.h"
 #include "queue.h"
+#include "gamepad.h"
+#include "padglyph.h"
 #include "revent.h"
 #include "rules.h"
 #include "savestream.h"
@@ -7685,7 +7687,18 @@ void TechnoClass::Draw_Pips(Point2D const & bottomleft, Point2D const & center, 
 		char group_text[12];
 		sprintf(group_text, "%d", group < 10 ? group : 0);
 
-		Plain_Text_Print(group_text, *LogicalSurface, rect, bottomleft + Point2D(-4, yval-3), WHITE, TBLACK, TextPrintType(TPF_FULLSHADOW|TPF_EFNT), 0, 1);
+		// Under the controller scheme a team made on a face button wears that button's glyph.
+		enum { TEAM_GLYPH_SIZE = 9 };
+		int drawn = 0;
+		if (Options.ControlScheme == CONTROL_CONTROLLER) {
+			PadButtonType button = Gamepad_Team_Button(Group);
+			if (button != PAD_BUTTON_COUNT) {
+				drawn = Draw_Pad_Glyph_Fitted(*LogicalSurface, button, bottomleft.X - 5, bottomleft.Y + yval - 4, TEAM_GLYPH_SIZE);
+			}
+		}
+		if (drawn == 0) {
+			Plain_Text_Print(group_text, *LogicalSurface, rect, bottomleft + Point2D(-4, yval-3), WHITE, TBLACK, TextPrintType(TPF_FULLSHADOW|TPF_EFNT), 0, 1);
+		}
 	}
 }
 
