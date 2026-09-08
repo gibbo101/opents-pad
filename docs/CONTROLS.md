@@ -145,7 +145,8 @@ The pointer stays on the map; the sidebar is worked by the pad, below.
 | Guard | R1 with R2 |
 | Force fire at the pointer | R1 with L1 |
 | Force move to the pointer | R1 with L2 |
-| Ally with the selected unit's owner | Share |
+| Center the view on the last radar event (campaign, skirmish) | Share |
+| Ally with the selected unit's owner (LAN) | Share |
 | Pause menu | Options |
 
 The pointer starts a scenario in the middle of the view. The left stick
@@ -166,17 +167,20 @@ is half a cell and the default, 8 a whole cell, Off leaves the pointer
 where it stops. It is saved as `PadSnap` in `SUN.INI`. Cloaked units of
 other players are passed over.
 
-Cross held still for half a second on one of your units selects every unit
-of its type on screen, and held on a little longer widens that to the whole
-map. Held still on the ground it selects every combat unit on screen, then
-every combat unit on the map. A combat unit is one that carries a weapon or
-gains one by deploying, so tick tanks and artillery count while harvesters,
-engineers, sensor arrays and the construction vehicle do not. Each of the
-four says what it selected in the message list at the top left.
+A second tap of Cross on one of your units, within a third of a second,
+selects every unit of its type on screen, and a third tap widens that to the
+whole map. Tapped twice on the ground it selects every combat unit on
+screen, and a third tap every combat unit on the map. A combat unit is one
+that carries a weapon or gains one by deploying, so tick tanks and artillery
+count while harvesters, engineers, sensor arrays and the construction vehicle
+do not. Each of the four says what it selected in the message list at the
+top left.
 
 Force fire and force move go out the moment the two buttons are held
-together, at the pointer, with no Cross. The engine only allows an alliance
-against a human player in a game with allies on.
+together, at the pointer, with no Cross. Share centers the view on the last
+radar event in a campaign mission or skirmish, where there is nobody to ally
+with; in a LAN game it allies with the selected unit's owner, which the
+engine only allows against a human player in a game with allies on.
 
 ### Teams
 
@@ -185,6 +189,9 @@ against a human player in a game with allies on.
 | Make team 1, 2, 3 or 4 from the selection | L2 with Square, Triangle, Circle or Cross |
 | Select team 1, 2, 3 or 4 | L1 with Square, Triangle, Circle or Cross |
 | Center the view on the team | The same L1 press again within 400 ms |
+
+Units in a team wear the glyph of the button that made them, Square to
+Cross, where the keyboard scheme shows the team's number.
 
 ### Waypoints
 
@@ -260,7 +267,10 @@ the pointer, and Triangle out of a grid parks the sidebar on that section.
 The structures grid closes after a build, since a construction yard builds
 one thing at a time. A section cell shows what it is building, its last
 build once idle, or the factory. Sections whose factory you do not hold
-are dulled; with a construction yard all four of a side's sections show.
+are dulled; with a construction yard all four of your side's sections show.
+The other side's structures section appears once one of their buildings is
+yours, since the game has one construction yard type for both sides and it
+builds whichever side's structures you have the tech for.
 
 ## Cheats
 
