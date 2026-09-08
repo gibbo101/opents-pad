@@ -83,6 +83,7 @@ The pointer stays on the map; the sidebar is worked by the pad, below.
 | Move the pointer | Left stick, or D-pad |
 | Fast pointer | Hold R1 while moving |
 | Scroll the map | Right stick, or push the pointer against the edge |
+| Zoom in or out | Hold R1 and push the right stick up or down |
 | Select, order, place, band box | Cross, as the left mouse button |
 | Cancel a mode, deselect | Circle, as a right mouse tap |
 | Deploy the selected unit | L3 |
@@ -125,6 +126,20 @@ against a human player in a game with allies on.
 Square cycles the sidebar's modes from the map: repair, sell, power,
 waypoint, off. In waypoint mode Cross places waypoints and Circle takes back
 the last one while the path has one.
+
+### Zoom
+
+The game draws at a render size and scales it to the screen, so zooming in
+means drawing fewer pixels and showing them bigger. R1 with the right stick
+up zooms in a step and down zooms out, one step per push and another every
+quarter second the stick stays pushed. The steps are render heights of 480,
+540, 600, 660, 720, 768, 840, 900, 1080, 1200 and 1440, never taller than
+the screen, with the width on the screen's own shape so there are no bars.
+Each step keeps the middle of the view where it was and says the new size
+in the message list. The size is saved as `PadZoomWidth` and `PadZoomHeight`
+in `SUN.INI`; the first game, or one on a screen of a different shape,
+starts at 768 high, or 600 on a Steam Deck. The options screen's Zoom row
+steps the same sizes. The right stick does not scroll while R1 is held.
 
 ### Pointer speed
 

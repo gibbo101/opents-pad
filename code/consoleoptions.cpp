@@ -26,15 +26,10 @@
 
 #include <algorithm>
 #include <string>
-#include <utility>
 #include <vector>
 
 enum {
 	VOLUME_STEPS = 10,
-	MODE_MIN_WIDTH = 640,
-	MODE_MIN_HEIGHT = 400,
-	MODE_MAX_WIDTH = 8192,
-	MODE_MAX_HEIGHT = 8192,
 };
 
 
@@ -49,25 +44,6 @@ static int Wrap(int value, int low, int high)
 	int span = high - low + 1;
 	if (span <= 0) return(low);
 	return(low + ((value - low) % span + span) % span);
-}
-
-
-// The display's modes, with the configured size kept in the list even when the display
-// does not report it, so the player can always step back to it.
-static std::vector<std::pair<int, int>> Display_Modes(int width, int height)
-{
-	std::vector<std::pair<int, int>> modes;
-	int * list = EnumDisplayModes(MODE_MIN_WIDTH, MODE_MIN_HEIGHT, MODE_MAX_WIDTH, MODE_MAX_HEIGHT);
-	if (list != NULL) {
-		for (int * mode = list; *mode != 0; mode += 2) {
-			modes.push_back({mode[0], mode[1]});
-		}
-		delete [] list;
-	}
-	if (std::find(modes.begin(), modes.end(), std::make_pair(width, height)) == modes.end()) {
-		modes.insert(modes.begin(), {width, height});
-	}
-	return(modes);
 }
 
 
@@ -239,11 +215,11 @@ bool Console_Options_Screen(bool in_game)
 	// 0 follows the connected controller, 1 is keyboard and mouse, 2 is controller.
 	int scheme = Options.ControlSchemeAuto ? 0 : (Options.ControlScheme == CONTROL_CONTROLLER ? 2 : 1);
 	int prompts = std::clamp(Options.PromptStyle, 0, int(PROMPT_STYLE_DECK));
-	std::vector<std::pair<int, int>> modes = Display_Modes(Options.ScreenWidth, Options.ScreenHeight);
-	int mode = int(std::find(modes.begin(), modes.end(), std::make_pair(Options.ScreenWidth, Options.ScreenHeight)) - modes.begin());
+	int zoom_width;
+	int zoom_height;
+	Pad_Zoom_Size(zoom_width, zoom_height);
 	bool stretch = Options.StretchMovies;
 	int scale_mode = Options.ScaleMode;
-	bool integer_scaling = Options.IntegerScaling;
 	int speed = (OptionsClass::MAX_SPEED_SETTING - 1) - Options.GameSpeed;
 	int pointer_speed = Options.PadPointerSpeed;
 	int fast_speed = Options.PadFastSpeed;
@@ -267,12 +243,13 @@ bool Console_Options_Screen(bool in_game)
 	static char const * const _prompt_names[] = {"Auto", "Text", "Xbox", "PlayStation", "Steam Deck"};
 	menu.Add_Row({"Button Prompts", [&]{ return(std::string(_prompt_names[prompts])); },
 		[&](int step) { prompts = Wrap(prompts + step, 0, int(PROMPT_STYLE_DECK)); Options.PromptStyle = prompts; }, nullptr});
+	// The zoom is a render size on the panel's shape; stepping up the row zooms in, as the
+	// stick does. In play the row applies as the menu closes and the play size returns.
+	menu.Add_Row({"Zoom", [&]{ char name[48]; Pad_Zoom_Name(zoom_width, zoom_height, name, sizeof(name)); return(std::string(name)); },
+		[&](int step) { zoom_height = Pad_Zoom_Neighbour(zoom_height, step); zoom_width = Pad_Zoom_Width(zoom_height); }, nullptr});
 	if (!in_game) {
-		menu.Add_Row({"Resolution", [&]{ return(std::to_string(modes[mode].first) + " x " + std::to_string(modes[mode].second)); },
-			[&](int step) { mode = Wrap(mode + step, 0, int(modes.size()) - 1); }, nullptr});
 		menu.Add_Row({"Scale Mode", [&]{ return(std::string(_scale_names[std::clamp(scale_mode, 0, 2)])); },
 			[&](int step) { scale_mode = Wrap(scale_mode + step, 0, 2); }, nullptr});
-		menu.Add_Row({"Integer Scaling", [&]{ return(On_Off(integer_scaling)); }, [&](int) { integer_scaling = !integer_scaling; }, nullptr});
 		menu.Add_Row({"Stretch Movies", [&]{ return(On_Off(stretch)); }, [&](int) { stretch = !stretch; }, nullptr});
 	}
 	menu.Add_Row({"Game Speed", [&]{ return(std::to_string(speed)); },
@@ -315,10 +292,9 @@ bool Console_Options_Screen(bool in_game)
 	} else {
 		Options.ControlScheme = scheme == 2 ? CONTROL_CONTROLLER : CONTROL_KEYBOARD_MOUSE;
 	}
-	Options.ScreenWidth = modes[mode].first;
-	Options.ScreenHeight = modes[mode].second;
+	Options.PadZoomWidth = zoom_width;
+	Options.PadZoomHeight = zoom_height;
 	Options.ScaleMode = scale_mode;
-	Options.IntegerScaling = integer_scaling;
 	Options.StretchMovies = stretch;
 	Options.GameSpeed = (OptionsClass::MAX_SPEED_SETTING - 1) - speed;
 	Options.PadPointerSpeed = pointer_speed;

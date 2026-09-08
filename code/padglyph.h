@@ -29,6 +29,7 @@ enum PadButtonType {
 /// controller is connected, and to plain text otherwise.
 /// </summary>
 int Resolved_Prompt_Style(void);
+bool On_Steam_Deck(void);
 
 /// <summary>
 /// Draws the glyph for a button in the current style within a box of the given size at x, y

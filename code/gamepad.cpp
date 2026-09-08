@@ -24,6 +24,7 @@
 #include "infantry.h"
 #include "infatype.h"
 #include "init.h"
+#include "mainopt.h"
 #include "misc.h"
 #include "options.h"
 #include "rules.h"
@@ -233,6 +234,7 @@ static bool _KeyboardMouseSeen = false;
 static bool _MenuStarts = false;
 static bool _AutoSettled = false;
 static int _SyntheticClicks = 0;
+static int _ZoomStep = 0;
 
 bool Gamepad_Claim_Synthetic_Click(void)
 {
@@ -763,10 +765,27 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 		_force_vk = 0;
 	}
 
+	// R1 with the right stick steps the zoom, up to zoom in, one step per push and again
+	// every quarter second held. The change itself waits for the main loop, since this runs
+	// from the message pump. The stick is the zoom's while R1 is held, so it does not scroll.
+	{
+		enum { ZOOM_REPEAT_MS = 250 };
+		const float ZOOM_PUSH = 0.5f;
+		static unsigned long _zoom_at = 0;
+		if (pad.RightShoulder && (pad.RightStickY > ZOOM_PUSH || pad.RightStickY < -ZOOM_PUSH)) {
+			if (_zoom_at == 0 || now >= _zoom_at) {
+				_ZoomStep = pad.RightStickY > 0 ? 1 : -1;
+				_zoom_at = now + ZOOM_REPEAT_MS;
+			}
+		} else {
+			_zoom_at = 0;
+		}
+	}
+
 	// The right stick scrolls the map at the pad's own pace, apart from the mouse scroll
 	// settings: a full push crosses a few view heights a second, and the squared response
 	// keeps a light touch slow.
-	{
+	if (!pad.RightShoulder) {
 		const float STICK_SCROLL_RATE = 3.0f * Options.PadScrollSpeed / OptionsClass::PAD_SPEED_DEFAULT;		// View heights per second at full stick.
 		static float _scroll_x = 0.0f;
 		static float _scroll_y = 0.0f;
@@ -794,6 +813,21 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 	if (pressed(pad.RightTrigger, previous.RightTrigger)) Execute_Command(pad.RightShoulder ? "GuardObject" : "ScatterObject");
 	if (pressed(pad.View, previous.View)) Execute_Command("ToggleAlliance");
 }
+
+void Gamepad_Apply_Zoom(void)
+{
+	int steps = _ZoomStep;
+	_ZoomStep = 0;
+	if (steps == 0 || !ScenarioActive || Options.ControlScheme != CONTROL_CONTROLLER) {
+		return;
+	}
+	if (Pad_Zoom_Step(steps)) {
+		char text[64] = "Zoom ";
+		Pad_Zoom_Name(Options.PadZoomWidth, Options.PadZoomHeight, text + strlen(text), int(sizeof(text) - strlen(text)));
+		Announce(text);
+	}
+}
+
 
 void Gamepad_Settle_Auto_Scheme(unsigned wait_ms)
 {

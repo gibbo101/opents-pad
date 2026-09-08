@@ -36,12 +36,13 @@ button.
 | Menu pages | `code/newmenu.cpp` | Under the controller scheme the Tiberian Sun and Firestorm pages are console screens on their own backdrops: New Campaign, Load Mission, LAN, Skirmish, Options and Game Select as rows in the menu font, no box, the page theme playing. Intro and Exit keep their artwork at the corners and light when reached: Up or Right for Intro, Down or Left for Exit. Internet and the tour are left out. Keyboard & Mouse keeps the artwork pages. |
 | LAN | `code/consolelan.cpp` | Console screens running the dialogs' discovery and join protocol unchanged. Game list: your name, Host New Game, one row per game found, the lobby count, a joining line while a request is out, and the reason when a join fails. Host lobby: the skirmish rows live, the joined players under the map preview in their colours with faction icon and host or ready mark, Start checks for a second player, everyone ready, and room on the map. Guest lobby: the host's rows read only, own side and colour requested from the host, Ready as the accept, Leave signs off. Each lobby screen has a Chat row showing the latest message that opens a chat screen: the lobby's messages and notices down the page, A to type one on the on-screen keyboard, sent to the game's players or, before joining, to everyone in the lobby. No kick, and the generated map is skipped in the map list. The Keyboard & Mouse dialogs are untouched; the packet handler only skips the guest dialog and message boxes while the console screens are up. |
 | Button prompts | `code/padglyph.cpp`, `assets/input-prompts/` | The accept and back prompts on every console screen and the briefing carry the button's glyph from Kenney's CC0 Input Prompts pack, baked into `code/padglyphdata.h` by `tools/padglyphs.py` and sampled down to the prompt's size with alpha. `PromptStyle` in `SUN.INI` picks the set or plain text; Auto is Deck when Steam's `SteamDeck` variable says so, else PlayStation when the system lists a Sony game controller, else Xbox while a pad is connected. Under Proton the host kernel's device list is read through drive Z, which still names the real pad when Steam Input has replaced it with its virtual Xbox one; on Windows the game's own device list is used, where Steam Input's pad reads as Xbox and PlayStation is chosen on the options screen. |
-| Options | `code/consoleoptions.cpp` | Console screen: control scheme, button prompts, resolution from the display's mode list, scale mode, integer scaling, stretch movies, game speed, the pad's pointer, fast pointer and stick scroll speeds in place of the mouse's scroll rate and coasting, detail, campaign difficulty, cameo text, action lines, tool tips, and Audio and Controls rows. Accept saves. |
+| Options | `code/consoleoptions.cpp` | Console screen: control scheme, button prompts, a Zoom row stepping the pad's render height in place of a resolution, scale mode, stretch movies, game speed, the pad's pointer, fast pointer and stick scroll speeds in place of the mouse's scroll rate and coasting, detail, campaign difficulty, cameo text, action lines, tool tips, and Audio and Controls rows. Accept saves. |
 | Controls | `code/consoleoptions.cpp` | Console screen from Options and the pause menu listing what the pad's buttons do, each face button with its glyph, and a note that the bindings are not final until the in-game scheme exists. |
 | Audio | `code/consoleoptions.cpp` | Console screen from Options and the pause menu: music, sound and voice volume stepped live, and in play shuffle, repeat, a Now Playing row, a Track row that steps through the songs by name with A on the row playing it, and Stop Music. Accept keeps the volumes and saves; back restores them. |
 | Select Campaign | `code/init.cpp` | Side select in the manner of Remastered: the backdrop's own GDI and Nod discs enlarged at left and right, both dim until a side is picked, then the picked one lit and grown with its campaign named under the title; names beneath in faction colours, difficulty along the bottom. Left and right pick the side, or the act when a side has two, with the shell's hover click; A or a click on the lit emblem starts. Writes the difficulty option like the dialog. |
 | Load Mission | `code/loaddlg.cpp` | Console list of the save games, newest first, date at the left and description at the right, a star for multiplayer saves; long lists scroll. |
 | On-screen keyboard | `code/consolekeyboard.cpp` | A console screen with a text field and a row of digits, three rows of letters and marks, then Space, Delete, Caps, and Done. D-pad or stick moves, A types, X deletes, Y adds a space, Start or A on Done finishes, B backs out with the text untouched; letters are capitals at the start of each word and lower case after, with Caps locking them on; a real keyboard types straight in, Enter finishes, Escape backs out; the mouse picks keys. Opened by A on the Name row of the skirmish and LAN screens and the Save As row of the pause menu. |
+| Play, zoom | `code/mainopt.cpp`, `code/gamepad.cpp` | Under the controller scheme play renders at a zoom, not the keyboard scheme's resolution: a render height from a ladder of 480 to 1440, never above the panel, with the width on the panel's shape so no screen shows bars. `Play_Display_Mode` settles it from `PadZoomWidth` and `PadZoomHeight` in `SUN.INI`, falling back to a baseline of 768 high, 600 on a Deck, whenever the saved pair is empty or off the panel's shape. R1 with the right stick up or down steps it in play, a step per push and every quarter second held; the pad records the step and the main loop applies it beside the in-game menu, since the pump can run mid-draw. Each step keeps the view's centre, saves, names the size in the message list and logs how long the mode change took. The tracking window never follows the frame under the controller scheme; the drawable area is the panel. |
 | Play, pointer | `code/gamepad.cpp` | Under the controller scheme in play the left stick and the d-pad move the pointer, the stick with a squared response and the d-pad from a nudge up to its rate over the first half second held, R1 speeding either; at the screen's edge the distance the pointer cannot travel scrolls the map, so the edge moves at the pointer's own pace. The three paces come from `PadPointerSpeed`, `PadFastSpeed` and `PadScrollSpeed` in `SUN.INI`, 1 to 10, and the mouse scroll settings leave the pad alone. Cross is the left mouse button and circle a right-button tap at the pointer, so selecting, ordering, deploying, placing, band boxing and cancelling all follow the mouse paths, while a held circle never drag-scrolls. The message loop does not count these clicks as a real mouse. |
 | Play, commands | `code/gamepad.cpp` | In PlayStation terms: square cycles the sidebar modes repair, sell, power, waypoint, off; L3 deploys; R3 centres on the base; R2 scatters and R1 with R2 guards; L2 with square, triangle, circle or cross makes team 1, 2, 3 or 4, and L1 with the same selects it, or centres the view on it when tapped twice within 400 milliseconds; R1 with L1 orders a force fire at the pointer and R1 with L2 a force move, the moment both are held, with no cross; in waypoint mode circle takes back the last waypoint of the path while it has one; Select allies with the owner of the selected unit, which the engine only allows against a human player in a game with allies on. The right stick scrolls the map as a right-button drag does. Cross held still for half a second on one of the player's units selects every unit of its type on screen, and held on a little longer widens that to the whole map; held still on the ground it selects every combat unit on screen, and held on longer every combat unit on the map, counting a unit that carries a weapon or gains one by deploying, so harvesters, engineers, sensor arrays and the construction vehicle stay out. Each of the four says what it selected in the message list at the top left. Each button runs the engine's own named command, so the keyboard bindings stay the source of the behaviour. |
 | Play, sidebar | `code/sidebar.cpp`, `code/gamepad.cpp` | Under the controller scheme the sidebar strips are replaced by a fixed grid in the manner of Retaliation: two columns, the player's side on the left and the other side on the right, with rows for structures, infantry, vehicles and aircraft, and a bottom row holding the current superweapon and a cell that cycles to the next. Each structures cell carries its side's emblem in the top right. A side's construction yard shows all four of its sections, dulled until the factory exists; without one only the sections whose factory the player holds appear. A section cell shows what it is building, or its last build once idle, or the factory; leaving a grid with nothing building puts the factory back. Triangle takes the pad in and out; the outline is bright inside and dim outside, and it parks where it was left. Inside, the d-pad or stick moves between the cells, the four mode buttons above them and the radar. Cross on a section builds or places the current or last item, or opens the section's grid when it has none; in a grid cross builds the marked item, and the structures grid closes on a build since a yard builds one thing at a time. Circle on a section that is building holds, then cancels; on an idle section it opens the grid; in a grid it cancels the marked build or steps back to the sections. Square opens or closes the grid without cancelling anything. Placing a building, aiming a superweapon or picking a mode button hands focus back to the map with the ghost, target or mode cursor on the pointer, and triangle out of a grid parks the sidebar on that section. From the map, R1 with circle works the parked cell, as Retaliation rebuilds the last object: place, build the last item again, add one more, or queue the marked grid item. On the radar, cross held moves a marker over the map and letting go jumps the view there. The sidebar in Tiberian Sun is always on screen, so Retaliation's pin has no counterpart. |
@@ -71,43 +72,43 @@ button.
 
 ## Next
 
-1. Verify on the Deck once it is reachable again: it is three builds behind.
-   Then the two unverified changes: cross held on the ground now counts tick
-   tanks and artillery, and the keyboard's Start and B from the skirmish
-   screen. Drop pods have been verified in a Firestorm game only, which is
-   the only game whose rules define them.
-2. The sidebar's spare tiles on tall screens: the section view uses five
+1. The sidebar's spare tiles on tall screens: the section view uses five
    rows and the strip fills the rest with blank tiles, six of them at
    2560x720. No spare tiles and the superweapons on the bottom row, in the
    manner of Retaliation's panel; a compact panel or spread rows, undecided.
-   Scaling the sidebar itself is separate work, item 7.
-3. Untested on the sidebar: the Nod side as the captured column; a grid
+   Scaling the sidebar itself is separate work; the zoom leaves the sidebar
+   at 168 render pixels, so zooming in grows its share of the screen.
+2. Untested on the sidebar: the Nod side as the captured column; a grid
    longer than the panel scrolling; the hall of fame name on the on-screen
    keyboard and the score screen's restore after it.
-4. The rest of the play scheme: snap to units; R2 with the right stick for
-   zoom once the zoom setting exists, with scatter moving to a tap; the
-   Controls screen redrawn for play with a button cluster in the manner of
-   Retaliation's, which the current list and its "not final" note stand in
-   for, and which `docs/controller-layout.svg` now drafts.
-5. A Steam Input layout for the game, shipped in the repo, so the pad is on
+3. The rest of the play scheme: snap to units; the Controls screen redrawn
+   for play with a button cluster in the manner of Retaliation's, which the
+   current list and its "not final" note stand in for, and which
+   `docs/controller-layout.svg` now drafts.
+4. A Steam Input layout for the game, shipped in the repo, so the pad is on
    the Gamepad template without the player building one. Steam only defaults
    a layout the app owner publishes, so this is a file to import once, and
    Steam keeps the choice per player after that.
-6. LAN lobby extras: kick as a row on the host lobby, and the generated map
+5. LAN lobby extras: kick as a row on the host lobby, and the generated map
    once its setup has a console screen. The lobbies and chat are still
    untested between two machines.
-7. A zoom setting for play, on the right stick: the render frame takes the
-   panel's aspect and a zoom value picks its height, so no screen shows bars
-   and each device tunes its own sprite size. A 32:9 panel at 2x felt right
-   in testing. The sidebar's fixed on-screen size belongs with it.
-8. Sidebar shadows: `assets/sidebar-shadows/` and `tools/sidebarshadows.py`
+6. Sidebar shadows: `assets/sidebar-shadows/` and `tools/sidebarshadows.py`
    bake a black silhouette of what a section builds over its cell, and every
    slot is empty until original art exists. The game's own sprites are not to
    be traced for it.
-9. Later: the display work in the direction notes.
+7. Later: the display work in the direction notes.
 
 ## Parked
 
+- Zoom's smooth glide. Each step is a mode change and a full redraw, and on
+  the Deck the mode change measured 3 to 9 ms from 480 to 1080 high, under a
+  frame, so the stepped zoom did not need one. If it ever does, the
+  presenter can animate a crop of the current frame between rungs and commit
+  the mode change at each rung; the sidebar and tab bar live in the frame,
+  so the presenter would first draw the tactical area and the sidebar as
+  separate quads, the split the fixed-size sidebar needs too.
+- Drop pods have been verified in a Firestorm game only, which is the only
+  game whose rules define them.
 - Arrow keys beep on the Deck under Proton on every press. Present on the
   upstream build too, not caused by this fork.
 - The screen flashes white at launch, before the Westwood logo. Stock

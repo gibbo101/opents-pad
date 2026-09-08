@@ -85,6 +85,7 @@
 #include "dsaudio.h"
 #include "gamedirs.h"
 #include "gamedlg.h"
+#include "gamepad.h"
 #include "globals.h"
 #include "houstype.h"
 #include "incdec.h"
@@ -445,6 +446,7 @@ void Main_Game(int argc, char * argv[])
 					break;
 				}
 
+				Gamepad_Apply_Zoom();
 				Ingame_Menu_Dialog();
 			} else {
 
@@ -473,6 +475,7 @@ void Main_Game(int argc, char * argv[])
 			**	This must be done outside the main loop, since the dialog will call
 			**	Main_Loop(), allowing the game to run in the background.
 			*/
+			Gamepad_Apply_Zoom();
 			Ingame_Menu_Dialog();
 		}
 #endif

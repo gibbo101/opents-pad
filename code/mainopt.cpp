@@ -15,6 +15,7 @@
 #include "_mixfile.h"
 #include "_rect.h"
 #include "_surface.h"
+#include "_tactica.h"
 #include "convert.h"
 #include "data.h"
 #include "dbgprint.h"
@@ -31,13 +32,17 @@
 #include "msgbox.h"
 #include "newmenu.h"
 #include "ownrdraw.h"
+#include "padglyph.h"
 #include "sidebar.h"
 #include "sounddlg.h"
 #include "stimer.h"
 #include "surface.h"
+#include "tactical.h"
 #include "wwmouse.h"
 
 #include "color.hh"
+
+#include <algorithm>
 
 
 BOOL CALLBACK Main_Options_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
@@ -261,9 +266,10 @@ bool Change_Display_Mode(int width, int height)
 	/*
 	 * A window that is tracking the frame follows it to the new size. One the player
 	 * sized themselves, and a window covering the screen, both stay as they are and the
-	 * frame is scaled into them instead.
+	 * frame is scaled into them instead. Under the controller scheme the window is the
+	 * panel the zoom fits, so it never follows the frame.
 	 */
-	if (WindowedMode && Options.WindowWidth <= 0 && Options.WindowHeight <= 0) {
+	if (WindowedMode && Options.WindowWidth <= 0 && Options.WindowHeight <= 0 && Options.ControlScheme != CONTROL_CONTROLLER) {
 		RECT windowrect;
 		SetRect(&windowrect, 0, 0, width, height);
 		AdjustWindowRectEx(&windowrect, GetWindowLong(MainWindow, GWL_STYLE), FALSE, GetWindowLong(MainWindow, GWL_EXSTYLE));
@@ -360,12 +366,155 @@ bool Shell_Display_Mode(void)
 
 
 /// <summary>
-/// Returns the render resolution to the configured play size before a scenario starts.
+/// Returns the render resolution to the play size before a scenario starts: the keyboard
+/// scheme's configured resolution, or the controller's zoom fitted to the panel.
 /// </summary>
 /// <returns>bool; Is the game rendering at the play resolution?</returns>
 bool Play_Display_Mode(void)
 {
-	return(Set_Display_Mode_If_Needed(Options.ScreenWidth, Options.ScreenHeight));
+	if (Options.ControlScheme != CONTROL_CONTROLLER) {
+		return(Set_Display_Mode_If_Needed(Options.ScreenWidth, Options.ScreenHeight));
+	}
+	int width;
+	int height;
+	Pad_Zoom_Size(width, height);
+	return(Set_Display_Mode_If_Needed(width, height));
+}
+
+
+// The render heights the controller's zoom steps through. Width follows the panel's
+// shape, so no panel shows bars; the scale never drops below one.
+static int const _ZoomLadder[] = {480, 540, 600, 660, 720, 768, 840, 900, 1080, 1200, 1440};
+enum {
+	ZOOM_RUNGS = sizeof(_ZoomLadder) / sizeof(_ZoomLadder[0]),
+	ZOOM_BASELINE = 768,
+	ZOOM_BASELINE_DECK = 600,		// A seven inch panel wants bigger sprites from the start.
+};
+
+
+static void Panel_Size(int & width, int & height)
+{
+	VideoScaleInfo const & scale = Video_Get_Scale_Info();
+	width = scale.DrawableWidth;
+	height = scale.DrawableHeight;
+	if (width <= 0 || height <= 0) {
+		width = Options.ScreenWidth;
+		height = Options.ScreenHeight;
+	}
+}
+
+
+// The rungs the panel can hold, and the panel itself when it is shorter than all of them.
+static int Zoom_Top_Rung(void)
+{
+	int width;
+	int height;
+	Panel_Size(width, height);
+	int top = 0;
+	while (top + 1 < ZOOM_RUNGS && _ZoomLadder[top + 1] <= height) {
+		top++;
+	}
+	return(top);
+}
+
+
+static int Zoom_Nearest_Rung(int height)
+{
+	int nearest = 0;
+	for (int rung = 1; rung < ZOOM_RUNGS; rung++) {
+		if (abs(_ZoomLadder[rung] - height) < abs(_ZoomLadder[nearest] - height)) {
+			nearest = rung;
+		}
+	}
+	return(nearest);
+}
+
+
+int Pad_Zoom_Width(int height)
+{
+	int panel_width;
+	int panel_height;
+	Panel_Size(panel_width, panel_height);
+	int width = int(((long long)height * panel_width * 2 + panel_height) / (panel_height * 2));
+	return(width & ~1);
+}
+
+
+void Pad_Zoom_Name(int width, int height, char * buffer, int size)
+{
+	int panel_width;
+	int panel_height;
+	Panel_Size(panel_width, panel_height);
+	snprintf(buffer, size, "%.2fx, %d x %d", height > 0 ? float(panel_height) / float(height) : 1.0f, width, height);
+}
+
+
+int Pad_Zoom_Neighbour(int height, int steps)
+{
+	int top = Zoom_Top_Rung();
+	int rung = std::clamp(Zoom_Nearest_Rung(height) - steps, 0, top);
+	int panel_width;
+	int panel_height;
+	Panel_Size(panel_width, panel_height);
+	return(std::min(_ZoomLadder[rung], panel_height));
+}
+
+
+// A saved size counts as the panel's when its shape is within a percent of the panel's.
+static bool Zoom_Fits_Panel(int width, int height)
+{
+	if (width <= 0 || height <= 0) {
+		return(false);
+	}
+	int panel_width;
+	int panel_height;
+	Panel_Size(panel_width, panel_height);
+	long long shape = (long long)width * panel_height - (long long)height * panel_width;
+	long long tolerance = (long long)panel_width * panel_height / 100;
+	return(shape <= tolerance && shape >= -tolerance);
+}
+
+
+void Pad_Zoom_Size(int & width, int & height)
+{
+	if (!Zoom_Fits_Panel(Options.PadZoomWidth, Options.PadZoomHeight)) {
+		int baseline = On_Steam_Deck() ? ZOOM_BASELINE_DECK : ZOOM_BASELINE;
+		Options.PadZoomHeight = Pad_Zoom_Neighbour(baseline, 0);
+		Options.PadZoomWidth = Pad_Zoom_Width(Options.PadZoomHeight);
+		DebugString("Pad zoom baseline %dx%d\n", Options.PadZoomWidth, Options.PadZoomHeight);
+	}
+	width = Options.PadZoomWidth;
+	height = Options.PadZoomHeight;
+}
+
+
+/// <summary>
+/// Steps the controller's zoom while a game is on, positive to zoom in. The view keeps
+/// its centre and the new size is saved.
+/// </summary>
+/// <returns>bool; Did the size change?</returns>
+bool Pad_Zoom_Step(int steps)
+{
+	int width;
+	int height;
+	Pad_Zoom_Size(width, height);
+	int next_height = Pad_Zoom_Neighbour(height, steps);
+	int next_width = Pad_Zoom_Width(next_height);
+	if (next_width == width && next_height == height) {
+		return(false);
+	}
+
+	Point2D centre = TacticalMap->Get_Tactical_Position() + Point2D(TacticalRect.Width / 2, TacticalRect.Height / 2);
+	unsigned long started = timeGetTime();
+	if (!Change_Display_Mode(next_width, next_height)) {
+		return(false);
+	}
+	DebugString("Pad zoom %dx%d took %lu ms\n", next_width, next_height, timeGetTime() - started);
+	TacticalMap->Set_Tactical_Position(centre - Point2D(TacticalRect.Width / 2, TacticalRect.Height / 2));
+	Options.PadZoomWidth = next_width;
+	Options.PadZoomHeight = next_height;
+	Options.Save_Settings();
+	return(true);
 }
 
 

@@ -118,6 +118,8 @@ OptionsClass::OptionsClass(void) :
 	PadPointerSpeed(PAD_SPEED_DEFAULT),
 	PadFastSpeed(PAD_SPEED_DEFAULT),
 	PadScrollSpeed(PAD_SPEED_DEFAULT),
+	PadZoomWidth(0),
+	PadZoomHeight(0),
 	SoundVolume(.7f),
 	VoiceVolume(1.0f),
 	ScoreVolume(.5f),
@@ -475,6 +477,9 @@ void OptionsClass::Load_Settings(void)
 	PadFastSpeed = std::clamp(ConfigINI.Get_Int("Options", "PadFastSpeed", PadFastSpeed), int(PAD_SPEED_MIN), int(PAD_SPEED_MAX));
 	PadScrollSpeed = std::clamp(ConfigINI.Get_Int("Options", "PadScrollSpeed", PadScrollSpeed), int(PAD_SPEED_MIN), int(PAD_SPEED_MAX));
 	DebugString("PadPointerSpeed = %d, PadFastSpeed = %d, PadScrollSpeed = %d\n", PadPointerSpeed, PadFastSpeed, PadScrollSpeed);
+	PadZoomWidth = std::max(ConfigINI.Get_Int("Options", "PadZoomWidth", PadZoomWidth), 0);
+	PadZoomHeight = std::max(ConfigINI.Get_Int("Options", "PadZoomHeight", PadZoomHeight), 0);
+	DebugString("PadZoom = %dx%d\n", PadZoomWidth, PadZoomHeight);
 
 	TextBackgroundColor = ConfigINI.Get_Int("Options", "TextBackgroundColor", TextBackgroundColor);
 	DebugString("TextBackgroundColor = %d\n", TextBackgroundColor);
@@ -556,6 +561,8 @@ void OptionsClass::Save_Settings (void)
 	ConfigINI.Put_Int("Options", "PadPointerSpeed", PadPointerSpeed);
 	ConfigINI.Put_Int("Options", "PadFastSpeed", PadFastSpeed);
 	ConfigINI.Put_Int("Options", "PadScrollSpeed", PadScrollSpeed);
+	ConfigINI.Put_Int("Options", "PadZoomWidth", PadZoomWidth);
+	ConfigINI.Put_Int("Options", "PadZoomHeight", PadZoomHeight);
 	ConfigINI.Put_Int("Options", "TextBackgroundColor", TextBackgroundColor);
 	ConfigINI.Put_Int("Options", "AutoSaveInterval", AutoSaveInterval);
 	ConfigINI.Put_Int("Video", "ScreenWidth", ScreenWidth);

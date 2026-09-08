@@ -119,7 +119,8 @@
     <text x="716" y="338">or on the ground all combat units</text>
 
     <text x="716" y="361" font-weight="bold">Right stick, R3</text>
-    <text x="716" y="377">Scroll the map. Click: centre on the base</text>
+    <text x="716" y="377">Scroll the map. With R1: up and down zoom</text>
+    <text x="716" y="393">Click: centre on the base</text>
   </g>
 
   <!-- Square label below -->

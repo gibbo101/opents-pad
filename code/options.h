@@ -124,6 +124,13 @@ class OptionsClass {
 		enum { PAD_SPEED_MIN = 1, PAD_SPEED_MAX = 10, PAD_SPEED_DEFAULT = 5 };
 
 		/*
+		 * The render size the controller plays at, its zoom. Zero until a size is settled,
+		 * and put back to the baseline when its shape no longer matches the panel's.
+		 */
+		int PadZoomWidth;
+		int PadZoomHeight;
+
+		/*
 		 * This is how much detail the renderer is allowed to draw (0 - 2). Animations, particle
 		 * systems and translucency carry a detail level of their own and are skipped when it
 		 * exceeds this one, so a lower setting buys frame rate at the cost of eye candy.

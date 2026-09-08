@@ -26,7 +26,7 @@ enum { SAMPLES = 4 };
 
 
 // Steam marks a game running on a Steam Deck with this variable, and Proton passes it through.
-static bool On_Steam_Deck(void)
+bool On_Steam_Deck(void)
 {
 	static int _answer = -1;
 	if (_answer < 0) {
