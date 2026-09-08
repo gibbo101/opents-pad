@@ -50,6 +50,7 @@
 #include "dialog.hh"
 
 #include <algorithm>
+#include <vector>
 
 class MyButton : public TextButtonClass {
 	public:
@@ -194,8 +195,10 @@ class RestateMission : public MSEngine {
 		bool Init(ScenarioClass * scen);
 		void Cleanup(void);
 
-		bool User_Input(void);
-		void More_Button(int x, int y);
+		enum InputType { INPUT_NEXT, INPUT_BACK, INPUT_VIDEO };
+		InputType User_Input(void);
+		InputType More_Button(int x, int y);
+		void Show_Page(char * text, Rect const & rect);
 		MyButton * Get_Button(unsigned int id);
 
 		ScenarioClass *Scenario;
@@ -212,7 +215,9 @@ class RestateMission : public MSEngine {
 		bool Padded;
 		MSFont * PromptFont;
 		enum PromptType { PROMPT_NONE, PROMPT_MORE, PROMPT_FINAL } Prompt;
+		int Page;
 		void Draw_Prompts(Surface * surface);
+		bool Video_Offered(void) const;
 };
 
 enum {
@@ -343,6 +348,7 @@ bool RestateMission::Presentation(ScenarioClass * scen)
 			Add_Update_Rect(HiddenSurface->Get_Rect());
 			Blit_All(HiddenSurface);
 
+			std::vector<char *> pages;
 			if (strlen(BriefingText) != 0) {
 				Rect rect(CenterX + 110, CenterY + 60, 420, 280);
 				MSPrintAnim::Word_Wrap(BriefingText, Font, 420);
@@ -352,46 +358,50 @@ bool RestateMission::Presentation(ScenarioClass * scen)
 				StringRect = Intersect(rect, StringRect);
 				MSPrintAnim::Paginate(BriefingText, Font, rect.Height);
 
-				char * token = strtok(BriefingText, "\f");
-				if (token != NULL) {
-					while (true) {
-						MSPrintAnim * anim = new MSWordAnim(token, StringRect.X, StringRect.Y, Font, StringRect, 5);
-						Add_Animation(anim);
-						Wait_For_Anim(anim);
-						String = token;
+				for (char * token = strtok(BriefingText, "\f"); token != NULL; token = strtok(NULL, "\f")) {
+					pages.push_back(token);
+				}
+			}
 
-						token = strtok(NULL, "\f");
-						if (token == NULL) {
-							break;
-						}
+			// The pad's back button turns to the page before, so the pages are kept.
+			Page = 0;
+			Rect rect(CenterX + 110, CenterY + 60, 420, 280);
+			while (true) {
+				if (!pages.empty()) {
+					Show_Page(pages[Page], rect);
+				}
+				if (Page + 1 < int(pages.size())) {
+					Show_Mouse();
+					InputType input = More_Button(StringRect.X + StringRect.Width / 2, StringRect.Y + StringRect.Height);
+					Hide_Mouse();
+					Page += (input == INPUT_BACK) ? (Page > 0 ? -1 : 0) : 1;
+					continue;
+				}
 
-						Show_Mouse();
-						More_Button(StringRect.X + StringRect.Width / 2, StringRect.Y + StringRect.Height);
-						Hide_Mouse();
-
-						HiddenSurface->Blit_From(rect, *AlternateSurface, rect);
-						Add_Update_Rect(rect);
+				MyButton *resume_button = Get_Button(BUTTON_RESUME);
+				if (resume_button != NULL) {
+					resume_button->Enable();
+				}
+				if (scen->BriefMovie != VQ_NONE) {
+					MyButton *video_button = Get_Button(BUTTON_VIDEO);
+					if (video_button != NULL) {
+						video_button->Enable();
 					}
 				}
-			}
 
-			MyButton *resume_button = Get_Button(BUTTON_RESUME);
-			if (resume_button != NULL) {
-				resume_button->Enable();
-			}
-			if (scen->BriefMovie != VQ_NONE) {
-				MyButton *video_button = Get_Button(BUTTON_VIDEO);
-				if (video_button != NULL) {
-					video_button->Enable();
+				Prompt = PROMPT_FINAL;
+				Add_Update_Rect(HiddenSurface->Get_Rect());
+				Show_Mouse();
+				InputType input = User_Input();
+				Hide_Mouse();
+				Prompt = PROMPT_NONE;
+				if (input == INPUT_BACK && Page > 0) {
+					Page--;
+					continue;
 				}
+				result = input == INPUT_VIDEO;
+				break;
 			}
-
-			Prompt = PROMPT_FINAL;
-			Add_Update_Rect(HiddenSurface->Get_Rect());
-			Show_Mouse();
-			result = User_Input();
-			Hide_Mouse();
-			Prompt = PROMPT_NONE;
 
 			HiddenSurface->Fill(0);
 			Add_Update_Rect(HiddenSurface->Get_Rect());
@@ -483,6 +493,7 @@ bool RestateMission::Init(ScenarioClass * scen)
 		return(false);
 	}
 	Padded = Options.ControlScheme == CONTROL_CONTROLLER;
+	Page = 0;
 	if (Padded) {
 		PromptFont = new MSFont(false);
 	}
@@ -588,6 +599,19 @@ void RestateMission::Cleanup(void)
 }
 
 
+// Clears the text area and types a page out, leaving it as the page the redraw prints.
+void RestateMission::Show_Page(char * text, Rect const & rect)
+{
+	String = NULL;
+	HiddenSurface->Blit_From(rect, *AlternateSurface, rect);
+	Add_Update_Rect(rect);
+	MSPrintAnim * anim = new MSWordAnim(text, StringRect.X, StringRect.Y, Font, StringRect, 5);
+	Add_Animation(anim);
+	Wait_For_Anim(anim);
+	String = text;
+}
+
+
 /// <summary>
 /// Draws the parts of the presentation the animation engine does not own.
 /// The engine calls this routine as it updates, so that the briefing page and the
@@ -616,9 +640,21 @@ void RestateMission::Draw_Prompts(Surface * surface)
 	char const * accept = Fetch_String(Prompt == PROMPT_MORE ? TXT_MORE : _ResumesMission ? TXT_RESUME_MISSION : TXT_OK);
 	int x = CenterX + CONSOLE_SHELL_WIDTH - CONSOLE_PROMPT_INSET - used - PromptFont->Get_String_Width(accept);
 	Draw_Pad_Prompt(*surface, *PromptFont, PAD_BUTTON_ACCEPT, accept, x, y);
-	if (Prompt == PROMPT_FINAL && Scenario != nullptr && Scenario->BriefMovie != VQ_NONE) {
-		Draw_Pad_Prompt(*surface, *PromptFont, PAD_BUTTON_BACK, Fetch_String(TXT_VIDEO), CenterX + CONSOLE_PROMPT_INSET, y);
+	x = CenterX + CONSOLE_PROMPT_INSET;
+	if (Page > 0) {
+		char const * back = Fetch_String(TXT_BACK);
+		Draw_Pad_Prompt(*surface, *PromptFont, PAD_BUTTON_BACK, back, x, y);
+		x += used + PromptFont->Get_String_Width(back) + CONSOLE_PROMPT_INSET;
 	}
+	if (Video_Offered()) {
+		Draw_Pad_Prompt(*surface, *PromptFont, PAD_BUTTON_THIRD, Fetch_String(TXT_VIDEO), x, y);
+	}
+}
+
+
+bool RestateMission::Video_Offered(void) const
+{
+	return(Prompt == PROMPT_FINAL && Scenario != nullptr && Scenario->BriefMovie != VQ_NONE);
 }
 
 
@@ -627,11 +663,12 @@ void RestateMission::Draw_Prompts(Surface * surface)
 /// This routine polls the button list until the player picks one of the offered choices,
 /// or dismisses the page with the space bar or the escape key.
 /// </summary>
-/// <returns>bool; Did the player ask to see the briefing video?</returns>
-bool RestateMission::User_Input(void)
+/// <returns>What the player asked for: the next page or the mission, the page before, or the video.</returns>
+RestateMission::InputType RestateMission::User_Input(void)
 {
 	unsigned input = KN_NONE;
 	bool running = true;
+	bool back = false;
 	Keyboard->Clear();
 	if (ButtonList != NULL) {
 		ButtonList->Draw_All();
@@ -653,14 +690,20 @@ bool RestateMission::User_Input(void)
 				input = Keyboard->Get();
 			}
 		}
-		// The pad's accept carries on, as Space does; its back plays the video when there is
-		// one to play at this point, and otherwise carries on too.
+		// The pad's accept carries on, as Space does; back turns to the page before, or closes
+		// a single page; the third button plays the video when one is offered.
 		GamepadStateType pad = Gamepad_Read();
 		if (pad.Accept && !previous.Accept) {
 			input = KN_SPACE;
 		} else if (pad.Back && !previous.Back) {
-			bool video = Prompt == PROMPT_FINAL && Scenario != nullptr && Scenario->BriefMovie != VQ_NONE;
-			input = video ? (BUTTON_VIDEO|KN_BUTTON) : KN_SPACE;
+			if (Page > 0) {
+				back = true;
+				input = KN_SPACE;
+			} else if (Prompt == PROMPT_FINAL) {
+				input = KN_SPACE;
+			}
+		} else if (pad.Third && !previous.Third && Video_Offered()) {
+			input = BUTTON_VIDEO|KN_BUTTON;
 		}
 		previous = pad;
 		switch (input) {
@@ -681,7 +724,10 @@ bool RestateMission::User_Input(void)
 	} while (running == true);
 	Keyboard->Clear();
 
-	return(input == (BUTTON_VIDEO|KN_BUTTON) ? true : false);
+	if (input == (BUTTON_VIDEO|KN_BUTTON)) {
+		return(INPUT_VIDEO);
+	}
+	return(back ? INPUT_BACK : INPUT_NEXT);
 }
 
 
@@ -692,8 +738,9 @@ bool RestateMission::User_Input(void)
 /// </summary>
 /// <param name="x">The horizontal center for the button.</param>
 /// <param name="y">The top edge for the button.</param>
-void RestateMission::More_Button(int x, int y)
+RestateMission::InputType RestateMission::More_Button(int x, int y)
 {
+	InputType input = INPUT_NEXT;
 	MyButton *btn = Get_Button(BUTTON_MORE);
 	if (btn) {
 		btn->X = x - (btn->Width / 2);
@@ -701,13 +748,18 @@ void RestateMission::More_Button(int x, int y)
 		btn->Enable();
 		Prompt = PROMPT_MORE;
 		Add_Update_Rect(HiddenSurface->Get_Rect());
-		User_Input();
+		input = User_Input();
 		Prompt = PROMPT_NONE;
-		if (!Padded) {
+		if (Padded) {
+			Rect line(CenterX, CenterY + 360, 640, 40);
+			HiddenSurface->Blit_From(line, *AlternateSurface, line);
+			Add_Update_Rect(line);
+		} else {
 			btn->Draw();
 		}
 		btn->Disable();
 	}
+	return(input);
 }
 
 
