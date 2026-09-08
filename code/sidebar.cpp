@@ -184,6 +184,13 @@ ShapeSet const * SidebarClass::StripClass::DarkenShapes;
 
 void Print_Cameo_Text(char const * string, Point2D const & point, Rect const & cliprect, int maxlinelen);
 
+// The pad's focus outline runs along a cell's edge, so under the controller scheme a
+// cell's caption starts a little in from it.
+static int Pad_Caption_Inset(void)
+{
+	return(Options.ControlScheme == CONTROL_CONTROLLER ? 3 : 0);
+}
+
 
 enum CameoCategoryType {
 	CAMEO_CATEGORY_SUPERWEAPON,
@@ -1727,8 +1734,6 @@ void SidebarClass::Draw_Pad_View(void)
 	enum { SHADOW_BOX = 34 };
 	std::string caption;
 
-	// The outline reaches the cell's edge, and the cell's caption is printed again over it
-	// so the lines never cut a letter.
 	auto outline = [&](int x, int y) {
 		Rect area(x, cliprect.Y + y, StripClass::OBJECT_WIDTH, StripClass::OBJECT_HEIGHT);
 		SidebarSurface->Draw_Rect(area, color);
@@ -1749,8 +1754,6 @@ void SidebarClass::Draw_Pad_View(void)
 				bool has_items = bottom ? super_count > 0 : Pad_Items(section, items, 1) > 0;
 				bool shown = has_items || (bottom ? Pad_Owned_Factory(Pad_Column_House(0), PAD_KIND_STRUCTURES) != NULL : Pad_Section_Shown(row, column));
 				PadItemType active;
-				PadItemType drawn;
-				bool drawn_cameo = false;
 				bool factory_face = false;
 				if (!shown) {
 					// Nothing marks a section the player has no way into yet.
@@ -1758,12 +1761,8 @@ void SidebarClass::Draw_Pad_View(void)
 					// The current superweapon, with its charge as the strip would show it.
 					PadItemType current = supers[PadSuper % super_count];
 					Column[current.Column].Draw_Cameo(current.Index, x, y, cliprect);
-					drawn = current;
-					drawn_cameo = true;
 				} else if (!bottom && has_items && (Pad_Active_Item(section, active) || Pad_Last_Item(section, active))) {
 					Column[active.Column].Draw_Cameo(active.Index, x, y, cliprect);
-					drawn = active;
-					drawn_cameo = true;
 				} else {
 					ShapeSet const * icon = NULL;
 					BSurface const * sprite = bottom ? NULL : Pad_Building_Sprite(Pad_Section_Factory(row, column));
@@ -1806,7 +1805,7 @@ void SidebarClass::Draw_Pad_View(void)
 						SidebarSurface->Fill_Rect_Trans(wash, RGBClass(0, 0, 0), 55);
 					}
 					char const * name = bottom && column != 0 ? _PadSectionNames[5] : _PadSectionNames[row];
-					Print_Cameo_Text(name, Point2D(x, y + StripClass::CAMEO_TEXT_Y_OFFSET), cliprect, StripClass::OBJECT_WIDTH - 2);
+					Print_Cameo_Text(name, Point2D(x + Pad_Caption_Inset(), y + StripClass::CAMEO_TEXT_Y_OFFSET), cliprect, StripClass::OBJECT_WIDTH - 2 - Pad_Caption_Inset());
 				}
 				if (factory_face && row == PAD_KIND_STRUCTURES) {
 					// The side's emblem marks whose column this is, over the factory image alone.
@@ -1818,11 +1817,6 @@ void SidebarClass::Draw_Pad_View(void)
 				}
 				if (focus_row == row && PadCol == column) {
 					outline(x, y);
-					if (drawn_cameo) {
-						Column[drawn.Column].Draw_Cameo_Caption(drawn.Index, x, y, cliprect);
-					} else if (shown) {
-						Print_Cameo_Text(bottom && column != 0 ? _PadSectionNames[5] : _PadSectionNames[row], Point2D(x, y + StripClass::CAMEO_TEXT_Y_OFFSET), cliprect, StripClass::OBJECT_WIDTH - 2);
-					}
 					if (!shown) {
 						caption.clear();
 					} else if (bottom && column == 0 && super_count > 0) {
@@ -1849,7 +1843,6 @@ void SidebarClass::Draw_Pad_View(void)
 			if (focus_row == PadTop + row && PadCol == column) {
 				outline(x, y);
 				if (at < count) {
-					Column[items[at].Column].Draw_Cameo_Caption(items[at].Index, x, y, cliprect);
 					StripClass::BuildType const & entry = Column[items[at].Column].Buildables[items[at].Index];
 					if (entry.BuildableType == RTTI_SPECIAL) {
 						caption = SuperWeaponTypes[entry.BuildableID]->Full_Name();
@@ -2731,29 +2724,6 @@ char const * SidebarClass::StripClass::Help_Text(int id)
 /// it builds, READY or HOLD when it is done or paused, the queue count, and darkened when it
 /// cannot be built. An index past the buildables draws the blank slot.
 /// </summary>
-/// <summary>
-/// Prints a cameo's caption alone, where Draw_Cameo puts it.
-/// </summary>
-void SidebarClass::StripClass::Draw_Cameo_Caption(int index, int x, int y, Rect const & cliprect)
-{
-	if (index < 0 || index >= BuildableCount) {
-		return;
-	}
-	char const * name = NULL;
-	if (Buildables[index].BuildableType != RTTI_SPECIAL) {
-		TechnoTypeClass const * obj = Fetch_Techno_Type(Buildables[index].BuildableType, Buildables[index].BuildableID);
-		if (obj != NULL) {
-			name = obj->Full_Name();
-		}
-	} else {
-		name = SuperWeaponTypes[SuperWeaponType(Buildables[index].BuildableID)]->Full_Name();
-	}
-	if (name != NULL) {
-		Print_Cameo_Text(name, Point2D(x, y + CAMEO_TEXT_Y_OFFSET), cliprect, OBJECT_WIDTH-2);
-	}
-}
-
-
 void SidebarClass::StripClass::Draw_Cameo(int index, int x, int y, Rect const & cliprect)
 {
 	ShapeSet const * shapefile = NULL;
@@ -2876,7 +2846,7 @@ void SidebarClass::StripClass::Draw_Cameo(int index, int x, int y, Rect const & 
 	}
 
 	if (name != NULL) {
-		Print_Cameo_Text(name, Point2D(x, y + CAMEO_TEXT_Y_OFFSET), cliprect, OBJECT_WIDTH-2);
+		Print_Cameo_Text(name, Point2D(x + Pad_Caption_Inset(), y + CAMEO_TEXT_Y_OFFSET), cliprect, OBJECT_WIDTH - 2 - Pad_Caption_Inset());
 	}
 
 	bool hasqueuecount = false;
