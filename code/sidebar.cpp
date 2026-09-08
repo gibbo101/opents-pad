@@ -1172,6 +1172,7 @@ void SidebarClass::Pad_Panel_Show(bool pin, bool focus)
 	if (PadPanel == PAD_PANEL_HIDDEN || PadPanel == PAD_PANEL_SLIDING_OUT) {
 		PadPanel = PAD_PANEL_SLIDING_IN;
 		Video_Slide_Sidebar(true, SLIDE_MS);
+		Sound_Effect(Rule->RadarOn);
 	}
 	if (focus) {
 		Pad_Enter();
@@ -1197,6 +1198,7 @@ void SidebarClass::Pad_Panel_Hide(void)
 	Pad_Panel_Cover(false);
 	PadPanel = PAD_PANEL_SLIDING_OUT;
 	Video_Slide_Sidebar(false, SLIDE_MS);
+	Sound_Effect(Rule->RadarOff);
 }
 
 

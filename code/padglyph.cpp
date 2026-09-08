@@ -75,21 +75,62 @@ int Draw_Pad_Glyph(Surface & surface, PadButtonType button, int x, int y, int si
 }
 
 
+int Draw_Pad_Glyph_Fitted(Surface & surface, PadButtonType button, int x, int y, int size)
+{
+	int row = Style_Row(Resolved_Prompt_Style());
+	if (row < 0 || size < 4) {
+		return(0);
+	}
+	unsigned char const * pixels = PadGlyphPixels[row][std::clamp(int(button), 0, int(PAD_BUTTON_COUNT) - 1)];
+
+	// The content's bounds, from the samples that carry any alpha.
+	int left = PAD_GLYPH_SOURCE_SIZE, top = PAD_GLYPH_SOURCE_SIZE, right = -1, bottom = -1;
+	for (int py = 0; py < PAD_GLYPH_SOURCE_SIZE; py++) {
+		for (int px = 0; px < PAD_GLYPH_SOURCE_SIZE; px++) {
+			if (pixels[(py * PAD_GLYPH_SOURCE_SIZE + px) * 4 + 3] > 8) {
+				left = std::min(left, px);
+				top = std::min(top, py);
+				right = std::max(right, px);
+				bottom = std::max(bottom, py);
+			}
+		}
+	}
+	if (right < left) {
+		return(0);
+	}
+	int width = right - left + 1;
+	int height = bottom - top + 1;
+	int span = std::max(width, height);
+	int drawn_width = std::max(size * width / span, 1);
+	int drawn_height = std::max(size * height / span, 1);
+	Draw_Baked_Image_Part(surface, pixels, PAD_GLYPH_SOURCE_SIZE, left, top, width, height,
+		x + (size - drawn_width) / 2, y + (size - drawn_height) / 2, drawn_width, drawn_height, 100);
+	return(size);
+}
+
+
 void Draw_Baked_Image(Surface & surface, unsigned char const * pixels, int source, int x, int y, int size, int opacity)
 {
-	if (size < 1 || opacity < 1) {
+	Draw_Baked_Image_Part(surface, pixels, source, 0, 0, source, source, x, y, size, size, opacity);
+}
+
+
+void Draw_Baked_Image_Part(Surface & surface, unsigned char const * pixels, int source, int sourcex, int sourcey, int sourcewidth, int sourceheight, int x, int y, int width, int height, int opacity)
+{
+	if (width < 1 || height < 1 || sourcewidth < 1 || sourceheight < 1 || opacity < 1) {
 		return;
 	}
 
 	// Each drawn pixel averages a grid of source samples, then blends in by its coverage.
-	float scale = float(source) / float(size);
-	for (int dy = 0; dy < size; dy++) {
-		for (int dx = 0; dx < size; dx++) {
+	float scalex = float(sourcewidth) / float(width);
+	float scaley = float(sourceheight) / float(height);
+	for (int dy = 0; dy < height; dy++) {
+		for (int dx = 0; dx < width; dx++) {
 			int red = 0, green = 0, blue = 0, alpha = 0;
 			for (int sy = 0; sy < SAMPLES; sy++) {
 				for (int sx = 0; sx < SAMPLES; sx++) {
-					int px = std::min(int((dx + (sx + 0.5f) / SAMPLES) * scale), source - 1);
-					int py = std::min(int((dy + (sy + 0.5f) / SAMPLES) * scale), source - 1);
+					int px = std::min(sourcex + int((dx + (sx + 0.5f) / SAMPLES) * scalex), sourcex + sourcewidth - 1);
+					int py = std::min(sourcey + int((dy + (sy + 0.5f) / SAMPLES) * scaley), sourcey + sourceheight - 1);
 					unsigned char const * sample = pixels + (py * source + px) * 4;
 					int a = sample[3];
 					red += sample[0] * a;

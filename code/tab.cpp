@@ -159,7 +159,7 @@ void TabClass::Draw_It(bool complete)
 				enum { GLYPH = 16, GAP = 4 };
 				int textwidth = Metal12FontPtr->String_Pixel_Width(Fetch_String(TXT_TAB_BUTTON_CONTROLS));
 				int left = centre - (GLYPH + GAP + textwidth) / 2;
-				int glyph = Draw_Pad_Glyph(bar, PAD_BUTTON_MENU, left, (tab_height - GLYPH) / 2, GLYPH);
+				int glyph = Draw_Pad_Glyph_Fitted(bar, PAD_BUTTON_MENU, left, (tab_height - GLYPH) / 2, GLYPH);
 				if (glyph > 0) {
 					centre = left + glyph + GAP + textwidth / 2;
 				}
@@ -209,7 +209,7 @@ void TabClass::Draw_Sidebar_Tab(Surface & surface, int x)
 	if (Metal12FontPtr != NULL) {
 		int textwidth = Metal12FontPtr->String_Pixel_Width(Fetch_String(TXT_TAB_SIDEBAR));
 		int left = centre - (GLYPH + GAP + textwidth) / 2;
-		int glyph = Draw_Pad_Glyph(surface, PAD_BUTTON_FOURTH, left, (HEIGHT - GLYPH) / 2, GLYPH);
+		int glyph = Draw_Pad_Glyph_Fitted(surface, PAD_BUTTON_FOURTH, left, (HEIGHT - GLYPH) / 2, GLYPH);
 		if (glyph > 0) {
 			centre = left + glyph + GAP + textwidth / 2;
 		}
