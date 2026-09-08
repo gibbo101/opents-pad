@@ -12,26 +12,73 @@
 # OpenTS on a controller
 
 This fork of [OpenTS](https://github.com/OpenTS-Developers/OpenTS) adds a
-controller scheme to the engine and is played on a Steam Deck. Under it the
-shell menus become console screens, the sidebar is a fixed grid of build
-sections that slides over the map, and every order on the map is a pad
-chord, in the manner of *Command & Conquer: Red Alert Retaliation* on the
-PlayStation. The keyboard and mouse scheme is the engine as upstream ships
-it: every change is gated on the controller scheme.
+controller scheme to the engine, built for and played on a Steam Deck. It
+follows *Command & Conquer: Red Alert Retaliation* on the PlayStation: the
+menus are console screens, the sidebar is a grid of build sections, and
+every order on the map is a button or a chord. The keyboard and mouse scheme
+is the engine as upstream ships it. Every change is gated on the controller
+scheme, so a keyboard player sees no difference.
 
-[Controller scheme](docs/CONTROLS.md) lists every button, screen and chord.
-[Controller support](docs/CONTROLLER.md) records how it is built and what is
-next. The fork tracks upstream `main`; engine fixes found along the way go
-back upstream as pull requests, and the controller scheme itself stays here
-for now.
+## What it does
+
+- **Console screens.** The main menu, campaign select, skirmish and LAN
+  lobbies, options, audio, the pause menu, save and load, and an on-screen
+  keyboard for names, all driven from the pad with the accept and back
+  buttons shown as glyphs for an Xbox, PlayStation or Deck pad.
+- **A pointer that plays well.** The left stick and d-pad move it at paces
+  measured on the map, so a push covers the same ground at every zoom. It
+  snaps onto units, the right shoulder speeds it, and what it cannot travel
+  at the edge scrolls the map.
+- **Cross and circle as the mouse buttons**, so selecting, ordering,
+  deploying, placing and band boxing follow the game's own paths. A second
+  tap of cross selects a unit's type on screen, a third the type on the map.
+  Teams live on the face buttons with L1 and L2, and their units wear the
+  button's glyph.
+- **A fixed sidebar.** Five rows of two cells, your side and the other side,
+  each cell a build section that opens into its grid. It slides over the map
+  on triangle and can be pinned, and the map runs full width when it is out.
+- **Zoom in place of resolution.** R1 and the right stick step the map's
+  render height up and down a ladder cut to the panel's shape.
+- **Retaliation's cheat codes**, keyed in on the sidebar's mode buttons in
+  solo games.
+
+[Controller scheme](docs/CONTROLS.md) lists every screen, button and chord,
+with the layout diagram. [Controller support](docs/CONTROLLER.md) records how
+each part is built, what was found on the way and what is next.
+
+## Playing it
+
+You need your own copy of *Tiberian Sun*, as with upstream OpenTS. Build the
+engine as [Building OpenTS](docs/BUILDING.md) describes, then put `Game.exe`
+and `Language.dll` in the game's folder in place of the originals. On a Steam
+Deck the game runs under Proton from the Steam library as it does upstream;
+the scheme switches to the controller when a pad is connected and back to
+the keyboard when none is, and the Options screen sets it by hand. Holding
+the menu and back buttons together for a second brings the controller
+scheme up from any screen. No packaged builds are published yet.
+
+## Status
+
+The GDI campaign is being played through on the fork, and the scheme is
+adjusted as the missions turn things up. LAN lobbies exist but have not been
+played between two machines. The fork tracks upstream `main`; engine fixes
+found along the way go back upstream as pull requests, and the controller
+scheme itself stays here for now.
+
+## Screenshots
 
 <p align="center">
-  <img src="docs/screenshots/main-menu.jpg" alt="The main menu as a console screen" width="640">
-  <img src="docs/screenshots/options.jpg" alt="The options screen" width="640">
-  <img src="docs/screenshots/controls.jpg" alt="The Controls screen with the drawn pad and callouts" width="640">
-  <img src="docs/screenshots/play-sidebar-in.jpg" alt="Play with the section-grid sidebar slid in" width="640">
-  <img src="docs/screenshots/play-sidebar-out.jpg" alt="Play with the sidebar slid out and the Sidebar tab on the bar" width="640">
-  <img src="docs/screenshots/pause-menu.jpg" alt="The pause menu" width="640">
+  <img src="docs/screenshots/main-menu.jpg" alt="The main menu as a console screen" width="400">
+  <img src="docs/screenshots/campaign-select.jpg" alt="The campaign select with the two side emblems" width="400">
+  <img src="docs/screenshots/options.jpg" alt="The options screen" width="400">
+  <img src="docs/screenshots/controls.jpg" alt="The Controls screen with the drawn pad and callouts" width="400">
+  <img src="docs/screenshots/briefing.jpg" alt="A mission briefing with the accept prompt" width="400">
+  <img src="docs/screenshots/map-select.jpg" alt="The campaign map select with a target focused" width="400">
+  <img src="docs/screenshots/play-sidebar-in.jpg" alt="Play with the section-grid sidebar slid in and a team wearing its glyph" width="400">
+  <img src="docs/screenshots/play-sidebar-out.jpg" alt="Play with the sidebar slid out and the Sidebar tab on the bar" width="400">
+  <img src="docs/screenshots/play-nod-grid.jpg" alt="The Nod infantry section open after capturing a Hand of Nod" width="400">
+  <img src="docs/screenshots/pause-menu.jpg" alt="The pause menu" width="400">
+  <img src="docs/screenshots/keyboard.jpg" alt="The on-screen keyboard" width="400">
 </p>
 
 The rest of this page is upstream's.
