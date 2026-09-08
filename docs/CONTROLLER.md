@@ -72,30 +72,49 @@ button.
 
 ## Next
 
-1. The sidebar's spare tiles on tall screens: the section view uses five
+The sidebar block comes first, in this order, because the later items
+depend on the sidebar's final shape:
+
+1. The sidebar at a fixed on-screen size under the controller scheme, so
+   its share of the screen stops changing with the zoom and the panel. The
+   zoom leaves it at 168 render pixels today. This is the foundation: the
+   presenter drawing the sidebar as its own quad, which the zoom glide would
+   share if it is ever wanted.
+2. The top bar under the controller scheme. It is a 16 pixel strip across
+   the whole width: the Options tab at the map's edge, the beam tiled over
+   the map, a mission timer tab at the map's top right when a timer runs,
+   and the credits tab over the sidebar. Decided on Sep 8: the map takes the
+   full height (the 16 pixel offset sits in `display.cpp` and
+   `mainopt.cpp`), the mission timer stays as an overlay in the map's top
+   right corner, the credits stay in the sidebar's own strip, and an
+   on-screen Options button for the mouse goes on the sidebar once its
+   layout is settled, the sidebar's top strip split Options and credits
+   being the leading idea. The pad's Options button is the real way in
+   throughout, so nothing is lost meanwhile. The keyboard scheme keeps the
+   bar.
+3. The sidebar's spare tiles on tall screens: the section view uses five
    rows and the strip fills the rest with blank tiles, six of them at
    2560x720. No spare tiles and the superweapons on the bottom row, in the
    manner of Retaliation's panel; a compact panel or spread rows, undecided.
-   Scaling the sidebar itself is separate work; the zoom leaves the sidebar
-   at 168 render pixels, so zooming in grows its share of the screen.
-2. Untested on the sidebar: the Nod side as the captured column; a grid
+   Scaling the sidebar itself is item 1.
+4. Untested on the sidebar: the Nod side as the captured column; a grid
    longer than the panel scrolling; the hall of fame name on the on-screen
    keyboard and the score screen's restore after it.
-3. The rest of the play scheme: the snap onto units is in, a `PadSnap` option
+5. The rest of the play scheme: the snap onto units is in, a `PadSnap` option
    defaulting to half a cell; the Controls screen is now the drawn
    pad with paged callouts.
-4. A Steam Input layout for the game, shipped in the repo, so the pad is on
+6. A Steam Input layout for the game, shipped in the repo, so the pad is on
    the Gamepad template without the player building one. Steam only defaults
    a layout the app owner publishes, so this is a file to import once, and
    Steam keeps the choice per player after that.
-5. LAN lobby extras: kick as a row on the host lobby, and the generated map
+7. LAN lobby extras: kick as a row on the host lobby, and the generated map
    once its setup has a console screen. The lobbies and chat are still
    untested between two machines.
-6. Sidebar shadows: `assets/sidebar-shadows/` and `tools/sidebarshadows.py`
+8. Sidebar shadows: `assets/sidebar-shadows/` and `tools/sidebarshadows.py`
    bake a black silhouette of what a section builds over its cell, and every
    slot is empty until original art exists. The game's own sprites are not to
    be traced for it.
-7. Later: the display work in the direction notes.
+9. Later: the display work in the direction notes.
 
 ## Parked
 
