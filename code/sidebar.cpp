@@ -1124,6 +1124,18 @@ static bool Pad_Type_Belongs(TechnoTypeClass const * type, int column)
 }
 
 
+static BuildingTypeClass const * Pad_Owned_Factory(int column, int row);
+
+// A structure goes under the side that owns it, a shared one under the player's own; a unit
+// goes under each side that may own it and whose factory for its kind the player holds.
+static bool Pad_Item_Belongs(TechnoTypeClass const * type, int column, int row)
+{
+	if (row == PAD_KIND_STRUCTURES) return(Pad_Type_Belongs(type, column));
+	if ((type->Get_Ownable() & (1 << Pad_Column_House(column))) == 0) return(false);
+	return(Pad_Owned_Factory(column, row) != nullptr);
+}
+
+
 int SidebarClass::Pad_Items(int section, PadItemType * items, int max) const
 {
 	int row = section / PAD_COLUMNS;
@@ -1145,7 +1157,7 @@ int SidebarClass::Pad_Items(int section, PadItemType * items, int max) const
 			StripClass::BuildType const & entry = Column[strip].Buildables[index];
 			if (entry.BuildableType != kind) continue;
 			TechnoTypeClass const * type = Fetch_Techno_Type(entry.BuildableType, entry.BuildableID);
-			if (type == nullptr || !Pad_Type_Belongs(type, column)) continue;
+			if (type == nullptr || !Pad_Item_Belongs(type, column, row)) continue;
 			items[count++] = {strip, index};
 		}
 	}

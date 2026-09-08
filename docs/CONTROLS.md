@@ -266,7 +266,8 @@ mode hands focus back to the map with the ghost, target or mode cursor on
 the pointer, and Triangle out of a grid parks the sidebar on that section.
 The structures grid closes after a build, since a construction yard builds
 one thing at a time. A section cell shows what it is building, its last
-build once idle, or the factory. Sections whose factory you do not hold
+build once idle, or the factory. A unit both sides can build appears under
+each side whose factory you hold. Sections whose factory you do not hold
 are dulled; with a construction yard all four of your side's sections show.
 The other side's structures section appears once one of their buildings is
 yours, since the game has one construction yard type for both sides and it
