@@ -237,7 +237,7 @@ the multiplayer paths and Restart becomes Surrender.
 - Retaliation's Square toggles the cursor mode and its Triangle opens the
   sidebar; here Square cycles the modes and Triangle opens the sidebar, as
   on its Controls screen.
-- Retaliation pins the sidebar on screen with R1 and Triangle. The sidebar
-  in Tiberian Sun is always on screen, so there is no pin.
+- Retaliation pins the sidebar on screen with R1 and Triangle; here the
+  same chord makes the sidebar sticky, and the game remembers it.
 - Retaliation's team icons sit on the sidebar; here teams are the shoulder
   chords above.
