@@ -33,6 +33,7 @@
 #include "newmenu.h"
 #include "ownrdraw.h"
 #include "padglyph.h"
+#include "shapeset.h"
 #include "sidebar.h"
 #include "sounddlg.h"
 #include "stimer.h"
@@ -455,17 +456,27 @@ static int Zoom_Nearest_Rung(int height)
 
 
 /// <summary>
-/// The height the split sidebar is drawn at under the controller scheme: the zoom's
-/// baseline, so the sidebar keeps the size it has at the baseline zoom whatever the map
-/// is zoomed to, and never less than a scale of one.
+/// The height the split sidebar is drawn at under the controller scheme: the pad's own
+/// panel, the radar and mode buttons over five rows of two cells with nothing spare below,
+/// so scaled to the screen's height the panel fills it whatever the map is zoomed to.
+/// The panel's pieces are read from the loaded sidebar art; before it loads, a size the
+/// art is known to give.
 /// </summary>
 int Pad_Sidebar_Height(void)
 {
-	int panel_width;
-	int panel_height;
-	Panel_Size(panel_width, panel_height);
-	int baseline = On_Steam_Deck() ? ZOOM_BASELINE_DECK : ZOOM_BASELINE;
-	return(std::max(std::min(baseline, panel_height), 1));
+	enum { ART_HEIGHT = 458 };
+	int height = ART_HEIGHT;
+	if (SidebarClass::SidebarShape != NULL && SidebarClass::SidebarMiddleShape != NULL && SidebarClass::SidebarBottomShape != NULL && SidebarClass::SidebarAddonShape != NULL) {
+		height = SidebarClass::SIDE_Y + SidebarClass::SidebarShape->Get_Height()
+			+ SidebarClass::PAD_SECTION_ROWS * SidebarClass::SidebarMiddleShape->Get_Height()
+			+ SidebarClass::SidebarBottomShape->Get_Height() + SidebarClass::SidebarAddonShape->Get_Height();
+		static int _logged = 0;
+		if (_logged != height) {
+			DebugString("Pad sidebar panel is %d high\n", height);
+			_logged = height;
+		}
+	}
+	return(std::max(height, 1));
 }
 
 
