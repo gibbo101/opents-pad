@@ -2491,7 +2491,7 @@ void Tactical::Scroll_Map(FacingType facing, int distance)
 void Tactical::Tactical_Position_Limits(Point2D & minimum, Point2D & maximum)
 {
 	minimum.X = TacticalRect.Width / 2 - (ISO_TILE_PIXEL_W >> 1) * (Map.PlayRect.Width - 2 * Map.LocalRect.X);
-	maximum.X = minimum.X + ISO_TILE_PIXEL_W * Map.LocalRect.Width - TacticalRect.Width;
+	maximum.X = minimum.X + ISO_TILE_PIXEL_W * Map.LocalRect.Width - TacticalRect.Width + ViewCoveredRight;
 
 	minimum.Y = TacticalRect.Height / 2 + (ISO_TILE_PIXEL_H >> 1) * (Map.PlayRect.Width + 2 * Map.LocalRect.Y - 5);
 	maximum.Y = minimum.Y + ISO_TILE_PIXEL_H * (2 * Map.LocalRect.Height + 9) / 2 - TacticalRect.Height;
@@ -3280,26 +3280,17 @@ void Tactical::Select_These(Rect const & rect, void (*select_callback)(ObjectCla
 
 	if (rect.Is_Valid()) {
 
-		/*
-		 * Sweep through all selectable objects and select the ones within the
-		 * bounding box.
-		 */
-		for (int index = 0; index < (int)SelectableObjects.size(); index++) {
-			Selectable & sel = SelectableObjects[index];
-			ObjectClass * obj = sel.Object;
-
+		auto consider = [&](ObjectClass * obj, Point2D const & pos) {
 			if (obj == NULL || !obj->IsActive) {
-				continue;
+				return;
 			}
-
-			Point2D pos = sel.Position - Point2D(TacPixelX, TacPixelY);
 
 			/*
 			**	Only try to select objects that are owned by the player, are allowed to be
 			**	selected, and are within the bounding box.
 			*/
 			if (!rect.Is_Point_Within(pos)) {
-				continue;
+				return;
 			}
 
 			if (select_callback == NULL) {
@@ -3322,7 +3313,36 @@ void Tactical::Select_These(Rect const & rect, void (*select_callback)(ObjectCla
 					}
 				}
 			} else {
-				select_callback(sel.Object);
+				select_callback(obj);
+			}
+		};
+
+		bool beyond = rect.X < 0 || rect.Y < 0 || rect.X + rect.Width > TacticalDimensions.Width || rect.Y + rect.Height > TacticalDimensions.Height;
+		if (!beyond) {
+
+			/*
+			 * Sweep through all selectable objects and select the ones within the
+			 * bounding box.
+			 */
+			for (int index = 0; index < (int)SelectableObjects.size(); index++) {
+				Selectable & sel = SelectableObjects[index];
+				consider(sel.Object, sel.Position - Point2D(TacPixelX, TacPixelY));
+			}
+
+		} else {
+
+			// Only what was drawn is in that list, so a box that reaches past the view takes
+			// in the player's own objects by where they stand on the map.
+			for (int index = 0; index < Technos.Count(); index++) {
+				TechnoClass * techno = Technos[index];
+				if (techno == NULL || !techno->IsActive || techno->IsInLimbo) {
+					continue;
+				}
+				HouseClass * owner = techno->Owner_HouseClass();
+				if (owner == NULL || !owner->Is_Player_Control()) {
+					continue;
+				}
+				consider(techno, Coord_To_Pixel_Absolute(techno->Center_Coord()) - Point2D(TacPixelX, TacPixelY));
 			}
 		}
 	}

@@ -384,6 +384,7 @@ class Tactical : public AbstractClass
 		Point2D RubberBandStart;
 		Point2D RubberBandEnd;
 		Point2D RubberBandView;			// Where the view was when the band began, so a scroll leaves the band's anchor on the map.
+		int ViewCoveredRight = 0;		// View pixels at the right hidden under a panel, which the view may scroll past the map's edge by.
 
 		/*
 		 * These animate the waypoint path markers drawn over the map. The counter selects
