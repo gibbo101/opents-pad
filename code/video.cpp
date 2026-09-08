@@ -53,6 +53,7 @@ static bool _SidebarOnRight = true;
 static int _BarHeight = 0;
 static int _BarWidth = 0;
 static bool _SidebarOverlay = false;
+static bool _Movie = false;
 
 // The overlay sidebar's slide: where it is going, where it set out from, and when.
 static float _SlideTo = 0.0f;
@@ -153,7 +154,7 @@ static void Update_Scale_Info(void)
 	int framewidth = _ScaleInfo.GameWidth;
 	int frameheight = _ScaleInfo.GameHeight;
 
-	if (_SidebarWidth > 0 && _SidebarHeight > 0 && _SidebarWidth < _ScaleInfo.GameWidth) {
+	if (!_Movie && _SidebarWidth > 0 && _SidebarHeight > 0 && _SidebarWidth < _ScaleInfo.GameWidth) {
 		double scale = Sidebar_Fit_Scale();
 		_ScaleInfo.SidebarWidth = _SidebarWidth;
 		_ScaleInfo.SidebarHeight = _SidebarHeight;
@@ -467,6 +468,23 @@ void Video_Set_Refresh_Rate(int refreshrate)
 /// <summary>
 /// Records that the visible surface has been drawn to since the last present.
 /// </summary>
+/// <summary>
+/// Presents the whole frame alone while a fullscreen movie plays, with the split sidebar
+/// and bar off screen; off restores the split layout. The frame redraws itself afterwards.
+/// </summary>
+void Video_Set_Movie(bool on)
+{
+	if (_Movie == on) {
+		return;
+	}
+	_Movie = on;
+	if (_Initialized && !Apply_Layout()) {
+		DebugString("Video_Set_Movie(%d): layout failed\n", on);
+	}
+	_FrameIsDirty = true;
+}
+
+
 void Video_Mark_Dirty(void)
 {
 	_FrameIsDirty = true;

@@ -29,6 +29,7 @@
 #include "movieskip.h"
 #include "session.h"
 #include "vector.h"
+#include "video.h"
 #include "vqa.h"
 
 #include "vq.hh"
@@ -132,7 +133,9 @@ void Play_Movie(char const * name, ThemeType theme, bool clrscrn_after, bool str
 			vqa->VQA->Set_Pause_On_Focus_Loss(false);
 		}
 
+		Video_Set_Movie(true);
 		Movie_Play(vqa, true, theme, false);
+		Video_Set_Movie(false);
 		Movie_Destroy(vqa);
 		delete vqa;
 
@@ -168,7 +171,9 @@ void _Play_Movie(char const * name, ThemeType theme)
 		Keyboard->Clear();
 		VQHandle * vqa = Movie_Create(name, HiddenSurface, Rect(0,0,0,0), Rect(0,0,0,0), 255, true);
 		if (vqa != NULL) {
+			Video_Set_Movie(true);
 			Movie_Play(vqa, true, theme, true);
+			Video_Set_Movie(false);
 			Movie_Destroy(vqa);
 			delete vqa;
 			Keyboard->Clear();

@@ -43,6 +43,8 @@
 #include "ccfile.h"
 #include "convert.h"
 #include "dbgprint.h"
+#include "gamepad.h"
+#include "goptions.h"
 #include "audio/audioengine.h"
 #include "globals.h"
 #include "houstype.h"
@@ -481,16 +483,96 @@ void MapSelect::Process_Idle(void)
 const char * MapSelect::Process_Input(MapStage * stage)
 {
 	KeyNumType key;
-	const char * selection = NULL;
+	const char * selection = nullptr;
 	int last_mouse_x = -1;
 	int last_mouse_y = -1;
 	int mouse_x;
 	int mouse_y;
 	int last_click_index = -1;
 	int click_index;
-	MSAnim * anim = NULL;
+	MSAnim * anim = nullptr;
 
-	if (stage != NULL && ClickMap != NULL) {
+	if (stage != nullptr && ClickMap != nullptr) {
+
+		// Hovering a target lights it, prints its description and queues its voice.
+		auto hover = [&](int index) {
+			if (index == last_click_index) {
+				return;
+			}
+			Stop_Voice(true);
+
+			Remove_Anim(anim);
+			anim = nullptr;
+
+			HiddenSurface->Blit_From(TextRect, *AlternateSurface, TextRect);
+			Add_Update_Rect(TextRect);
+
+			if (last_click_index == 0) {
+				Play_Sound("MouseOnMap");
+			} else if (index == 0) {
+				Play_Sound("MouseOffMap");
+			}
+
+			MapSelection * map_sel;
+			MSShapeAnim * target_anim;
+
+			const char * selected = stage->Find_Selection_By_Index(last_click_index);
+
+			if (selected != nullptr) {
+				Play_Sound("ExitRegion");
+				map_sel = stage->Find_Selection_By_Name(selected);
+
+				target_anim = map_sel->Get_Target_Anim();
+
+				if (target_anim != nullptr) {
+					target_anim->Set_Frame(0);
+					target_anim->Set_Start_Frame(0);
+					target_anim->Set_Stop_Frame(31);
+				}
+			}
+
+			selected = stage->Find_Selection_By_Index(index);
+
+			if (selected != nullptr) {
+				Play_Sound("EnterRegion");
+				map_sel = stage->Find_Selection_By_Name(selected);
+
+				target_anim = map_sel->Get_Target_Anim();
+
+				if (target_anim != nullptr) {
+					target_anim->Set_Frame(32);
+					target_anim->Set_Start_Frame(32);
+					target_anim->Set_Stop_Frame(0xFFFFFFFF);
+				}
+
+				const MapStage * over_stage = Choices.Find_Stage_By_Name(selected);
+
+				if (over_stage != nullptr) {
+
+					if (over_stage->Get_Description() != nullptr) {
+						anim = new MSPrintAnim(over_stage->Get_Description(), TextRect.X, TextRect.Y, Font, TextRect);
+
+						Add_Animation(anim);
+					}
+
+					if (over_stage->Get_Voiceover() != nullptr) {
+						Queue_Voice(over_stage->Get_Voiceover(), (TIMER_SECOND / 2));
+					}
+				}
+			}
+
+			last_click_index = index;
+		};
+
+		// Under the controller scheme the d-pad and left stick step through the targets,
+		// the focused one hovered as the mouse would, and accept picks it.
+		bool padded = Options.ControlScheme == CONTROL_CONTROLLER;
+		int focus = -1;
+		GamepadStateType previous_pad = Gamepad_Read();
+		if (padded && stage->Get_Selection_Count() > 0) {
+			focus = 0;
+			hover(stage->Get_Selection(focus)->Get_Index());
+		}
 
 		Keyboard->Clear();
 		key = KN_NONE;
@@ -526,78 +608,28 @@ const char * MapSelect::Process_Input(MapStage * stage)
 					if ((mouse_x >= 0) && (mouse_x < ClickMap->Get_Width()) && (mouse_y >= 0) && (mouse_y < ClickMap->Get_Height())) {
 
 						click_index = ClickMap->Get_Pixel(Point2D(mouse_x, mouse_y));
-
-						if (click_index != last_click_index) {
-
-							Stop_Voice(true);
-
-							Remove_Anim(anim);
-
-							HiddenSurface->Blit_From(TextRect, *AlternateSurface, TextRect);
-							Add_Update_Rect(TextRect);
-
-							if (last_click_index == 0) {
-								Play_Sound("MouseOnMap");
-							} else if (click_index == 0) {
-								Play_Sound("MouseOffMap");
-							}
-
-							MapSelection * map_sel;
-							MSShapeAnim * target_anim;
-
-							const char * selected = stage->Find_Selection_By_Index(last_click_index);
-
-							if (selected != NULL) {
-								Play_Sound("ExitRegion");
-								map_sel = stage->Find_Selection_By_Name(selected);
-
-								target_anim = map_sel->Get_Target_Anim();
-
-								if (target_anim != NULL) {
-									target_anim->Set_Frame(0);
-									target_anim->Set_Start_Frame(0);
-									target_anim->Set_Stop_Frame(31);
-								}
-							}
-
-							selected = stage->Find_Selection_By_Index(click_index);
-
-							if (selected != NULL) {
-								Play_Sound("EnterRegion");
-								map_sel = stage->Find_Selection_By_Name(selected);
-
-								target_anim = map_sel->Get_Target_Anim();
-
-								if (target_anim != NULL) {
-									target_anim->Set_Frame(32);
-									target_anim->Set_Start_Frame(32);
-									target_anim->Set_Stop_Frame(0xFFFFFFFF);
-								}
-
-								const MapStage * over_stage = Choices.Find_Stage_By_Name(selected);
-
-								if (over_stage != NULL) {
-
-									if (over_stage->Get_Description() != NULL) {
-										anim = new MSPrintAnim(over_stage->Get_Description(), TextRect.X, TextRect.Y, Font, TextRect);
-
-										Add_Animation(anim);
-									}
-
-									if (over_stage->Get_Voiceover() != NULL) {
-										Queue_Voice(over_stage->Get_Voiceover(), (TIMER_SECOND / 2));
-									}
-								}
-							}
-
-							last_click_index = click_index;
-						}
+						hover(click_index);
 					}
 				}
 			}
 
+			if (padded) {
+				GamepadStateType pad = Gamepad_Read();
+				int count = stage->Get_Selection_Count();
+				bool forward = (pad.Right && !previous_pad.Right) || (pad.Down && !previous_pad.Down);
+				bool backward = (pad.Left && !previous_pad.Left) || (pad.Up && !previous_pad.Up);
+				if (count > 0 && (forward || backward)) {
+					focus = (focus + (forward ? 1 : count - 1)) % count;
+					hover(stage->Get_Selection(focus)->Get_Index());
+				}
+				if (pad.Accept && !previous_pad.Accept && focus >= 0 && focus < count) {
+					selection = stage->Find_Selection_By_Index(stage->Get_Selection(focus)->Get_Index());
+				}
+				previous_pad = pad;
+			}
+
 			Wait_Delay(1);
-		} while (selection == NULL);
+		} while (selection == nullptr);
 
 		Stop_Voice(false);
 		Play_Sound("Click");

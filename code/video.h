@@ -83,6 +83,7 @@ bool Video_Sidebar_Is_Split(void);
 void Video_On_Resize(int drawablewidth, int drawableheight);
 void Video_Set_Refresh_Rate(int refreshrate);
 
+void Video_Set_Movie(bool on);
 void Video_Mark_Dirty(void);
 void Video_Present(void);
 void Video_Present_If_Dirty(void);
