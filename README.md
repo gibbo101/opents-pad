@@ -68,6 +68,7 @@ scheme itself stays here for now.
 ## Screenshots
 
 <p align="center">
+  <img src="docs/screenshots/game-select.jpg" alt="The game select page with Tiberian Sun focused" width="400">
   <img src="docs/screenshots/main-menu.jpg" alt="The main menu as a console screen" width="400">
   <img src="docs/screenshots/campaign-select.jpg" alt="The campaign select with the two side emblems" width="400">
   <img src="docs/screenshots/options.jpg" alt="The options screen" width="400">
