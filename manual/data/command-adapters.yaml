@@ -19,9 +19,9 @@ fixed_controls:
       - { file: code/mainloop.cpp, function: Keyboard_Process, expression: KN_TAB }
   - id: fixed:console-menu-navigate
     title: Console menu navigation
-    description: Moves the focus up and down a console-style menu and steps the focused row's value with left and right; a held key repeats, and Shift steps five at a time.
+    description: Moves the focus up and down a console-style menu and steps the focused row's value with left and right; a held key repeats, and Left Shift steps five at a time.
     audience: player
-    bindings: [Up, Down, Left, Right, Shift with Left or Right]
+    bindings: [Up, Down, Left, Right, Left Shift with Left or Right]
     context: Console-style menus under the controller control scheme
     availability: *all
     sites:
@@ -29,6 +29,10 @@ fixed_controls:
       - { file: code/consolemenu.cpp, function: ConsoleMenuClass::Poll_Input, expression: KN_DOWN }
       - { file: code/consolemenu.cpp, function: ConsoleMenuClass::Poll_Input, expression: KN_LEFT }
       - { file: code/consolemenu.cpp, function: ConsoleMenuClass::Poll_Input, expression: KN_RIGHT }
+      - { file: code/consolemenu.cpp, function: Nav_Held, expression: KN_UP }
+      - { file: code/consolemenu.cpp, function: Nav_Held, expression: KN_DOWN }
+      - { file: code/consolemenu.cpp, function: Nav_Held, expression: KN_LEFT }
+      - { file: code/consolemenu.cpp, function: Nav_Held, expression: KN_RIGHT }
       - { file: code/consolemenu.cpp, function: ConsoleMenuClass::Poll_Input, expression: KN_LSHIFT }
   - id: fixed:graphic-menu-navigate
     title: Graphic menu navigation

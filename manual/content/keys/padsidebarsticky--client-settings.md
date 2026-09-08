@@ -8,6 +8,6 @@ when_omitted:
   value: "no"
 ---
 
-Whether the sidebar stays on screen under the `Controller` control scheme. The sidebar starts away from the map, which takes the whole width under the bar at all times and is only ever covered by the sidebar, and the fourth face button slides it in with the pad on it and out again; the right shoulder with the fourth face button slides it in and keeps it there, and the same again lets it go. The game writes this key itself each time that sticky state changes, so a sticky sidebar is back on the first tick of the next scenario, the pad staying on the map.
+Whether the sidebar stays over the map under the `Controller` control scheme instead of sliding out when the controller leaves it. The game writes this key itself each time the sticky state changes, so a sticky sidebar is back on the first tick of the next scenario, the controller staying on the map. [Controller scheme](/systems/controller-scheme/#sidebar) has how the sidebar slides and how the sticky state is set and released.
 
-`no`, the default, is how Command & Conquer plays on the PlayStation: deploying a construction vehicle does not bring the sidebar up, and the player calls it when it is wanted. The keyboard scheme never reads this key.
+At `no` the sidebar slides out whenever the controller leaves it, and nothing but the controller brings it in. The keyboard scheme never reads this key.

@@ -9,4 +9,4 @@ targets:
 credit: [gibbo101]
 ---
 
-Under the `Controller` control scheme the bar across the top of the map is drawn apart from the map, at the sidebar's scale, so zooming the map no longer grows or shrinks it: the Options tab, carrying the menu button's glyph beside its label, the beam, and the mission timer's tab keep one size with the sidebar, and the map fills the display left beside the sidebar and under the bar. The keyboard scheme is unchanged.
+Under the `Controller` control scheme the bar across the top of the map is drawn apart from the map, at the sidebar's scale, so it keeps one size at every zoom: the Options tab, carrying the menu button's glyph beside its label, the beam, and the mission timer's tab keep one size with the sidebar, and the map fills the display left beside the sidebar and under the bar. The keyboard scheme is unchanged.

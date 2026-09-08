@@ -22,19 +22,36 @@ in PlayStation terms with the Xbox and Steam Deck names beside them.
 | Options | Menu, Start |
 | Share | View, Select |
 
-The button prompts on screen use the set the `PromptStyle` option picks:
-Auto, Text, Xbox, PlayStation, or Steam Deck. Auto chooses Steam Deck on a
-Deck, PlayStation when a Sony pad is connected, and Xbox otherwise.
+## Button prompts
+
+The accept and back prompts on every console screen and the briefing carry
+the button's glyph in the set the `PromptStyle` option picks: Auto, Text,
+Xbox, PlayStation, or Steam Deck. Auto chooses Steam Deck on a Deck,
+PlayStation when a PlayStation pad is connected, Xbox for any other pad,
+and plain text when no pad is connected. The Button Prompts row on the
+options screen steps through the five and shows the result on its own
+prompts as it goes.
 
 ## Choosing the scheme
 
 `ControlScheme` in `SUN.INI` is `Auto` by default: the controller scheme
-when a pad is connected by the time the first menu shows, otherwise
-keyboard and mouse until a pad button is pressed on a menu. The Options
-screen's Control Scheme row offers Auto, Keyboard & Mouse, and Controller. Holding Options and
-Circle together for a second switches to the controller scheme from
-anywhere, so a pad-only player is never locked out. The mouse and keyboard
-keep working under the controller scheme.
+whenever a pad is connected, otherwise keyboard and mouse until a pad
+button is pressed on a menu, which switches to the controller scheme and
+shows that menu again as its console version. Steam hands a game its pad a
+moment after the window opens, so when a controller-class device is listed
+or a pad was seen earlier the game waits up to two seconds for it before
+the first menu; with no pad the menu comes up at once. A settings file
+without the line reads as `Auto`, so an install that showed the dialogs
+shows the console screens once a pad is plugged in;
+`ControlScheme=KeyboardMouse` keeps the dialogs.
+
+The Options screen's Control Scheme row offers Auto, Keyboard & Mouse, and
+Controller, and the keyboard scheme's options page has a Switch To
+Controller button while a pad is connected. Choosing Keyboard & Mouse from
+the pad asks for a real key press or click within ten seconds and reverts
+without one. Holding Options and Circle together for a second switches to
+the controller scheme from anywhere, so a pad-only player is never locked
+out. The mouse and keyboard keep working under the controller scheme.
 
 ## Menus and screens
 
@@ -49,17 +66,51 @@ keep working under the controller scheme.
 | Open the on-screen keyboard on a setup screen | Options |
 | Open the pause menu in play | Options |
 
-The skirmish and LAN host screens start the game on Cross from any row.
-Options opens the on-screen keyboard from any row: the name on the skirmish
-and LAN games screens, the chat in a lobby. The campaign select picks a
-side with Left and Right and starts on Cross. The load list, the options,
-audio, and controls screens, and the LAN lobbies are lists of the same
-shape. The mission briefing continues or turns the page on Cross and plays
-the mission video, when there is one, on Circle. The score screens continue
-on Cross, and a hall of fame place takes its name on the keyboard.
+The skirmish and LAN host screens start the game on Cross from any row,
+with the Game Speed row starting at the saved option. Options opens the
+on-screen keyboard from any row: the name on the skirmish and LAN games
+screens, the chat in a lobby. The campaign select picks a side with Left
+and Right, the lit emblem naming its campaign, and starts on Cross. The
+load list, the options and audio screens, and the LAN lobbies are lists of
+the same shape. The mission briefing continues or turns the page on Cross
+and plays the mission video, when there is one, on Circle; before a mission
+its last page closes with OK, and from the pause menu with Resume Mission.
+The score screens continue on Cross, and a hall of fame place takes its
+name on the keyboard.
 
 Any of the original dialogs that still appear are driven the same way:
 D-pad as the arrow keys, Cross as Enter, Circle as Escape.
+
+### Options, Audio and Controls
+
+The options screen has rows for the control scheme, the button prompts, the
+zoom, scale mode, stretch movies, game speed, the pad's pointer, fast
+pointer and stick scroll speeds, unit snap, detail, campaign difficulty,
+cameo text, action lines, and tool tips, then Audio and Controls rows.
+Cross saves. From the pause menu the display rows and the campaign
+difficulty are left out, as in the original in-game dialog.
+
+The audio screen steps the music, sound and voice volumes as you hear them,
+and in play adds shuffle, repeat, a Now Playing row, a Track row that steps
+through the songs by name and plays the one shown on Cross, and Stop Music.
+Cross keeps the volumes and saves; Circle restores them.
+
+The controls screen draws the pad with callouts naming what each button
+does, paged across the face buttons, the shoulders and triggers, and the
+sticks; Left and Right turn the page.
+
+### LAN
+
+The game list shows your name, Host New Game, a row per game found, and
+the reason when a join fails. The host lobby has the skirmish rows, the
+joined players under the map preview in their colors with faction icon and
+host or ready mark, and Start, which needs a second player, everyone
+ready, and room on the map. The guest lobby shows the host's rows read
+only, asks the host for your side and color, and has Ready as its accept
+and Leave to sign off. Each lobby has a Chat row showing the latest message
+that opens the chat screen, where Cross types a message on the keyboard,
+sent to the game's players or, before joining, to everyone in the lobby.
+There is no kick, and the generated map is not in the map list.
 
 ## On-screen keyboard
 
@@ -74,7 +125,7 @@ D-pad as the arrow keys, Cross as Enter, Circle as Escape.
 
 Letters are capitals at the start of each word and lower case after; Caps
 locks them on. A real keyboard types straight in, with Enter finishing and
-Escape backing out.
+Escape backing out, and the mouse picks keys.
 
 ## On the map
 
@@ -89,7 +140,7 @@ The pointer stays on the map; the sidebar is worked by the pad, below.
 | Select, order, place, band box | Cross, as the left mouse button |
 | Cancel a mode, deselect | Circle, as a right mouse tap |
 | Deploy the selected unit | L3 |
-| Centre the view on the base | R3 |
+| Center the view on the base | R3 |
 | Scatter, or in waypoint mode take back the last waypoint | R2 |
 | Guard | R1 with R2 |
 | Force fire at the pointer | R1 with L1 |
@@ -97,18 +148,23 @@ The pointer stays on the map; the sidebar is worked by the pad, below.
 | Ally with the selected unit's owner | Share |
 | Pause menu | Options |
 
-The left stick moves the pointer at a steady rate for how far it is pushed,
-and the D-pad from half its pace to full within the first moment of a
-press, so a tap stays within a cell and a hold travels at once. Both paces
-are distances on the map, so a tap or a push covers the same ground at
-every zoom and on every screen; a wide screen simply takes longer to cross.
+The pointer starts a scenario in the middle of the view. The left stick
+moves it at a steady rate for how far it is pushed, and the D-pad from half
+its pace to full within the first moment of a press, so a tap stays within
+a cell and a hold travels at once. Both paces are distances on the map, so
+a tap or a push covers the same ground at every zoom and on every screen; a
+wide screen simply takes longer to cross. What the pointer cannot travel
+past the edge scrolls the map at the pointer's own pace, so R1 speeds both
+alike. Holding Circle while the pointer moves never drag-scrolls the map;
+Circle only cancels or deselects.
+
 When the stick or D-pad comes to rest with a unit or building near the
 pointer, the pointer settles onto it, so a target is hit without
-pixel-perfect aim; travel is never pulled. The Unit Snap row on the options
-screen sets how near, in eighths of a cell: 4 is half a cell and the
-default, 8 a whole cell, Off leaves the pointer where it stops. It is saved
-as `PadSnap` in `SUN.INI`. What the pointer cannot travel past the edge scrolls the
-map at the pointer's own pace, so R1 speeds both alike.
+pixel-perfect aim; travel is never pulled, and neither is a band box. The
+Unit Snap row on the options screen sets how near, in eighths of a cell: 4
+is half a cell and the default, 8 a whole cell, Off leaves the pointer
+where it stops. It is saved as `PadSnap` in `SUN.INI`. Cloaked units of
+other players are passed over.
 
 Cross held still for half a second on one of your units selects every unit
 of its type on screen, and held on a little longer widens that to the whole
@@ -128,7 +184,7 @@ against a human player in a game with allies on.
 | --- | --- |
 | Make team 1, 2, 3 or 4 from the selection | L2 with Square, Triangle, Circle or Cross |
 | Select team 1, 2, 3 or 4 | L1 with Square, Triangle, Circle or Cross |
-| Centre the view on the team | The same L1 press again within 400 ms |
+| Center the view on the team | The same L1 press again within 400 ms |
 
 ### Waypoints
 
@@ -145,17 +201,23 @@ up zooms in a step and down zooms out, one step per push and another every
 quarter second the stick stays pushed. The steps are render heights of 480,
 540, 600, 660, 720, 768, 840, 900, 1080, 1200 and 1440, never taller than
 the screen, with the width on the screen's own shape so there are no bars.
-Each step keeps the middle of the view where it was. The size is saved as `PadZoomWidth` and `PadZoomHeight`
-in `SUN.INI`; the first game, or one on a screen of a different shape,
-starts at 768 high, or 600 on a Steam Deck. The options screen's Zoom row
-steps the same sizes. The right stick does not scroll while R1 is held.
+Each step keeps the middle of the view where it was. The size is saved as
+`PadZoomWidth` and `PadZoomHeight` in `SUN.INI`; the first game, or one on
+a screen of a different shape, starts at 768 high, or 600 on a Steam Deck.
+The options screen's Zoom row steps the same sizes. The right stick does
+not scroll while R1 is held. The sidebar and the bar across the top of the
+map keep their size on screen whatever the zoom; only the map changes.
 
 ### Pointer speed
 
-The console options screen has Pointer Speed, Fast Pointer and Stick Scroll
-Speed rows, 1 to 10, saved as `PadPointerSpeed`, `PadFastSpeed` and
-`PadScrollSpeed` in `SUN.INI`. They govern the stick and D-pad, R1's boost,
-and the right stick's scroll. The mouse's scroll rate leaves the pad alone.
+The options screen has Pointer Speed, Fast Pointer and Stick Scroll Speed
+rows, 1 to 10, saved as `PadPointerSpeed`, `PadFastSpeed` and
+`PadScrollSpeed` in `SUN.INI`. Pointer Speed governs the stick and D-pad,
+5 being the built-in pace, 10 twice it and 1 a fifth of it, and Stick
+Scroll Speed the right stick the same way. Fast Pointer sets R1's boost:
+the pace times one plus 0.24 for each point, so 1 gives 1.24 times, 5 gives
+2.2 times and 10 gives 3.4 times. The mouse's scroll rate leaves the pad
+alone.
 
 ## Sidebar
 
@@ -165,9 +227,13 @@ with rows for structures, infantry, vehicles and aircraft, and a bottom row
 holding the current superweapon and a cell that cycles to the next. The
 four mode buttons and the radar sit above the grid. The panel starts away
 from the map and slides in over it when the pad takes it, sliding out again
-when the pad leaves unless it is sticky; the bar ends in a Sidebar tab
-with the triangle glyph that a mouse can click, and the credits are on
-the panel alone. Sticky is remembered between sessions. The bar across the top of the map keeps its
+when the pad leaves unless it is sticky; nothing else brings it in. The bar
+ends in a Sidebar tab with the triangle glyph that a mouse can click, and
+the credits are on the panel alone. Sticky is remembered between sessions
+as `PadSidebarSticky` in `SUN.INI`, and a sticky panel is back at the start
+of the next mission with the pad on the map. While the panel is in, the
+view can scroll past the map's edge by the strip the panel covers, so the
+edge can be seen beside it. The bar across the top of the map keeps its
 size with the sidebar whatever the zoom, Options with the menu button's
 glyph at its left and the mission timer at its right.
 
@@ -180,7 +246,7 @@ glyph at its left and the mission timer at its right.
 | In a grid, build the marked item | Cross |
 | Hold, then cancel, what a section is building; open an idle section | Circle |
 | In a grid, cancel the marked build, or step back to the sections | Circle |
-| Open or close a section's grid without cancelling anything | Square |
+| Open or close a section's grid without canceling anything | Square |
 | Work the parked cell from the map: place, build again, add one more, or queue the marked item | R1 with Circle |
 | Pick a mode button: repair, sell, power, waypoint | Cross on the button |
 | Fire the current superweapon | Cross on the superweapon cell |
@@ -190,9 +256,11 @@ glyph at its left and the mission timer at its right.
 The outline is bright while the pad is inside and dim outside, and it parks
 where it was left. Placing a building, aiming a superweapon or picking a
 mode hands focus back to the map with the ghost, target or mode cursor on
-the pointer. The structures grid closes after a build, since a construction
-yard builds one thing at a time. Sections whose factory you do not hold are
-dulled; with a construction yard all four of a side's sections show.
+the pointer, and Triangle out of a grid parks the sidebar on that section.
+The structures grid closes after a build, since a construction yard builds
+one thing at a time. A section cell shows what it is building, its last
+build once idle, or the factory. Sections whose factory you do not hold
+are dulled; with a construction yard all four of a side's sections show.
 
 ## Cheats
 
@@ -219,7 +287,7 @@ Putting the shroud back keeps what your units have seen since the reveal.
 The radar the cheat gives still needs power. A superweapon you hold is
 charged; one you lack is granted for a single shot. A weapon the game's rules
 do not define says so in the message list: the stock Tiberian Sun rules
-declare the drop pods without their behaviour, so that code needs a
+declare the drop pods without their behavior, so that code needs a
 Firestorm game.
 
 ## Pause menu
@@ -227,8 +295,12 @@ Firestorm game.
 Options in play opens the pause menu: Game Options, Audio Options,
 Controls, Mission Briefing in a campaign, Save Game, Load Game, Restart
 Mission, Abort Mission, and Return To Mission. Restart and Abort ask as a
-row whose value flips between No and Yes. In a LAN game Save and Load take
-the multiplayer paths and Restart becomes Surrender.
+row whose value flips between No and Yes, No to begin with. Save Game
+offers the save under a suggested name, the mission's side and number
+ahead of its name in a campaign; Options edits the name on the keyboard,
+and Cross writes a fresh slot and reports beneath the menu. Load Game
+opens the load list. In a LAN game Save and Load take the multiplayer
+paths and Restart becomes Surrender.
 
 ## Where Retaliation differs
 

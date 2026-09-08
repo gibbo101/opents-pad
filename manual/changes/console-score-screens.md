@@ -1,5 +1,5 @@
 ---
-title: Give the score screens the controller treatment
+title: Take the controller's accept button on the score screens
 category: feature
 release: 0.2.0
 targets:

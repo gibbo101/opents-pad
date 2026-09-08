@@ -1674,7 +1674,7 @@ fixed_controls:
   kind: fixed
   title: Console menu navigation
   description: Moves the focus up and down a console-style menu and steps the focused row's value with
-    left and right; a held key repeats, and Shift steps five at a time.
+    left and right; a held key repeats, and Left Shift steps five at a time.
   audience: player
   availability: *id001
   bindings:
@@ -1682,7 +1682,7 @@ fixed_controls:
   - Down
   - Left
   - Right
-  - Shift with Left or Right
+  - Left Shift with Left or Right
   context: Console-style menus under the controller control scheme
   _provenance:
     source: code/consolemenu.cpp
