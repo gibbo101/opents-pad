@@ -84,9 +84,9 @@ built and where it stands.
 
 ## Next
 
-1. Untested on the sidebar: the Nod side as the captured column; a grid
-   longer than the panel scrolling; the hall of fame name on the on-screen
-   keyboard and the score screen's restore after it.
+1. Untested on the sidebar: a grid longer than the panel scrolling. Untested
+   in play: a mission-end movie presented without the sidebar, and a
+   multi-page briefing turned back a page.
 2. A Steam Input layout for the game, shipped in the repo, so the pad is on
    the Gamepad template without the player building one. Steam only defaults
    a layout the app owner publishes, so this is a file to import once, and
