@@ -285,9 +285,11 @@ void DisplayClass::One_Time(void)
 	} else {
 		rect.X = SidebarClass::SIDE_WIDTH;
 	}
-	rect.Y = 16;
+	// The controller scheme has no top bar, so the map takes the full height.
+	int bar = Options.ControlScheme == CONTROL_CONTROLLER ? 0 : 16;
+	rect.Y = bar;
 	rect.Width = rect.Width - SidebarClass::SIDE_WIDTH;
-	rect.Height = rect.Height - 16;
+	rect.Height = rect.Height - bar;
 	Set_View_Dimensions(rect);
 }
 

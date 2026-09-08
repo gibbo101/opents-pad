@@ -404,7 +404,10 @@ class SidebarClass : public PowerClass
 			PAD_MODE_BUTTONS = 4,
 			PAD_ROW_MODES = -1,
 			PAD_ROW_RADAR = -2,
+			PAD_ROW_OPTIONS = -3,
+			PAD_HEADER = 16,				// The Options tab across the sidebar's top under the controller scheme.
 		};
+		static int Pad_Header(void);	// PAD_HEADER under the controller scheme, else zero.
 		bool PadFocus = false;
 		int PadRow = 0;					// PAD_ROW_MODES, or a row of the sections or of the open grid.
 		int PadCol = 0;					// A column, or the mode button when on that row.

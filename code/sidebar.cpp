@@ -433,7 +433,7 @@ void SidebarClass::Init_IO(void)
 	BASECLASS::Init_IO();
 
 	SidebarRect.X = TacticalRect.X + TacticalRect.Width;
-	SidebarRect.Y = SIDE_Y;
+	SidebarRect.Y = SIDE_Y + Pad_Header();
 	SidebarRect.Width = 641 - SidebarRect.X;
 	SidebarRect.Height = Sidebar_Height() - SidebarRect.Y;
 
@@ -1183,21 +1183,39 @@ void SidebarClass::Pad_Repeat(void)
 
 void SidebarClass::Pad_Move(int dx, int dy)
 {
-	if (PadRow == PAD_ROW_RADAR) {
+	auto to_radar = [&] {
+		PadRow = PAD_ROW_RADAR;
+		Rect radar = Radar_Rect();
+		PadRadar = Point2D(radar.X + radar.Width / 2, radar.Y + radar.Height / 2);
+		PadRadarHeld = false;
+	};
+	if (PadRow == PAD_ROW_OPTIONS) {
+		if (dy > 0) {
+			if (Is_Radar_Active()) {
+				to_radar();
+			} else {
+				PadRow = PAD_ROW_MODES;
+				PadCol = 0;
+			}
+		}
+	} else if (PadRow == PAD_ROW_RADAR) {
 		if (dy > 0) {
 			PadRow = PAD_ROW_MODES;
 			PadCol = 0;
+		} else if (dy < 0) {
+			PadRow = PAD_ROW_OPTIONS;
 		}
 	} else if (PadRow == PAD_ROW_MODES) {
 		if (dx != 0) PadCol = (PadCol + dx + PAD_MODE_BUTTONS) % PAD_MODE_BUTTONS;
 		if (dy > 0) {
 			PadCol = PadCol < PAD_MODE_BUTTONS / 2 ? 0 : 1;
 			PadRow = 0;
-		} else if (dy < 0 && Is_Radar_Active()) {
-			PadRow = PAD_ROW_RADAR;
-			Rect radar = Radar_Rect();
-			PadRadar = Point2D(radar.X + radar.Width / 2, radar.Y + radar.Height / 2);
-			PadRadarHeld = false;
+		} else if (dy < 0) {
+			if (Is_Radar_Active()) {
+				to_radar();
+			} else {
+				PadRow = PAD_ROW_OPTIONS;
+			}
 		}
 	} else if (PadSection < 0) {
 		if (dx != 0) PadCol = (PadCol + PAD_COLUMNS + dx) % PAD_COLUMNS;
@@ -1255,6 +1273,10 @@ void SidebarClass::Pad_Radar_Jump(void)
 void SidebarClass::Pad_Accept(void)
 {
 	if (PadRow == PAD_ROW_RADAR) {
+		return;
+	}
+	if (PadRow == PAD_ROW_OPTIONS) {
+		Queue_Options();
 		return;
 	}
 	if (PadRow == PAD_ROW_MODES) {
@@ -1323,7 +1345,7 @@ void SidebarClass::Pad_Accept(void)
 
 bool SidebarClass::Pad_Back(void)
 {
-	if (PadRow == PAD_ROW_MODES || PadRow == PAD_ROW_RADAR) {
+	if (PadRow == PAD_ROW_MODES || PadRow == PAD_ROW_RADAR || PadRow == PAD_ROW_OPTIONS) {
 		Pad_Leave();
 		return(false);
 	}
@@ -1366,7 +1388,7 @@ bool SidebarClass::Pad_Back(void)
 
 void SidebarClass::Pad_Toggle_Grid(bool forget)
 {
-	if (PadRow == PAD_ROW_MODES || PadRow == PAD_ROW_RADAR) return;
+	if (PadRow < 0) return;
 	if (PadSection < 0) {
 		int section = PadRow * PAD_COLUMNS + PadCol;
 		if (PadRow == PAD_SECTION_ROWS - 1) return;
@@ -1770,6 +1792,11 @@ void SidebarClass::Draw_Pad_View(void)
 			SidebarSurface->Draw_Line(Point2D(PadRadar.X, PadRadar.Y - 4), Point2D(PadRadar.X, PadRadar.Y + 4), white);
 		}
 		caption = "Radar";
+	}
+
+	if (focus_row == PAD_ROW_OPTIONS) {
+		// The tab itself, and its outline, are the tab bar's to draw.
+		caption = "Options";
 	}
 
 	if (focus_row == PAD_ROW_MODES) {
@@ -3524,9 +3551,9 @@ void SidebarClass::Reposition_Sidebar(void)
 	 * Position the sidebar.
 	 */
 	SidebarRect.X = Options.IsSidebarOnRight ? TacticalRect.X + TacticalRect.Width : 0;
-	SidebarRect.Y = SIDE_Y;
+	SidebarRect.Y = SIDE_Y + Pad_Header();
 	SidebarRect.Width = SIDE_WIDTH;
-	SidebarRect.Height = Sidebar_Height() - SIDE_Y;
+	SidebarRect.Height = Sidebar_Height() - SidebarRect.Y;
 
 	BASECLASS::Reposition_Sidebar();
 
@@ -3648,6 +3675,12 @@ const char * SidebarClass::Help_Text(int id)
 		}
 	}
 	return(text);
+}
+
+
+int SidebarClass::Pad_Header(void)
+{
+	return(Options.ControlScheme == CONTROL_CONTROLLER ? int(PAD_HEADER) : 0);
 }
 
 

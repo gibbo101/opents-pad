@@ -418,6 +418,8 @@ void GScreenClass::Render(void)
 		ToolTips->Draw_Current();
 	}
 
+	Map.Draw_Timer_Overlay();
+
 	Blit_Display();
 	DrawFlags = GS_REDRAW_DIRTY;
 

@@ -46,6 +46,7 @@
 #include "_surface.h"
 #include "dialog.h"
 #include "draw.h"
+#include "dsurface.h"
 #include "goptions.h"
 #include "language/language.h"
 #include "mixfile.h"
@@ -121,7 +122,15 @@ void TabClass::Serialize(SaveStreamClass & stream)
 #define	TAB_HEIGHT		8
 void TabClass::Draw_It(bool complete)
 {
-	if (!Debug_Map) {
+	if (!Debug_Map && Options.ControlScheme == CONTROL_CONTROLLER) {
+
+		// The controller scheme has no top bar: the Options tab sits across the top of the
+		// sidebar, above the credits, as a cell of the pad's panel.
+		if (complete || IsToRedraw || IsForceCompleteRedraw || PadDirty) {
+			Draw_Options_Tab();
+		}
+
+	} else if (!Debug_Map) {
 
 		/*
 		**	Redraw the top bar imagery if flagged to do so or if the entire display needs
@@ -167,9 +176,10 @@ void TabClass::Draw_It(bool complete)
 /// </summary>
 void TabClass::Draw_Credits_Tab(void)
 {
-	Draw_Shape(*SidebarSurface, *SidebarDrawer, TabShape, 2, Point2D(0, 0), SidebarSurface->Get_Rect());
+	Draw_Shape(*SidebarSurface, *SidebarDrawer, TabShape, 2, Point2D(0, Pad_Header()), SidebarSurface->Get_Rect());
 
-	if (Scen->MissionTimer.Is_Active()) {
+	// Under the controller scheme the timer is drawn over the map once the map is done.
+	if (Scen->MissionTimer.Is_Active() && Options.ControlScheme != CONTROL_CONTROLLER) {
 		bool light = ((int)Scen->MissionTimer < TICKS_PER_MINUTE * Rule->TimerWarning) || Map.FlasherTimer > 0;
 		Draw_Shape(*CompositeSurface, *SidebarDrawer, TabShape, /*light ? 4 :*/ 2, Point2D(TacticalRect.Width - TabShape->Get_Width(), 0), VisibleRect);
 
@@ -193,6 +203,52 @@ void TabClass::Draw_Credits_Tab(void)
 		}
 	}
 	BASECLASS::IsToBlitSidebar = true;
+}
+
+
+/// <summary>
+/// Draws the Options tab across the top of the sidebar under the controller scheme, with
+/// the pad's outline round it while the pad's focus rests there.
+/// </summary>
+void TabClass::Draw_Options_Tab(void)
+{
+	if (TabShape == NULL || SidebarSurface == NULL) {
+		return;
+	}
+	Rect area(0, 0, SIDE_WIDTH, PAD_HEADER);
+	Draw_Shape(*SidebarSurface, *SidebarDrawer, TabShape, 2, Point2D(0, 0), SidebarSurface->Get_Rect());
+	Fancy_Text_Print(TXT_TAB_BUTTON_CONTROLS, *SidebarSurface, SidebarSurface->Get_Rect(), Point2D(SIDE_WIDTH / 2, 0), ColorSchemes[0], TBLACK, TextPrintType(TPF_USE_GRAD_PAL | TPF_CENTER | TPF_METAL12));
+	if (PadRow == PAD_ROW_OPTIONS) {
+		int color = DSurface::Build_Hicolor_Pixel(PadFocus ? RGBClass(255, 72, 255) : RGBClass(120, 40, 120));
+		SidebarSurface->Draw_Rect(Rect(area.X + 1, area.Y + 1, area.Width - 2, area.Height - 2), color);
+		SidebarSurface->Draw_Rect(Rect(area.X + 2, area.Y + 2, area.Width - 4, area.Height - 4), color);
+	}
+	IsToBlitSidebar = true;
+}
+
+
+/// <summary>
+/// Draws the mission timer's tab in the map's top right corner under the controller
+/// scheme. Call it after the map's foreground pass, since the map covers that corner.
+/// </summary>
+void TabClass::Draw_Timer_Overlay(void)
+{
+	if (Debug_Map || Options.ControlScheme != CONTROL_CONTROLLER || TabShape == NULL || Scen == NULL || !Scen->MissionTimer.Is_Active()) {
+		return;
+	}
+	int x = TacticalRect.X + TacticalRect.Width - TabShape->Get_Width();
+	Draw_Shape(*CompositeSurface, *SidebarDrawer, TabShape, 2, Point2D(x, TacticalRect.Y), CompositeSurface->Get_Rect());
+
+	int seconds = int(Scen->MissionTimer) / TICKS_PER_SECOND;
+	int hours = seconds / 60 / 60;
+	int minutes = (seconds / 60) % 60;
+	seconds = seconds % 60;
+	Point2D at(x + TabShape->Get_Width() / 2, TacticalRect.Y);
+	if (hours != 0) {
+		Fancy_Text_Print(TXT_TIME_FORMAT_HOURS, *CompositeSurface, CompositeSurface->Get_Rect(), at, ColorSchemes[0], TBLACK, TextPrintType(TPF_METAL12 | TPF_CENTER | TPF_USE_GRAD_PAL), hours, minutes, seconds);
+	} else {
+		Fancy_Text_Print(TXT_TIME_FORMAT_NO_HOURS, *CompositeSurface, CompositeSurface->Get_Rect(), at, ColorSchemes[0], TBLACK, TextPrintType(TPF_METAL12 | TPF_CENTER | TPF_USE_GRAD_PAL), minutes, seconds);
+	}
 }
 
 
@@ -244,7 +300,15 @@ void TabClass::Hilite_Tab(int tab)
  *=============================================================================================*/
 void TabClass::AI(KeyNumType &input, Point2D const & xy)
 {
-	if (!Map.IsRubberBand) {
+	if (Options.ControlScheme == CONTROL_CONTROLLER) {
+
+		// The Options tab is the top of the sidebar; the map's top row is map.
+		if (!Map.IsRubberBand && input == KN_LMOUSE && xy.Y >= 0 && xy.Y < PAD_HEADER && xy.X >= SidebarRect.X && xy.X < SidebarRect.X + SIDE_WIDTH) {
+			Set_Active(0);
+			input = KN_NONE;
+		}
+
+	} else if (!Map.IsRubberBand) {
 
 		if (xy.Y >= 0 && xy.Y < (TAB_HEIGHT * 2/*RESFACTOR*/) && xy.X < (VisibleSurface->Get_Width() - 1) && xy.X > 0) {
 
