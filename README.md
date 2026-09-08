@@ -12,7 +12,8 @@
 # OpenTS on a controller
 
 This fork of [OpenTS](https://github.com/OpenTS-Developers/OpenTS) adds a
-controller scheme to the engine, built for and played on a Steam Deck. It
+controller scheme to the engine, built for and played on a Steam Deck and
+tested on a 49-inch ultrawide monitor and a 4K television as well. It
 follows *Command & Conquer: Red Alert Retaliation* on the PlayStation: the
 menus are console screens, the sidebar is a grid of build sections, and
 every order on the map is a button or a chord. The keyboard and mouse scheme
