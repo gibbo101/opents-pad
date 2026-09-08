@@ -55,7 +55,7 @@ Deck the game runs under Proton from the Steam library as it does upstream;
 the scheme switches to the controller when a pad is connected and back to
 the keyboard when none is, and the Options screen sets it by hand. Holding
 the menu and back buttons together for a second brings the controller
-scheme up from any screen. No packaged builds are published yet.
+scheme up from any screen.
 
 ## Status
 
