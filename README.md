@@ -9,6 +9,33 @@
   <a href="https://www.patreon.com/c/ZivDero"><img src="https://img.shields.io/badge/Patreon-ZivDero-F96854?logo=patreon&logoColor=white" alt="Patreon"></a>
 </p>
 
+# OpenTS on a controller
+
+This fork of [OpenTS](https://github.com/OpenTS-Developers/OpenTS) adds a
+controller scheme to the engine and is played on a Steam Deck. Under it the
+shell menus become console screens, the sidebar is a fixed grid of build
+sections that slides over the map, and every order on the map is a pad
+chord, in the manner of *Command & Conquer: Red Alert Retaliation* on the
+PlayStation. The keyboard and mouse scheme is the engine as upstream ships
+it: every change is gated on the controller scheme.
+
+[Controller scheme](docs/CONTROLS.md) lists every button, screen and chord.
+[Controller support](docs/CONTROLLER.md) records how it is built and what is
+next. The fork tracks upstream `main`; engine fixes found along the way go
+back upstream as pull requests, and the controller scheme itself stays here
+for now.
+
+<p align="center">
+  <img src="docs/screenshots/main-menu.jpg" alt="The main menu as a console screen" width="640">
+  <img src="docs/screenshots/options.jpg" alt="The options screen" width="640">
+  <img src="docs/screenshots/controls.jpg" alt="The Controls screen with the drawn pad and callouts" width="640">
+  <img src="docs/screenshots/play-sidebar-in.jpg" alt="Play with the section-grid sidebar slid in" width="640">
+  <img src="docs/screenshots/play-sidebar-out.jpg" alt="Play with the sidebar slid out and the Sidebar tab on the bar" width="640">
+  <img src="docs/screenshots/pause-menu.jpg" alt="The pause menu" width="640">
+</p>
+
+The rest of this page is upstream's.
+
 # OpenTS
 
 OpenTS is a community-led, open-source reconstruction of *Command & Conquer:
