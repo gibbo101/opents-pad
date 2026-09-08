@@ -133,6 +133,7 @@
 #include "team.h"
 #include "tracker.h"
 #include "unit.h"
+#include "unittype.h"
 #include "waypoint.h"
 #include "weapon.h"
 
@@ -1211,8 +1212,8 @@ ResultType AircraftClass::Take_Damage(int & damage, int distance, WarheadTypeCla
 					ParticleSystemClass * psys = new ParticleSystemClass(Rule->DefaultFirestormExplosionSystem, Center_Coord(), NULL, this);
 					psys->Sparks_To_Use_Random_Direction();
 				}
-			} else if (Class->Explosion.Count() > 0) {
-				new AnimClass(Class->Explosion.Pick(Scen->RandomNumber), Target_Coord());
+			} else if (Class->Explosion_Set().Count() > 0) {
+				new AnimClass(Class->Explosion_Set().Pick(Scen->RandomNumber), Target_Coord());
 			}
 
 #if OBSOLETE
@@ -1456,7 +1457,8 @@ int AircraftClass::Do_MISSION_MOVE_Carryall(void)
 				!Cargo.Is_Something_Attached() &&
 				House->Is_Ally(target) &&
 				(!target->Is_Techno() || target->Owner_HouseClass()->Is_Ally(this))
-				&& target->RTTI == RTTI_UNIT) {
+				&& target->RTTI == RTTI_UNIT
+				&& ((UnitClass *)target)->Class->IsTotable) {
 				DebugString("Do_MISSION_MOVE_Carryall - VALIDATE_LZ - target != NULL\n");
 				if (Contact_With_Whom() != target) {
 					Transmit_Message(RADIO_OVER_OUT);
@@ -2023,7 +2025,7 @@ ActionType AircraftClass::What_Action(ObjectClass const * target, bool disallow_
 		if (action == ACTION_SELECT || action == ACTION_NONE) {
 			if (House->Is_Ally(target)) {
 				if (!target->Is_Techno() || target->Owner_HouseClass()->Is_Ally(this)) {
-					if (!Cargo.Is_Something_Attached() && target->RTTI == RTTI_UNIT) {
+					if (!Cargo.Is_Something_Attached() && target->RTTI == RTTI_UNIT && ((UnitClass const *)target)->Class->IsTotable) {
 						action = ACTION_TOTE;
 					}
 				}
@@ -2705,7 +2707,7 @@ RadioMessageType AircraftClass::Receive_Message(RadioClass * from, RadioMessageT
 		**	entered the transport.
 		*/
 		case RADIO_IM_IN:
-			if (Cargo.How_Many() == Class->Max_Passengers()) {
+			if (Cargo.Total_Size() >= Class->Max_Passengers()) {
 				Door.Close_Door(Class->DeployTime);
 			}
 
@@ -2723,7 +2725,7 @@ RadioMessageType AircraftClass::Receive_Message(RadioClass * from, RadioMessageT
 		**	to the impatient unit.
 		*/
 		case RADIO_DOCKING:
-			if (Class->Max_Passengers() > 0 && Cargo.How_Many() < Class->Max_Passengers()) {
+			if (Class->Max_Passengers() > 0 && Can_Fit_Passenger(from)) {
 				BASECLASS::Receive_Message(from, message, param);
 
 				if (!Locomotion->Is_Moving()) {
@@ -2758,7 +2760,8 @@ RadioMessageType AircraftClass::Receive_Message(RadioClass * from, RadioMessageT
 		*/
 		case RADIO_CAN_LOAD:
 			if (Class->Max_Passengers() == 0 || from == NULL || !House->Is_Ally(from)) return(RADIO_STATIC);
-			if (Cargo.How_Many() < Class->Max_Passengers()) {
+			if (from->RTTI == RTTI_UNIT && !Class->IsVehicleTransport) return(RADIO_STATIC);
+			if (Can_Fit_Passenger(from)) {
 				return(RADIO_ROGER);
 			}
 			return(RADIO_NEGATIVE);
@@ -2969,7 +2972,7 @@ bool AircraftClass::Cell_Seems_Ok(Cell const & cell, bool strict) const
 		return(true);
 	}
 
-	bool is_toting = (Class->IsCarryall && NavCom != NULL && NavCom->RTTI == RTTI_UNIT);
+	bool is_toting = (Class->IsCarryall && NavCom != NULL && NavCom->RTTI == RTTI_UNIT && ((UnitClass const *)NavCom)->Class->IsTotable);
 
 	/*
 	**	Make sure that no other aircraft are heading to the selected location. If they

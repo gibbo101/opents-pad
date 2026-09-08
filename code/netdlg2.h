@@ -14,6 +14,7 @@
 #pragma once
 
 #include "netdlg.h"
+#include "win.h"
 
 #include <deque>
 #include <string>
@@ -40,6 +41,9 @@ extern int ArtID;
 extern int AIID;
 
 int Net2FirstFreeColor(int reqcolor, int index);
+void Fill_Country_Box(HWND combo);
+int Country_From_Box(HWND combo);
+void Select_Country_In_Box(HWND combo, int country);
 bool Net2Callback(void);
 void Net2DisplayUsers(void);
 bool Net2Init_Network(void);

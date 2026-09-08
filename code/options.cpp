@@ -63,6 +63,7 @@
 #include "_command.h"
 #include "_map.h"
 #include "_rules.h"
+#include "audio/audioengine.h"
 #include "ccfile.h"
 #include "ccrand.h"
 #include "command.h"
@@ -133,7 +134,7 @@ OptionsClass::OptionsClass(void) :
 	SidebarSorting(true),
 	ActionLines(true),
 	ToolTips(true),
-	TextBackgroundColor(0),
+	TextBackgroundColor(12),
 	AutoSaveInterval(10800),
 	ScreenWidth(-1),
 	ScreenHeight(-1),
@@ -277,6 +278,8 @@ void OptionsClass::Set_Score_Volume(float volume, bool feedback)
 void OptionsClass::Set_Sound_Volume(float volume, bool feedback)
 {
 	SoundVolume = std::min(volume, 1.0f);
+	AudioEngine.Set_Group_Gain(AUDIO_GROUP_SFX, SoundVolume);
+	AudioEngine.Set_Group_Gain(AUDIO_GROUP_MOVIE, SoundVolume);
 	if (feedback) {
 		Sound_Effect(Rule->GenericBeep);
 	}
@@ -687,18 +690,18 @@ int OptionsClass::Normalize_Volume(int volume) const
 /// KEYBOARD.INI; canceling puts the previous assignments back.
 /// </summary>
 /// <returns>Returns with TRUE if the message was consumed by this dialog.</returns>
-BOOL CALLBACK Hotkey_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
+INT_PTR CALLBACK Hotkey_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 {
 	char buffer[64];
 	int * retval;
 	static int current_selection = -1;
 
-	int result = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
+	INT_PTR result = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
 	if (result) {
 		return(result);
 	}
 
-	retval = (int *)GetWindowLong(window, DWL_USER);
+	retval = (int *)GetWindowLongPtr(window, DWLP_USER);
 
 	switch (message) {
 		case WM_COMMAND:
@@ -904,7 +907,7 @@ bool OptionsClass::Hotkey_Dialog(void)
 	handle = OwnerDraw::Begin_Dialog(IDD_OPT_KEYBOARD, Hotkey_Dialog_Proc);
 
 	if (handle != NULL) {
-		SetWindowLong(handle, DWL_USER, (LONG)&res);
+		SetWindowLongPtr(handle, DWLP_USER, (LONG_PTR)&res);
 		OwnerDraw::Display_Dialog(handle);
 
 		while (res < 0) {

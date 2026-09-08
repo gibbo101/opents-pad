@@ -125,6 +125,7 @@
 #include "techtype.h"
 #include "video.h"
 #include "voc.h"
+#include "utf8.h"
 #include "vox.h"
 
 #include "bench.hh"
@@ -3931,9 +3932,10 @@ void Print_Cameo_Text(char const * string, Point2D const & point, Rect const & c
 				/*
 				**	While the current line is less then the max length...
 				*/
-				int linelen = font->Char_Pixel_Width(buffer[len]);
-				while (linelen <= maxlinelen && len-- > 0) {
-					linelen += font->Char_Pixel_Width(buffer[len]);
+				int linelen = font->Char_Pixel_Width(UTF8::Peek(buffer + len));
+				while (linelen <= maxlinelen && len > 0) {
+					len = (int)(UTF8::Previous(buffer, buffer + len) - buffer);
+					linelen += font->Char_Pixel_Width(UTF8::Peek(buffer + len));
 				}
 
 				/*
@@ -3941,8 +3943,9 @@ void Print_Cameo_Text(char const * string, Point2D const & point, Rect const & c
 				*/
 				while (linelen > maxlinelen) {
 					while (buffer[len] != ' ' && buffer[len] != '-' && buffer[len] != '\0') {
-						linelen -= font->Char_Pixel_Width(buffer[len]);
-						len++;
+						int length;
+						linelen -= font->Char_Pixel_Width(UTF8::Peek(buffer + len, length));
+						len += length;
 					}
 
 					if (buffer[len] == '\0') {
@@ -3954,7 +3957,7 @@ void Print_Cameo_Text(char const * string, Point2D const & point, Rect const & c
 						break;
 					}
 
-					linelen -= font->Char_Pixel_Width(buffer[len]);
+					linelen -= font->Char_Pixel_Width(UTF8::Peek(buffer + len));
 					len++;
 				}
 

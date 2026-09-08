@@ -172,7 +172,7 @@ void SmudgeTypeClass::Init(TheaterType theater)
 			SmudgeTypeClass * smudge = SmudgeTypes[index];
 			char fullname[_MAX_FNAME+_MAX_EXT];	// Fully constructed smudge data set name.
 			if (smudge->IsTheater) {
-				_makepath(fullname, NULL, NULL, smudge->Name(), Theaters[theater].Suffix);
+				_makepath(fullname, NULL, NULL, smudge->Name(), TheaterClass::As_Reference(theater).Suffix);
 				smudge->ImageData = (ShapeSet const *)MFCD::Retrieve(fullname);
 			}
 		}
@@ -282,7 +282,7 @@ bool SmudgeTypeClass::Read_INI(CCINIClass const & ini)
 			_makepath(fullname, NULL, NULL, (char const *)Graphic_Name(), ".SHP");
 			ImageData = (ShapeSet const *)MFCD::Retrieve(fullname);
 		} else {
-			_makepath(fullname, NULL, NULL, (char const *)Graphic_Name(), Theaters[Scen->Theater].Suffix);
+			_makepath(fullname, NULL, NULL, (char const *)Graphic_Name(), TheaterClass::As_Reference(Scen->Theater).Suffix);
 			ImageData = (ShapeSet const *)MFCD::Retrieve(fullname);
 		}
 		return(true);

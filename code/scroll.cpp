@@ -109,7 +109,6 @@ ScrollClass::ScrollClass(void) :
 	IsCoastScrollAllowed(false),
 	RightPressPoint(0,0),
 	IsDragOperation(false),
-	IsEdgeScrollAllowed(true),
 	IsMouseDown(false)
 {
 	//Counter = SCROLL_DELAY;
@@ -131,7 +130,6 @@ void ScrollClass::Serialize(SaveStreamClass & stream)
 	// IsCoastScrollAllowed
 	// RightPressPoint
 	// IsDragOperation
-	stream.Serialize(IsEdgeScrollAllowed);
 	// IsMouseDown -- likewise the drag state, which no held button survives to continue.
 }
 
@@ -582,7 +580,7 @@ void ScrollClass::Scroll_AI(void)
 			} else {
 				HoverObject = NULL;
 			}
-			if (IsEdgeScrollAllowed && !Debug_Map) {
+			if (Options.AutoScroll && !Debug_Map) {
 				Scroll_Edge(point);
 			}
 		}
@@ -615,7 +613,7 @@ bool ScrollClass::Is_Scrolling(void) const
 /// drag survives the cursor leaving the window. Messages arriving while the game is not
 /// running, or while input is being ignored, are quietly dropped.
 /// </summary>
-void ScrollClass::Message_Handler(HWND hwnd, UINT & message, UINT & wParam, LONG & lParam)
+void ScrollClass::Message_Handler(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	if (!TacticalActive) {
 		return;

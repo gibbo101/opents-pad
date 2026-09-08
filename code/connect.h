@@ -102,7 +102,6 @@
 /*
 ********************************** Defines **********************************
 */
-#define CONN_DEBUG	0
 #pragma pack(push,1)
 /*---------------------------------------------------------------------------
 This structure is the header prefixed to any packet sent by the application.

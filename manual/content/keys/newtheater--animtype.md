@@ -8,7 +8,7 @@ when_omitted:
   value: "no"
 ---
 
-The file keeps its `.SHP` extension and the second letter of its name is rewritten to match the theater — `T` in temperate, `A` in snow — provided the name starts with `GA`, `GT`, `NA`, `NT`, `CA`, or `CT`, compared without regard to case. Any other name is left as written.
+The file keeps its `.SHP` extension and the second letter of its name is rewritten to the theater's [`ImageLetter`](/keys/imageletter/) — `T` in temperate, `A` in snow. A name is rewritten only where its second letter is already the image letter of some declared theater, compared without regard to case, so `GACNST` and `XTCNST` both follow the convention while `CITY01` does not and is left as written.
 
 Unlike [`Theater=yes`](/keys/theater/#scope-animtype), this path does honor the animation's [`Image=`](/keys/image/#scope-animtype) and rewrites that name rather than the AnimType ID. The AnimType ID is used only when no Image ID is set.
 

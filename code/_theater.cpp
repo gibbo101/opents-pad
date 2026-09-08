@@ -15,11 +15,10 @@
 
 #include "_theater.h"
 
+#include "theater.h"
+
 
 /***************************************************************************
 **	These are the names of the theaters.
 */
-TheaterDataType const Theaters[THEATER_COUNT] = {
-	{"TEMPERATE","TEMPERAT","ISOTEMP","TEM"},
-	{"SNOW","SNOW","ISOSNOW","SNO"},
-};
+DynamicVectorClass<TheaterClass *> Theaters;

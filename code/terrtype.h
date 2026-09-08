@@ -122,7 +122,7 @@ class TerrainTypeClass : public ObjectTypeClass
 
 		static TerrainType From_Name(char const * name);
 		static TerrainTypeClass * Find_Or_Make(const char * name);
-		static void Init(TheaterType theater = THEATER_TEMPERATE);
+		static void Init(TheaterType theater = THEATER_FIRST);
 		static void One_Time(void){}
 
 		virtual bool Read_INI(CCINIClass const & ini) override;

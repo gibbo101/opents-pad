@@ -40,7 +40,7 @@
 #include "cctooltip.h"
 #include "data.h"
 #include "dbgprint.h"
-#include "dsaudio.h"
+#include "audio/audioengine.h"
 #include "globals.h"
 #include "init.h"
 #include "language/language.h"
@@ -84,7 +84,7 @@ int GameDifficultyNames[OptionsClass::MAX_DIFFICULTY_SETTING] = {
 };
 
 
-BOOL CALLBACK Game_Controls_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
+INT_PTR CALLBACK Game_Controls_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
 void Game_Controls_Dialog_On_COMMAND(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
 
 /***********************************************************************************************
@@ -107,17 +107,17 @@ void GameControlsClass::Dialog(void)
 
 	if (GameActive == true) {
 		if (Session.Type == GAME_INTERNET) {
-			_Dialog = OwnerDraw::Begin_Dialog(IDD_OPT_CTRL_GAME_WOL, (DLGPROC)Game_Controls_Dialog_Proc);
+			_Dialog = OwnerDraw::Begin_Dialog(IDD_OPT_CTRL_GAME_WOL, Game_Controls_Dialog_Proc);
 		} else {
-			_Dialog = OwnerDraw::Begin_Dialog(IDD_OPT_CTRL_GAME_MP, (DLGPROC)Game_Controls_Dialog_Proc);
+			_Dialog = OwnerDraw::Begin_Dialog(IDD_OPT_CTRL_GAME_MP, Game_Controls_Dialog_Proc);
 		}
 	} else {
-		_Dialog = OwnerDraw::Begin_Dialog(IDD_OPT_CTRL_GAME_SP, (DLGPROC)Game_Controls_Dialog_Proc);
+		_Dialog = OwnerDraw::Begin_Dialog(IDD_OPT_CTRL_GAME_SP, Game_Controls_Dialog_Proc);
 	}
 
 	if (_Dialog) {
 
-		SetWindowLong(_Dialog, DWL_USER, (LONG)&res);
+		SetWindowLongPtr(_Dialog, DWLP_USER, (LONG_PTR)&res);
 
 		OwnerDraw::Display_Dialog(_Dialog);
 
@@ -207,6 +207,11 @@ void GameControlsClass::Set(void)
 		Options.ScrollMethod = Button_GetCheck(handle) == TRUE ? 0 : 1;
 	}
 
+	handle = GetDlgItem(_Dialog, IDC_EDGE_SCROLL);
+	if (handle) {
+		Options.AutoScroll = Button_GetCheck(handle) == TRUE;
+	}
+
 	if (GameActive == false) {
 		handle = GetDlgItem(_Dialog, IDC_DIFFICULTY_SLIDER);
 		if (handle) {
@@ -225,12 +230,12 @@ void GameControlsClass::Set(void)
 /// </summary>
 /// <returns>Returns with a non-zero value if the message was consumed by the ownerdraw
 /// layer.</returns>
-BOOL CALLBACK Game_Controls_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
+INT_PTR CALLBACK Game_Controls_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 {
 	HWND handle;
 	int index;
 
-	int rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
+	INT_PTR rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
 	if (rc == 0) {
 		switch (message) {
 			case WM_INITDIALOG:
@@ -275,10 +280,15 @@ BOOL CALLBACK Game_Controls_Dialog_Proc(HWND window, UINT message, WPARAM wparam
 					Button_SetCheck(handle, Options.ScrollMethod == 0);
 				}
 
+				handle = GetDlgItem(window, IDC_EDGE_SCROLL);
+				if (handle) {
+					Button_SetCheck(handle, Options.AutoScroll != false);
+				}
+
 				if (GameActive == true) {
 					handle = GetDlgItem(window, IDC_OPT_SOUND_BTN);
 					if (handle) {
-						EnableWindow(handle, Audio_Available());
+						EnableWindow(handle, AudioEngine.Is_Available());
 					}
 				} else {
 					handle = GetDlgItem(window, IDC_DIFFICULTY_SLIDER);
@@ -336,7 +346,7 @@ BOOL CALLBACK Game_Controls_Dialog_Proc(HWND window, UINT message, WPARAM wparam
 /// <param name="lparam">The notification code the control sent.</param>
 void Game_Controls_Dialog_On_COMMAND(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 {
-	int* retval = (int *)GetWindowLong(window, DWL_USER);
+	int* retval = (int *)GetWindowLongPtr(window, DWLP_USER);
 
 	switch ((INT)message) {
 		case IDC_OPT_KEYBOARD_BTN:

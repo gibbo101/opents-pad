@@ -6944,7 +6944,7 @@ bool MapClass::Try_Open_Gate(FootClass * foot, Cell const & cell)
 /// <param name="smooth_shore">Should the shoreline around the cell be redressed too?</param>
 void MapClass::Smoothen_Ice(Cell const & cell, bool smooth_shore)
 {
-	if (Scen->Theater == THEATER_SNOW) {
+	if (TheaterClass::As_Reference(Scen->Theater).IsIceGrowth) {
 		IsometricTileType ice1 = IsometricTileTypeClass::Ice1Set;
 		IsometricTileType ice1_cracked = IsometricTileType(IsometricTileTypeClass::Ice1Set + ICE_CRACKED);
 		IsometricTileType ice1_edge = IsometricTileType(IsometricTileTypeClass::Ice1Set + ICE_EDGE);
@@ -7015,7 +7015,7 @@ void MapClass::Smoothen_Ice(Cell const & cell, bool smooth_shore)
 /// <param name="not_cracked">Should a cell of cracked ice be left as it is?</param>
 void MapClass::Smoothen_Full_Ice(Cell const & cell, bool not_cracked)
 {
-	if (Scen->Theater == THEATER_SNOW) {
+	if (TheaterClass::As_Reference(Scen->Theater).IsIceGrowth) {
 		int index = 0;
 
 		IsometricTileType ice1_cracked = IsometricTileType(IsometricTileTypeClass::Ice1Set + ICE_CRACKED);
@@ -7142,7 +7142,7 @@ char const IceSetLut[] = {
 /// </summary>
 void MapClass::Smoothen_Ice_Shore(Cell const & cell)
 {
-	if (Scen->Theater == THEATER_SNOW) {
+	if (TheaterClass::As_Reference(Scen->Theater).IsIceGrowth) {
 		int index = 0;
 
 		CellClass *cptr = &Map[cell];
@@ -7238,7 +7238,7 @@ void MapClass::Smoothen_Ice_Shore(Cell const & cell)
 /// </summary>
 void MapClass::Smoothen_Ice_Edge(Cell const & cell)
 {
-	if (Scen->Theater == THEATER_SNOW) {
+	if (TheaterClass::As_Reference(Scen->Theater).IsIceGrowth) {
 		int index = 0;
 
 		IsometricTileType oldtile = Map[cell].ITType;
@@ -7397,7 +7397,7 @@ void MapClass::Smoothen_Ice_Edge(Cell const & cell)
 /// <returns>bool; Did the ice give way?</returns>
 bool MapClass::Crack_Ice(CellClass * cellptr, FootClass * object)
 {
-	if (Scen->Theater == THEATER_SNOW) {
+	if (TheaterClass::As_Reference(Scen->Theater).IsIceGrowth) {
 		if (object == NULL || !object->IsOnBridge) {
 			IsometricTileType tile = cellptr->ITType;
 			IsometricTileType ice1end = IsometricTileType(IsometricTileTypeClass::Ice1Set + ICE_CRACKED);
@@ -7475,7 +7475,7 @@ bool MapClass::Break_Ice(CellClass * cellptr, FootClass * object)
 		Point2D(0,0)
 	};
 
-	if (Scen->Theater == THEATER_SNOW) {
+	if (TheaterClass::As_Reference(Scen->Theater).IsIceGrowth) {
 		FacingType facing = FACING_NONE;
 		if (object != NULL) {
 			if (object->IsOnBridge || object->Is_Moving_Onto_Bridge()) {
@@ -7561,7 +7561,7 @@ bool MapClass::Break_Ice(CellClass * cellptr, FootClass * object)
 /// <returns>bool; Did any ice grow this frame?</returns>
 bool MapClass::Ice_Growth_AI(void)
 {
-	if (Scen->Theater == THEATER_SNOW && Scen->IsIceGrowth) {
+	if (TheaterClass::As_Reference(Scen->Theater).IsIceGrowth && Scen->IsIceGrowth) {
 		IsometricTileType & ice1 = IsometricTileTypeClass::Ice1Set;
 		IsometricTileType & ice2 = IsometricTileTypeClass::Ice2Set;
 		IsometricTileType ice1_lat = IsometricTileType(ice1 + ICE_LAT);
@@ -7614,7 +7614,7 @@ bool MapClass::Ice_Growth_AI(void)
 /// </summary>
 void MapClass::Ice_Solidification_AI(void)
 {
-	if (Scen->Theater != THEATER_SNOW) {
+	if (!TheaterClass::As_Reference(Scen->Theater).IsIceGrowth) {
 		CrackedIce.Clear();
 		return;
 	}

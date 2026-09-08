@@ -103,7 +103,7 @@
 #include "data.h"
 #include "dbgprint.h"
 #include "dialog.h"
-#include "dsaudio.h"
+#include "audio/audioengine.h"
 #include "dsurface.h"
 #include "egos.h"
 #include "empulse.h"
@@ -178,6 +178,7 @@
 #include "tracker.h"
 #include "trigger.h"
 #include "tube.h"
+#include "tutorial.h"
 #include "uicontrol.h"
 #include "unit.h"
 #include "unittype.h"
@@ -254,8 +255,8 @@ static void Init_Threads(void);
 void Draw_Version_Text(Surface * surface);
 void Version_Dialog(void);
 
-BOOL CALLBACK Rules_Choice_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
-BOOL CALLBACK Main_Menu_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
+INT_PTR CALLBACK Rules_Choice_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
+INT_PTR CALLBACK Main_Menu_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
 
 void Init_Random(void);
 
@@ -500,8 +501,21 @@ int Init_Game(int , char * [])
 	Init_Vocs(voc_ini);
 
 	/*
-	**
+	**	Find and process any rules for this game.
 	*/
+	DebugString("Init Rules\n");
+
+	if (!Init_Rules()) {
+		DebugString("Failed to initialize Rules!\n");
+		return(-1);
+	}
+
+	// A map names its theater before anything else about it is read.
+	Prepare_Theater_Roster();
+
+	// A score's Side= names a side the rules declare, so the roster is built before the scores are read.
+	Prepare_Side_Roster();
+
 	DebugString("Reading THEME.INI\n");
 
 	CCINIClass theme_ini;
@@ -513,16 +527,6 @@ int Init_Game(int , char * [])
 	Theme.Free_Themes();
 	Theme.Init_Themes(theme_ini);
 	Theme.Scan();
-
-	/*
-	**	Find and process any rules for this game.
-	*/
-	DebugString("Init Rules\n");
-
-	if (!Init_Rules()) {
-		DebugString("Failed to initialize Rules!\n");
-		return(-1);
-	}
 
 	Session.MaxPlayers = Rule->MaxPlayers;
 
@@ -572,7 +576,7 @@ int Init_Game(int , char * [])
 /// with the index of the one that the player settled upon.
 /// </summary>
 /// <remarks>The dialog must be created with the vector of rules files as its parameter.</remarks>
-static BOOL CALLBACK Rules_Choice_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
+static INT_PTR CALLBACK Rules_Choice_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 {
 	char buffer[128];
 
@@ -669,6 +673,37 @@ void Init_Campaigns(void)
 
 
 /// <summary>
+/// Reads the theaters the rules declare, once, before anything can mount one.
+/// A theater list replaces the two theaters Tiberian Sun hard-coded rather than adding to
+/// them, so a rules file may drop or reorder them; a list naming none leaves those two.
+/// Firestorm's theaters are read whenever its rules are installed, not only when its addon
+/// is enabled, because a theater's position must not move between games.
+/// </summary>
+void Prepare_Theater_Roster(void)
+{
+	bool declared = Rule->Do_Theaters(*RuleINI);
+
+	if (Addon_Installed(ADDON_FIRESTORM)) {
+		declared |= Rule->Do_Theaters(FSRuleINI);
+	}
+
+	if (!declared) {
+		TheaterClass::One_Time();
+	}
+
+	for (int index = 0; index < Theaters.Count(); index++) {
+		Theaters[index]->Read_INI(*RuleINI);
+
+		if (Addon_Installed(ADDON_FIRESTORM)) {
+			Theaters[index]->Read_INI(FSRuleINI);
+		}
+
+		DebugString("Theater %d: %s\n", index, Theaters[index]->Name());
+	}
+}
+
+
+/// <summary>
 /// Reads the countries and the sides they belong to from the rules, so a house's side is
 /// known before anything asks for it.
 /// </summary>
@@ -715,12 +750,12 @@ static bool Campaign_Available(CampaignClass * campaign)
 /// This routine lists the campaigns that the player is entitled to play, drives the
 /// difficulty slider, and leaves the choice where Choose_Campaign will collect it.
 /// </summary>
-static BOOL CALLBACK Campaign_Choice_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
+static INT_PTR CALLBACK Campaign_Choice_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 {
 	HWND item;
 	struct ChooseCampaignStruct * state;
 
-	int rc;
+	INT_PTR rc;
 	rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
 
 	if (rc) {
@@ -763,7 +798,7 @@ static BOOL CALLBACK Campaign_Choice_Dialog_Proc(HWND window, UINT message, WPAR
 			switch (LOWORD(wparam)) {
 				case IDOK:
 					if (HIWORD(wparam) == BN_CLICKED) {
-						state = (ChooseCampaignStruct *)GetWindowLong(window, DWL_USER);
+						state = (ChooseCampaignStruct *)GetWindowLongPtr(window, DWLP_USER);
 
 						if (state != NULL) {
 							item = GetDlgItem(window, IDC_LIST);
@@ -785,7 +820,7 @@ static BOOL CALLBACK Campaign_Choice_Dialog_Proc(HWND window, UINT message, WPAR
 
 				case IDCANCEL:
 					if (HIWORD(wparam) == BN_CLICKED) {
-						state = (ChooseCampaignStruct *)GetWindowLong(window, DWL_USER);
+						state = (ChooseCampaignStruct *)GetWindowLongPtr(window, DWLP_USER);
 
 						if (state != NULL) {
 							state->ChosenCampaign = CAMPAIGN_NONE;
@@ -1004,10 +1039,10 @@ static CampaignType Choose_Campaign(void)
 		return(Console_Campaign_Screen());
 	}
 
-	dialog = OwnerDraw::Begin_Dialog(IDD_CAMPAIGN, (DLGPROC) Campaign_Choice_Dialog_Proc);
+		dialog = OwnerDraw::Begin_Dialog(IDD_CAMPAIGN, Campaign_Choice_Dialog_Proc);
 
 	if (dialog != NULL) {
-		SetWindowLong(dialog, DWL_USER, (LONG) &state);
+		SetWindowLongPtr(dialog, DWLP_USER, (LONG_PTR) &state);
 
 		OwnerDraw::Move_Dialog(dialog, -1, (HiddenSurface->Get_Height() - 400) / 2 + 147);
 		OwnerDraw::Display_Dialog(dialog);
@@ -1095,7 +1130,7 @@ static bool Init_Rules(void)
 		RuleINI = Rules[0];
 	} else {
 		MouseCursor->Release_Mouse();
-		int rules_choice = DialogBoxParam(ProgramInstance, MAKEINTRESOURCE(IDD_RULES_CHOICE), MainWindow, (DLGPROC)Rules_Choice_Dialog_Proc, (LPARAM)&Rules);
+		int rules_choice = DialogBoxParam(ProgramInstance, MAKEINTRESOURCE(IDD_RULES_CHOICE), MainWindow, Rules_Choice_Dialog_Proc, (LPARAM)&Rules);
 		MouseCursor->Capture_Mouse();
 
 		if (rules_choice == -1) {
@@ -1369,10 +1404,7 @@ restart:
 				*/
 				case SEL_MULTIPLAYER_GAME: {
 						Session.Read_MultiPlayer_Settings();
-
-						for (int house = 0; house < HouseTypes.Count(); house++) {
-							HouseTypes[house]->Read_INI(*RuleINI);
-						}
+						Prepare_Side_Roster();
 
 						Session.Suspended = 0;
 
@@ -1423,13 +1455,7 @@ restart:
 						case GAME_IPX: {
 							Cheat_Disable();
 							Session.Read_MultiPlayer_Settings();
-
-							/*
-							**	Fetch the house attribute override values.
-							*/
-							for (int house = 0; house < HouseTypes.Count(); house++) {
-								HouseTypes[house]->Read_INI(*RuleINI);
-							}
+							Prepare_Side_Roster();
 
 							Session.Type = GAME_IPX;
 							Session.CommProtocol = COMM_PROTOCOL_MULTI_E_COMP;
@@ -1581,7 +1607,7 @@ restart:
 		Show_Mouse();
 
 		if (Session.Type != GAME_NORMAL) {
-			Session.PlayerIsGDI = stricmp(HouseTypes[Session.Players[0]->Player.House]->Name(), "GDI") == 0;
+			Session.PlayerHouse = (HousesType)Session.Players[0]->Player.House;
 		}
 
 		// The menu sets the difficulty pair on every path but a client launch, which chose it.
@@ -1898,7 +1924,7 @@ bool Parse_Command_Line(int argc, char * argv[])
 			continue;
 		}
 
-		if (isdigit(string[1])) {
+		if (isdigit((unsigned char)string[1])) {
 			sscanf(string, "-%dX%d", &Options.ScreenWidth, &Options.ScreenHeight);
 			continue;
 		}
@@ -1949,7 +1975,7 @@ bool Parse_Command_Line(int argc, char * argv[])
 			string += strlen("-X");
 			while (*string) {
 				char code = *string++;
-				switch (toupper(code)) {
+				switch (toupper((unsigned char)code)) {
 
 #ifdef _DEBUG
 
@@ -2190,22 +2216,6 @@ static void Init_Color_Remaps(void)
  *=============================================================================================*/
 static void Init_Heaps(void)
 {
-	/*
-	**	Speech holding tank buffer. Since speech does not mix, it can be placed
-	**	into a custom holding tank only as large as the largest speech file to
-	**	be played.
-	*/
-	for (int index = 0; index < ARRAY_SIZE(SpeechBuffer); index++) {
-		SpeechBuffer[index] = new char [SPEECH_BUFFER_SIZE];
-		SpeechRecord[index] = VOX_NONE;
-		assert(SpeechBuffer[index] != NULL);
-	}
-
-	/*
-	**	Allocate the theater buffer block.
-	*/
-//	TheaterBuffer = new Buffer(THEATER_BUFFER_SIZE);
-//	assert(TheaterBuffer != NULL);
 }
 
 
@@ -2955,7 +2965,7 @@ static bool Init_Bulk_Data(void)
 		return(false);
 	}
 
-	if (Audio_Available() && !Debug_Quiet) {
+	if (AudioEngine.Is_Available() && !Debug_Quiet) {
 		if (SoundsMix != NULL && !SoundsMix->Cache()) {
 			return(false);
 		}
@@ -2972,14 +2982,7 @@ static bool Init_Bulk_Data(void)
 	INIClass ini;
 	CCFileClass file("TUTORIAL.INI");
 	ini.Load(file);
-	int count = ini.Entry_Count("Tutorial");
-	for (int index = 0; index < count; index++) {
-		char buffer[300];
-		const char *entry = ini.Get_Entry("Tutorial", index);
-		if (ini.Get_String("Tutorial", entry, "", buffer, sizeof(buffer))) {
-			TutorialText.Add_Index(atoi(entry), (char *)strdup(buffer));
-		}
-	}
+	TutorialText.Read_Base(ini);
 
 	/*
 	**	Perform one-time game system initializations.
@@ -3137,7 +3140,7 @@ bool Cheat_Key_Process(char chr)
 {
 	static char _buffer[32] = "";
 
-	if (!isalnum(chr) || chr == '~') {
+	if (!isalnum((unsigned char)chr) || chr == '~') {
 		memset(_buffer, 0, sizeof(_buffer));
 		return(false);
 	}
@@ -3154,7 +3157,7 @@ bool Cheat_Key_Process(char chr)
 		_buffer[0] = 0;
 	}
 
-	_buffer[len] = toupper(chr);
+	_buffer[len] = toupper((unsigned char)chr);
 
 	for (int c = 0; c < ARRAY_SIZE(CheatEntries); c++) {
 		if (strstr(_buffer, CheatEntries[c].CheatString) != NULL) {
@@ -3174,19 +3177,19 @@ bool Cheat_Key_Process(char chr)
 /// stamp, and a description of the processor it finds itself running upon. It is the
 /// first thing to ask for when a player reports a problem.
 /// </summary>
-BOOL CALLBACK Version_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
+INT_PTR CALLBACK Version_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 {
 	HWND handle;
 	int *res;
 	char buffer[256];
 
-	int rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
+	INT_PTR rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
 
 	if (rc) {
 		return(rc);
 	}
 
-	res = (int *)GetWindowLong(window, DWL_USER);
+	res = (int *)GetWindowLongPtr(window, DWLP_USER);
 
 	switch (message) {
 		case WM_INITDIALOG:
@@ -3253,10 +3256,10 @@ void Version_Dialog(void)
 	HWND dialog;
 	int res = 0;
 
-	dialog = OwnerDraw::Begin_Dialog(IDD_VERSION, (DLGPROC)Version_Dialog_Proc);
+	dialog = OwnerDraw::Begin_Dialog(IDD_VERSION, Version_Dialog_Proc);
 
 	if (dialog != NULL) {
-		SetWindowLong(dialog, DWL_USER, (LONG)&res);
+		SetWindowLongPtr(dialog, DWLP_USER, (LONG_PTR)&res);
 		OwnerDraw::Display_Dialog(dialog);
 
 		while (res == 0) {
@@ -3292,11 +3295,11 @@ int Main_Menu(unsigned int timeout)
 
 	timeout = 0;
 
-	dialog = OwnerDraw::Begin_Dialog(IDD_MAIN_MENU, (DLGPROC) Main_Menu_Dialog_Proc);
+	dialog = OwnerDraw::Begin_Dialog(IDD_MAIN_MENU, Main_Menu_Dialog_Proc);
 	assert(dialog != NULL);
 
 	if (dialog != NULL) {
-		SetWindowLong(dialog, DWL_USER, (LONG)&retval);
+		SetWindowLongPtr(dialog, DWLP_USER, (LONG_PTR)&retval);
 		char *menu = Get_New_Menu()->Background;
 		Load_Title_Screen(menu, HiddenSurface, &CCPalette);
 		Draw_Version_Text(HiddenSurface);
@@ -3364,16 +3367,16 @@ int Main_Menu(unsigned int timeout)
 /// This routine records the button the player pressed into the result that Main_Menu is
 /// waiting upon, and greys out the load button when there is nothing to load.
 /// </summary>
-BOOL CALLBACK Main_Menu_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
+INT_PTR CALLBACK Main_Menu_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 {
 	int * res;
 
-	int rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
+	INT_PTR rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
 	if (rc) {
 		return(rc);
 	}
 
-	res = (int *) GetWindowLong(window, DWL_USER);
+	res = (int *) GetWindowLongPtr(window, DWLP_USER);
 
 	switch (message) {
 		case WM_INITDIALOG: {
@@ -3487,6 +3490,37 @@ void Draw_Version_Text(Surface * surface)
 
 static char _cmd_buffer[128];
 
+
+static void Select_Team_Members(int team)
+{
+	for (int i = 0; i < Technos.Count(); i++) {
+		TechnoClass * obj = Technos[i];
+		if (obj && !obj->IsInLimbo && obj->Group == team - 1 && obj->House->Is_Player_Control()) {
+			if (!obj->IsSelected) {
+				obj->Select();
+				AllowVoice = false;
+			}
+		}
+	}
+}
+
+
+static void Assign_Selection_To_Team(int team)
+{
+	for (int i = 0; i < Technos.Count(); i++) {
+		TechnoClass * obj = Technos[i];
+		if (obj && !obj->IsInLimbo && obj->House->Is_Player_Control()) {
+			if (obj->Group == team - 1) {
+				obj->Group = -1;
+			}
+			if (obj->IsSelected) {
+				obj->Group = team - 1;
+			}
+		}
+	}
+}
+
+
 class CreateTeamCommandClass : public CommandClass
 {
 	public:
@@ -3509,17 +3543,7 @@ class CreateTeamCommandClass : public CommandClass
 		}
 
 		virtual void Execute(void) const {
-			for (int i = 0; i < Technos.Count(); i++) {
-				TechnoClass * obj = Technos[i];
-				if (obj && !obj->IsInLimbo && obj->House->Is_Player_Control()) {
-					if (obj->Group == Team - 1) {
-						obj->Group = -1;
-					}
-					if (obj->IsSelected) {
-						obj->Group = Team - 1;
-					}
-				}
-			}
+			Assign_Selection_To_Team(Team);
 		}
 
 	private:
@@ -3558,15 +3582,7 @@ class SelectTeamCommandClass : public CommandClass
 			if (CurrentObject.Count() > 0 && !already) {
 				Unselect_All();
 			}
-			for (int i = 0; i < Technos.Count(); i++) {
-				TechnoClass * obj = Technos[i];
-				if (obj && !obj->IsInLimbo && obj->Group == (Team - 1) && obj->House->Is_Player_Control()) {
-					if (!obj->IsSelected) {
-						obj->Select();
-						AllowVoice = false;
-					}
-				}
-			}
+			Select_Team_Members(Team);
 			AllowVoice = false;
 			TechnoClass::Reset_Action_Line_Timer();
 
@@ -3619,17 +3635,44 @@ class AddTeamCommandClass : public CommandClass
 			Map.Repair_Mode_Control(0);
 			Map.Sell_Mode_Control(0);
 
-			for (int i = 0; i < Technos.Count(); i++) {
-				TechnoClass * obj = Technos[i];
+			Select_Team_Members(Team);
+		}
 
-				if (obj && !obj->IsInLimbo && obj->Group == Team-1 && obj->House->Is_Player_Control()) {
+	private:
+		int Team;
+};
 
-					if (!obj->IsSelected) {
-						obj->Select();
-						AllowVoice = false;
-					}
-				}
-			}
+
+class AddToTeamCommandClass : public CommandClass
+{
+	public:
+		AddToTeamCommandClass(int team) : Team(team) {}
+
+		virtual char const * Get_Unique_Name(void) const {
+			sprintf(_cmd_buffer, "TeamAddTo_%d", Team);
+			return(_cmd_buffer);
+		}
+		virtual char const * Get_Display_Name(void) const {
+			sprintf(_cmd_buffer, Fetch_String(TXT_ADD_TO_TEAM), Team);
+			return(_cmd_buffer);
+		}
+		virtual char const * Get_Category(void) const {
+			return(Fetch_String((TXT_TEAM)));
+		}
+		virtual char const * Get_Description(void) const {
+			sprintf(_cmd_buffer, Fetch_String(TXT_ADD_TO_TEAM_DESC), Team);
+			return(_cmd_buffer);
+		}
+
+		virtual void Execute(void) const {
+			Map.Power_Mode_Control(0);
+			Map.Waypoint_Mode_Control(0);
+			Map.Repair_Mode_Control(0);
+			Map.Sell_Mode_Control(0);
+
+			// The team joins the selection first, or the assignment would drop its existing members.
+			Select_Team_Members(Team);
+			Assign_Selection_To_Team(Team);
 		}
 
 	private:
@@ -3668,15 +3711,7 @@ class CenterTeamCommandClass : public CommandClass
 				Unselect_All();
 			}
 
-			for (int i = 0; i < Technos.Count(); i++) {
-				TechnoClass * obj = Technos[i];
-				if (obj && !obj->IsInLimbo && obj->Group == Team - 1 && obj->House->Is_Player_Control()) {
-					if (!obj->IsSelected) {
-						obj->Select();
-						AllowVoice = false;
-					}
-				}
-			}
+			Select_Team_Members(Team);
 
 			Map.Center_Map();
 			Map.Flag_To_Redraw(GS_REDRAW_TACTICAL);
@@ -3948,7 +3983,7 @@ class CenterBaseCommandClass : public CommandClass
 				if (PlayerPtr->CurUnits) {
 					for (index = 0; index < Units.Count(); index++) {
 						UnitClass * unit = Units[index];
-						if (unit != NULL && !unit->IsInLimbo && unit->House->Is_Player_Control() && unit->Class == Rule->BaseUnit) {
+						if (unit != NULL && !unit->IsInLimbo && unit->House->Is_Player_Control() && Rule->BaseUnit.Is_In_List(unit->Class)) {
 							conyard_coord = unit->Center_Coord();
 							break;
 						}
@@ -5939,6 +5974,17 @@ static void Init_Commands(void)
 	AllCommands.Add(new AddTeamCommandClass(9));
 	AllCommands.Add(new AddTeamCommandClass(10));
 
+	AllCommands.Add(new AddToTeamCommandClass(1));
+	AllCommands.Add(new AddToTeamCommandClass(2));
+	AllCommands.Add(new AddToTeamCommandClass(3));
+	AllCommands.Add(new AddToTeamCommandClass(4));
+	AllCommands.Add(new AddToTeamCommandClass(5));
+	AllCommands.Add(new AddToTeamCommandClass(6));
+	AllCommands.Add(new AddToTeamCommandClass(7));
+	AllCommands.Add(new AddToTeamCommandClass(8));
+	AllCommands.Add(new AddToTeamCommandClass(9));
+	AllCommands.Add(new AddToTeamCommandClass(10));
+
 	AllCommands.Add(new CenterTeamCommandClass(1));
 	AllCommands.Add(new CenterTeamCommandClass(2));
 	AllCommands.Add(new CenterTeamCommandClass(3));
@@ -6335,18 +6381,20 @@ void Delete_All_Objects(void)
  *=============================================================================================*/
 void Init_Theater(TheaterType theater)
 {
-	char			fullname[16];
-	char			shortname[16];
-	char			isofullname[16];
+	TheaterClass const & data = TheaterClass::As_Reference(theater);
+
+	char			fullname[_MAX_PATH];
+	char			shortname[_MAX_PATH];
+	char			isofullname[_MAX_PATH];
 
 	/*
 	**	Unload old mixfiles, and cache the new ones
 	*/
-	wsprintf(fullname, "%s.MIX", Theaters[theater].Root);
-	wsprintf(isofullname, "%s.MIX", Theaters[theater].IsoRoot);
-	wsprintf(shortname, "%s.MIX", Theaters[theater].Suffix);
+	wsprintf(fullname, "%s.MIX", data.Root.c_str());
+	wsprintf(isofullname, "%s.MIX", data.IsoRoot.c_str());
+	wsprintf(shortname, "%s.MIX", data.Suffix.c_str());
 
-	DebugString("Init theater %s\n", Theaters[theater].Name);
+	DebugString("Init theater %s\n", data.Name());
 
 	/*
 	**	Save the new theater value
@@ -6380,7 +6428,7 @@ void Init_Theater(TheaterType theater)
 		**	Load the custom palette associated with this theater.
 		**	The fading palettes will have to be generated as well.
 		*/
-		wsprintf(fullname, "%s.PAL", Theaters[theater].Root);
+		wsprintf(fullname, "%s.PAL", data.Root.c_str());
 
 		unsigned char * ptr = (unsigned char *)MFCD::Retrieve(fullname);
 
@@ -6401,21 +6449,10 @@ void Init_Theater(TheaterType theater)
 		OriginalPalette = GamePalette;
 
 		PaletteClass * unitpal = NULL;
-		char const * palname = NULL;
 
-		bool valid = false;
-		switch (theater) {
-			case THEATER_TEMPERATE:
-				valid = true;
-				palname ="UNITTEM.PAL";
-				break;
-			case THEATER_SNOW:
-				valid = true;
-				palname = "UNITSNO.PAL";
-				break;
-		};
-
-		if (valid) {
+		if (!data.Suffix.empty()) {
+			char palname[_MAX_PATH];
+			wsprintf(palname, "UNIT%s.PAL", data.Suffix.c_str());
 			unitpal = (PaletteClass *)MFCD::Retrieve(palname);
 		}
 
@@ -6585,6 +6622,9 @@ bool Prep_Speech_For_Side(SideType side)
 		return(false);
 	}
 
+	// A line still streaming from the old archive must be closed before it goes.
+	Stop_Speaking();
+
 	if (SpeechMix != NULL) {
 		DebugString("     Releasing %s\n", SpeechMix->Filename);
 		delete SpeechMix;
@@ -6622,6 +6662,38 @@ bool Prep_Speech_For_Side(SideType side)
 	}
 
 	return(true);
+}
+
+
+/// <summary>
+/// Prepares a side's art and interface archives, or the first side's when that side has none.
+/// </summary>
+/// <returns>Returns with the side prepared, or SIDE_NONE when neither could be.</returns>
+SideType Prep_For_Side_Or_First(SideType side)
+{
+	if (Prep_For_Side(side)) {
+		return(side);
+	}
+	if (side != SIDE_FIRST && Prep_For_Side(SIDE_FIRST)) {
+		return(SIDE_FIRST);
+	}
+	return(SIDE_NONE);
+}
+
+
+/// <summary>
+/// Prepares a side's speech archives, or the first side's when that side has none.
+/// </summary>
+/// <returns>Returns with the side prepared, or SIDE_NONE when neither could be.</returns>
+SideType Prep_Speech_For_Side_Or_First(SideType side)
+{
+	if (Prep_Speech_For_Side(side)) {
+		return(side);
+	}
+	if (side != SIDE_FIRST && Prep_Speech_For_Side(SIDE_FIRST)) {
+		return(SIDE_FIRST);
+	}
+	return(SIDE_NONE);
 }
 
 
@@ -6760,9 +6832,7 @@ int New_Main_Menu(void)
 
 	if (Session.Type != GAME_NORMAL) {
 		Session.Read_MultiPlayer_Settings();
-		for (int i = 0; i < HouseTypes.Count(); i++) {
-			HouseTypes[i]->Read_INI(*RuleINI);
-		}
+		Prepare_Side_Roster();
 		Session.Suspended = false;
 		Session.Read_Scenario_Descriptions();
 		return(SEL_MULTIPLAYER_GAME);

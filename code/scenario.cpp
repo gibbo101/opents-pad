@@ -62,6 +62,7 @@
 #include "scenario.h"
 
 #include "_bench.h"
+#include "_deploymentconfig.h"
 #include "_keyboar.h"
 #include "_logic.h"
 #include "_map.h"
@@ -93,6 +94,7 @@
 #include "crc.h"
 #include "data.h"
 #include "dbgprint.h"
+#include "deploymentconfig.h"
 #include "egos.h"
 #include "empulse.h"
 #include "enviro.h"
@@ -155,12 +157,14 @@
 #include "teamtype.h"
 #include "terrain.h"
 #include "theme.h"
+#include "voc.h"
 #include "tiberium.h"
 #include "tracker.h"
 #include "trigger.h"
 #include "trigtype.h"
 #include "trim.h"
 #include "tube.h"
+#include "tutorial.h"
 #include "unit.h"
 #include "unittype.h"
 #include "vein.h"
@@ -267,6 +271,10 @@ void ScenarioClass::Reset(void)
 	PreMapSelectMovie = VQ_NONE;
 	TransitTheme = THEME_NONE;
 	PlayerHouse = HOUSE_FIRST;
+	PlayerSide = SIDE_FIRST;
+	LoadScreen[0] = '\0';
+	LoadScreenX = 0;
+	LoadScreenY = 0;
 	CarryOverPercent = 0;
 	CarryOverCap = 0;
 	Percent = 0;
@@ -287,7 +295,6 @@ void ScenarioClass::Reset(void)
 	IsTruckCrate = false;
 	IsMoneyTiberium = false;
 	IsIgnoreGlobalAITriggers = false;
-	IsGDI = true;
 	IsMultiplayerOnly = false;
 	IsMPAIBaseNodes = false;
 	IsCrateBeenPickedUp = false;
@@ -606,30 +613,36 @@ bool Wait_For_Players_To_Load(void)
 
 
 /// <summary>
-/// Puts the picture a launch file asked for in place of the game's own loading backdrop, and
-/// its bar position in place of the game's. A picture that is missing leaves both alone. The
-/// position is taken to be within the picture, so it is centered along with it.
+/// Puts the picture a launch file asked for, or without one the picture the scenario kept from
+/// the launch that started it, in place of the game's own loading backdrop, and its bar position
+/// in place of the game's. A picture that is missing leaves both alone. The position is taken
+/// to be within the picture, so it is centered along with it.
 /// </summary>
-static void Apply_Custom_Load_Screen(char const * & background, Point2D & bar)
+/// <returns>Returns with where the picture came from, or NULL when the game's own stands.</returns>
+static char const * Apply_Custom_Load_Screen(char const * & background, Point2D & bar)
 {
-	if (Session.LoadScreen[0] == '\0') {
-		return;
+	bool launched = Session.LoadScreen[0] != '\0';
+	char const * name = launched ? Session.LoadScreen : Scen->LoadScreen;
+	int x = launched ? Session.LoadScreenX : Scen->LoadScreenX;
+	int y = launched ? Session.LoadScreenY : Scen->LoadScreenY;
+	if (name[0] == '\0') {
+		return(NULL);
 	}
 
-	CCFileClass file(Session.LoadScreen);
+	CCFileClass file(name);
 	if (!file.Is_Available()) {
-		DebugString("The load screen %s is missing.\n", Session.LoadScreen);
-		return;
+		DebugString("The load screen %s is missing.\n", name);
+		return(NULL);
 	}
 
-	background = Session.LoadScreen;
+	background = name;
 
 	int width = 0;
 	int height = 0;
-	if (Session.LoadScreenX > 0 && Session.LoadScreenY > 0 && Read_PCX_Size(file, width, height)) {
-		bar = Point2D(Session.LoadScreenX, Session.LoadScreenY)
-			+ Point2D((VisibleRect.Width - width) / 2, (VisibleRect.Height - height) / 2);
+	if (x > 0 && y > 0 && Read_PCX_Size(file, width, height)) {
+		bar = Point2D(x, y) + Point2D((VisibleRect.Width - width) / 2, (VisibleRect.Height - height) / 2);
 	}
+	return(launched ? "from the launch file" : "kept by the scenario");
 }
 
 
@@ -694,7 +707,8 @@ bool Read_Scenario(char const * fname)
 		Shell_Display_Mode();
 		Point2D prog_bar_pos;
 		char const * background = Pick_Load_Background_Name(prog_bar_pos);
-		Apply_Custom_Load_Screen(background, prog_bar_pos);
+		char const * source = Apply_Custom_Load_Screen(background, prog_bar_pos);
+		DebugString("Loading screen %s%s%s%s\n", background, source != NULL ? " (" : "", source != NULL ? source : "", source != NULL ? ")" : "");
 		Progress.Initialize(100, players);
 
 		char * prog_msg = NULL;
@@ -1009,6 +1023,7 @@ void Post_Load_Game(void)
  *=============================================================================================*/
 void Clear_Scenario(void)
 {
+	Stop_All_Sound_Effects();
 	Sync_Recorder_Disarm();
 
 	int index;
@@ -1018,6 +1033,7 @@ void Clear_Scenario(void)
 	PlayerPtr = NULL;
 
 	Scen->Reset();
+	TutorialText.Clear_Overrides();
 
 	IonStormClass::Ion_Storm_End();
 
@@ -1486,7 +1502,8 @@ static int Load_Held_Scenario_File(CCINIClass & ini, char const * name, bool wit
 
 /// <summary>
 /// Fills the database from the scenario file named: from the copy the scenario holds when
-/// that is the file, and otherwise from disk, which the scenario then holds in its place.
+/// that is the file, and otherwise from disk, which the scenario then holds in its place
+/// where the deployment asked for the file to travel in the save.
 /// </summary>
 /// <returns>What the INI load returned: 0 when nothing loaded.</returns>
 static int Load_Scenario_File(CCINIClass & ini, char const * name, bool withdigest)
@@ -1517,7 +1534,7 @@ static int Load_Scenario_File(CCINIClass & ini, char const * name, bool withdige
 
 	BufferStraw straw(bytes.data(), (int)bytes.size());
 	int result = ini.Load(straw, withdigest, false, file.File_Name());
-	if (result != 0) {
+	if (result != 0 && DeploymentConfig.CarryScenarioFile) {
 		Scen->SourceFile.Assign(name, std::move(bytes));
 	}
 	return(result);
@@ -1573,6 +1590,20 @@ bool Read_Scenario_INI(char const * fname, bool)
 
 
 /// <summary>
+/// Fetches the side the local player is presented with: that of the country being played.
+/// </summary>
+/// <returns>Returns with the player's country's side, or the first side when it has none.</returns>
+SideType Side_For_Player(void)
+{
+	HousesType house = Scen->PlayerHouse;
+	if (house >= HOUSE_FIRST && house < HouseTypes.Count() && HouseTypes[house]->Side != SIDE_NONE) {
+		return(HouseTypes[house]->Side);
+	}
+	return(SIDE_FIRST);
+}
+
+
+/// <summary>
 /// Fetches the artwork to display while a scenario loads.
 /// The picture is chosen to suit the player's side and the current screen resolution, and
 /// one of the pair available is taken at random so that the loading screen is not always
@@ -1611,11 +1642,11 @@ char const * Pick_Load_Background_Name(Point2D & pos)
 				}
 			}
 		}
-	} else {
-		player = Session.Players[player]->Player.House;
+	} else if (Session.PlayerHouse >= HOUSE_FIRST && Session.PlayerHouse < HouseTypes.Count()) {
+		player = HouseTypes[Session.PlayerHouse]->Side;
 	}
 
-	// Only two sides have loading art, so any other house is shown the first side's.
+	// Only two sides have loading art, so any other side is shown the first side's.
 	if (player < 0 || player > 1) {
 		player = 0;
 	}
@@ -1782,6 +1813,11 @@ bool Read_Scenario_INI(CCINIClass const & ini, bool is_mapgen)
 		Special.IsFogOfWar = Session.Options.FogOfWar;
 	}
 
+	// Outside the branch above because a campaign obeys the launch file too. A scenario
+	// can still overrule it through [SpecialFlags].
+	Scen->Special.IsScrapMetal = Session.Options.ScrapMetal;
+	Special.IsScrapMetal = Session.Options.ScrapMetal;
+
 	char const * const BASIC = "Basic";
 	Scen->InitTime = ini.Get_Int(BASIC, "InitTime", 10000);
 	bool official = ini.Get_Bool(BASIC, "Official", false);
@@ -1819,27 +1855,38 @@ bool Read_Scenario_INI(CCINIClass const & ini, bool is_mapgen)
 	**
 	*/
 	DebugString("Initializing Theater\n");
-	Scen->Theater = ini.Get_TheaterType("Map", "Theater", THEATER_TEMPERATE);
+	Scen->Theater = ini.Get_TheaterType("Map", "Theater", THEATER_FIRST);
 	Init_Theater(Scen->Theater);
 
 	Session.Update_Progress(30);
 
-	/*
-	**
-	*/
+	// Clearing the scenario emptied the countries, and the rules are read only after the
+	// side's archives are mounted, so the roster is rebuilt before the side is chosen.
+	Prepare_Side_Roster();
+
 	if (Session.Type == GAME_NORMAL) {
 		ini.Get_String(BASIC, "Player", "GDI", buffer, sizeof(buffer));
-		Scen->IsGDI = strcmpi(buffer, "GDI") == 0;
-		Scen->SpeechSide = Scen->IsGDI == true ? SIDE_GDI : SIDE_NOD;
+		HousesType player = HouseTypeClass::From_Name(buffer);
+		Scen->PlayerHouse = player != HOUSE_NONE ? player : HOUSE_FIRST;
 	} else {
-		Scen->IsGDI = Session.PlayerIsGDI;
-		Scen->SpeechSide = Session.PlayerIsGDI == false ? SIDE_NOD : SIDE_GDI;
+		Scen->PlayerHouse = Session.PlayerHouse;
 	}
 
+	SideType playerside = Side_For_Player();
 	DebugString("Calling Prep_For_Side()\n");
-	if (!Prep_For_Side(Scen->IsGDI == true ? SIDE_GDI : SIDE_NOD)) {
+	if (Prep_For_Side_Or_First(playerside) == SIDE_NONE) {
 		return(false);
 	}
+	Scen->PlayerSide = playerside;
+
+	// A launch file's loading picture is kept with the scenario for a restart or a resume.
+	if (Session.LoadScreen[0] != '\0') {
+		strncpy(Scen->LoadScreen, Session.LoadScreen, sizeof(Scen->LoadScreen));
+		Scen->LoadScreen[ARRAY_SIZE(Scen->LoadScreen) - 1] = '\0';
+		Scen->LoadScreenX = Session.LoadScreenX;
+		Scen->LoadScreenY = Session.LoadScreenY;
+	}
+	Scen->SpeechSide = playerside;
 
 	/*
 	**
@@ -1860,7 +1907,8 @@ bool Read_Scenario_INI(CCINIClass const & ini, bool is_mapgen)
 	**
 	*/
 	DebugString("Calling Prep_Speech_For_Side()\n");
-	if (!Prep_Speech_For_Side(Scen->SpeechSide)) {
+	Scen->SpeechSide = Prep_Speech_For_Side_Or_First(Scen->SpeechSide);
+	if (Scen->SpeechSide == SIDE_NONE) {
 		return(false);
 	}
 
@@ -1877,6 +1925,7 @@ bool Read_Scenario_INI(CCINIClass const & ini, bool is_mapgen)
 	DebugString("Calling Rule->Addition() with scenario overrides\n");
 	Rule->Addition(ini);
 	DebugString("Finished Rule->Addition() with scenario overrides\n");
+	TutorialText.Read_Overrides(ini);
 	Session.Update_Progress(45);
 
 	/*
@@ -2412,6 +2461,14 @@ void Assign_Houses(void)
 		}
 	}
 
+	// A computer player is given one of the countries the lobby offers.
+	DynamicVectorClass<HousesType> playable;
+	for (int country = HOUSE_FIRST; country < HouseTypes.Count(); country++) {
+		if (HouseTypes[country]->IsMultiplay) {
+			playable.Add((HousesType)country);
+		}
+	}
+
 	//------------------------------------------------------------------------
 	// Now assign computer players to the remaining houses.
 	//------------------------------------------------------------------------
@@ -2424,7 +2481,7 @@ void Assign_Houses(void)
 		int seatnum = i - Session.Players.Count();
 		NodeNameType * seat = seatnum < Session.Computers.Count() ? Session.Computers[seatnum] : NULL;
 
-		pref_house = (HousesType)Random_Pick(0, 1);
+		pref_house = playable.Count() > 0 ? playable[Random_Pick(0, playable.Count() - 1)] : HOUSE_FIRST;
 		if (seat != NULL && seat->Player.House != -1) {
 			pref_house = (HousesType)seat->Player.House;
 		}
@@ -2759,7 +2816,7 @@ static void Create_Units(bool official)
 	Cell centroid;			// centroid of this house's stuff
 	int unit_count = Session.Options.UnitCount;
 
-	if (Session.Options.Bases) {
+	if (Session.Options.Bases && Rule->BaseUnit.Count() > 0) {
 		unit_count--;
 	}
 
@@ -2771,7 +2828,7 @@ static void Create_Units(bool official)
 	for (int u = 0; u < UnitTypes.Count(); u++) {
 		UnitTypeClass * utype = UnitTypes[u];
 		if (utype->IsAllowedToStartInMultiplayer) {
-			if (utype->Fetch_ID() != Rule->BaseUnit->Fetch_ID()) {
+			if (!Rule->BaseUnit.Is_In_List(utype)) {
 				total_cost += utype->Raw_Cost();
 				total_objs++;
 			}
@@ -2833,7 +2890,7 @@ static void Create_Units(bool official)
 			UnitTypeClass * utype = UnitTypes[unit];
 			if (utype->IsAllowedToStartInMultiplayer) {
 				if (utype->Level <= hptr->Control.TechLevel && (utype->Ownable & mask)) {
-					if (utype->Fetch_ID() != Rule->BaseUnit->Fetch_ID()) {
+					if (!Rule->BaseUnit.Is_In_List(utype)) {
 						units.Add(utype);
 					}
 				}
@@ -2874,8 +2931,9 @@ static void Create_Units(bool official)
 			**	- Attach a flag to it for capture-the-flag mode
 			*/
 //			scaleval = 1;
-			TechnoClass * obj = new UnitClass(Rule->BaseUnit, hptr);
-			if (!obj->Unlimbo(Coord(centroid))) {
+			UnitTypeClass const * baseunit = hptr->Get_Preferred(Rule->BaseUnit);
+			TechnoClass * obj = baseunit != NULL ? new UnitClass(baseunit, hptr) : NULL;
+			if (obj != NULL && !obj->Unlimbo(Coord(centroid))) {
 				if (!Scan_Place_Object(obj, centroid)) {
 					delete obj;
 					obj = NULL;
@@ -3341,6 +3399,10 @@ void ScenarioClass::Serialize(SaveStreamClass & stream)
 	stream.Serialize(BriefingText);
 	stream.Serialize(TransitTheme);
 	stream.Serialize(PlayerHouse);
+	stream.Serialize(PlayerSide);
+	stream.Serialize(LoadScreen);
+	stream.Serialize(LoadScreenX);
+	stream.Serialize(LoadScreenY);
 	stream.Serialize(CarryOverPercent);
 	stream.Serialize(CarryOverCap);
 	stream.Serialize(Percent);
@@ -3365,7 +3427,6 @@ void ScenarioClass::Serialize(SaveStreamClass & stream)
 	stream.Serialize(IsMoneyTiberium);
 	stream.Serialize(IsTiberiumDeathToVisceroid);
 	stream.Serialize(IsIgnoreGlobalAITriggers);
-	stream.Serialize(IsGDI);
 	stream.Serialize(IsMultiplayerOnly);
 	stream.Serialize(IsRandom);
 	stream.Serialize(IsCrateBeenPickedUp);

@@ -299,7 +299,7 @@ void OverlayTypeClass::Init(TheaterType theater)
 		char fullname[_MAX_FNAME+_MAX_EXT];
 		if (!overlay.DemandLoad) {
 			if (overlay.IsTheater) {
-				_makepath(fullname, NULL, NULL, overlay.GraphicName, Theaters[theater].Suffix);
+				_makepath(fullname, NULL, NULL, overlay.GraphicName, TheaterClass::As_Reference(theater).Suffix);
 				overlay.ImageData = MFCD::Retrieve(fullname);
 
 			} else if (overlay.IsNewTheater) {
@@ -441,7 +441,7 @@ void OverlayTypeClass::Post_Load(void)
 		Fetch_Normal_Image();
 		char fullname[_MAX_FNAME+_MAX_EXT];
 		if (IsTheater) {
-			_makepath(fullname, NULL, NULL, GraphicName, Theaters[Scen->Theater].Suffix);
+			_makepath(fullname, NULL, NULL, GraphicName, TheaterClass::As_Reference(Scen->Theater).Suffix);
 		} else {
 			_makepath(fullname, NULL, NULL, GraphicName, ".SHP");
 			Theater_Naming_Convention(fullname, Scen->Theater);
@@ -564,7 +564,7 @@ void const * OverlayTypeClass::Get_Image_Data(void) const
 
 	DebugString("Demand loading image for %s\n", (char const *)GivenName);
 	if (IsTheater) {
-		_makepath(fullname, NULL, NULL, GraphicName, Theaters[Scen->Theater].Suffix);
+		_makepath(fullname, NULL, NULL, GraphicName, TheaterClass::As_Reference(Scen->Theater).Suffix);
 	} else {
 		_makepath(fullname, NULL, NULL, GraphicName, ".SHP");
 		if (IsNewTheater) {

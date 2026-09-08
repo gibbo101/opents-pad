@@ -53,9 +53,9 @@ names no host leaves the first seat in charge from the start.
 `LoadSaveGame=yes` resumes the saved game `SaveGameName` names, and decides the kind of game
 on its own: a saved game carries the kind of game it was, the options it was played under
 and the houses that played it, so nothing else in the file decides those. A client resuming a
-campaign writes little more than the name of the save. The file `Scenario` names is not read;
-the save carries [its own copy](/formats/save-games/#what-the-file-holds) of the scenario,
-which a restart reads too.
+campaign writes little more than the name of the save. Where the deployment asked a save to
+carry [its own copy](/formats/save-games/#what-the-file-holds) of the scenario, the file
+`Scenario` names is not read, and a restart reads that copy too.
 
 The name is a file inside the game's saved-games folder, and a name written with a path of
 its own is reduced to its last part. A save the folder does not hold, or one made by
@@ -103,7 +103,8 @@ which mirrors `DifficultyModeComputer`: `0` is named Hard, `1` Medium and `2` Ea
 Read from `[Settings]`: `Bases`, `Credits`, `BridgeDestroy`, `Crates`, `ShortGame`,
 `GameSpeed`, `MultiEngineer`, `UnitCount`, `AIPlayers`, `AIDifficulty`, `AlliesAllowed`,
 `FogOfWar`, `MCVRedeploy`, `AutoDeployMCV`, `TechLevel`, `Firestorm`, `Seed`, `CoachMode`,
-`AutoSurrender`, `BuildOffAlly`, `AttackNeutralUnits`, and `PlayMoviesInMultiplayer`.
+`AutoSurrender`, `BuildOffAlly`, `AttackNeutralUnits`, `ScrapMetal`, and
+`PlayMoviesInMultiplayer`.
 
 `CoachMode` decides what a defeated player keeps;
 [observers and coach mode](/systems/observers/#coach-mode) owns it.
@@ -117,6 +118,11 @@ difference.
 `AttackNeutralUnits=yes` lets a target scan consider a neutral house, which a match otherwise
 passes over; [target selection](/systems/target-selection/#why-a-candidate-is-rejected) owns
 what is then picked. Every machine must carry the same answer, since each scans for itself.
+
+`ScrapMetal=yes` makes a wreck leave the animations its type gives
+[`ScrapExplosion`](/keys/scrapexplosion/) rather than [`Explosion`](/keys/explosion/), and
+it reaches a campaign as readily as a match. Every machine must carry the same answer,
+since the animation is drawn with the shared random number generator.
 
 `AutoDeployMCV=yes` deploys every house's starting base unit as the match opens;
 [starting forces](/systems/starting-forces/#the-base-unit) owns what that leaves on the map.
@@ -225,6 +231,9 @@ must be above zero, and a value the reader cannot make sense of names no positio
 which leaves the bars where the game puts its own. A picture of the size the game's own
 would have been needs no position.
 
+A saved game keeps the picture and the bar position, so a mission restarted from within the
+game, or resumed from that save in a session that has no launch file, shows the same picture.
+
 `DifficultyName` names the difficulty in the message a campaign mission opens with.
 
 ## A game against other machines
@@ -318,4 +327,4 @@ reads and an identity that game stamps into its saves; the picture a mission wan
 this game through `CustomLoadScreen` instead.
 
 These keys are read but change nothing yet: `Tournament`, `GameID`,
-`WriteStatistics`, `ScrapMetal`, and `QuickMatch`.
+`WriteStatistics`, and `QuickMatch`.

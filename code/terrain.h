@@ -105,6 +105,8 @@ class TerrainClass : public ObjectClass, public StageClass
 		virtual void Set_Occupy_Bit(Coord const & coord) override;
 		virtual void Clear_Occupy_Bit(Coord const & coord) override;
 
+		int Occupation_Bits(void) const;
+
 		/*
 		**	AI.
 		*/

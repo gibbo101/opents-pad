@@ -115,6 +115,7 @@ class RulesClass
 		bool Do_VehicleTypes(CCINIClass const & ini);
 		bool Do_AircraftTypes(CCINIClass const & ini);
 		bool Do_Sides(CCINIClass const & ini);
+		bool Do_Theaters(CCINIClass const & ini);
 		bool Do_SuperWeaponTypes(CCINIClass const & ini);
 		bool Do_BuildingTypes(CCINIClass const & ini);
 		bool Do_TerrainTypes(CCINIClass const & ini);
@@ -123,6 +124,7 @@ class RulesClass
 		bool Do_OverlayTypes(CCINIClass const & ini);
 		bool Do_AnimTypes(CCINIClass const & ini);
 		bool Do_VoxelAnimTypes(CCINIClass const & ini);
+		bool Do_WeaponTypes(CCINIClass const & ini);
 		bool Do_WarheadTypes(CCINIClass const & ini);
 		bool Do_ParticleTypes(CCINIClass const & ini);
 		bool Do_ParticleSystemTypes(CCINIClass const & ini);
@@ -1094,10 +1096,11 @@ class RulesClass
 		int MaximumBaseDefenseValue;
 
 		/*
-		 * This is the unit that deploys into a construction yard -- the MCV. A house
-		 * with neither a base nor one of these has lost.
+		 * These are the units that deploy into a construction yard -- the MCVs, one per
+		 * country where a rules set gives each its own. A house with neither a base nor one
+		 * of these has lost.
 		 */
-		UnitTypeClass const * BaseUnit;
+		TypeList<UnitTypeClass const *> BaseUnit;
 
 		/*
 		 * These are the unit types that count as harvesters, listed so that the game can
@@ -1898,6 +1901,15 @@ class RulesClass
 		double IRepairRate;
 
 		/*
+		 * Self healing reads these rather than RepairRate and ConditionYellow; a rate or
+		 * cap below zero falls back to the setting it replaces, and a step below one is
+		 * raised to one, so nothing here switches healing off.
+		 */
+		int SelfHealStep;
+		double SelfHealRate;
+		double SelfHealCap;
+
+		/*
 		 * These floating point values are used to determine the status (health bar
 		 * color) of the game objects. Objects in the 'yellow' are in a cautionary
 		 * state. Object in the 'red' are in a danger state.
@@ -2062,6 +2074,13 @@ class RulesClass
 		**	target?
 		*/
 		bool IsCurleyShuffle;
+
+		/*
+		 * If true, then a construction yard produces for every country of a type's Owner list
+		 * rather than for the country it was built by, which is what a rules set with one MCV
+		 * per faction needs once an MCV comes out of a captured factory.
+		 */
+		bool IsMultiMCV;
 
 		/*
 		 * If the fog is to be blended evenly into the terrain beneath it, then this flag

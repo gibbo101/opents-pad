@@ -18,7 +18,3 @@ TilesInSet=8       ; RVCLIF01 through RVCLIF08
 ```
 
 The count is trusted as written. A count larger than the artwork on disk still creates that many tile types; the surplus ones hold no image, report zero width and height, and draw nothing where a cell places them. A negative count other than the omission marker creates no tiles at all and then subtracts from the running total the map-index fixup is built from, so [`LastTilesInSet`](/keys/lasttilesinset/) adjustments recorded after it land at the wrong indices.
-
-:::danger[A theater is limited to 254 tile sets]
-Every section reached writes an entry into a fixed table of 255 slots before its count is read, and the section that ends the read consumes a slot of its own. A theater whose numbered sections run past `TileSet0253` therefore writes past the end of that table and corrupts whatever follows it in memory.
-:::

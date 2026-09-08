@@ -13,6 +13,12 @@
 
 #pragma once
 
-#include "theater.h"
+#include "vector.h"
 
-extern TheaterDataType const Theaters[THEATER_COUNT];
+class TheaterClass;
+
+/*
+ * Every theater the rules declared, in the order they declared them. A theater's position
+ * here is its TheaterType, so the list is fixed once the rules have been read.
+ */
+extern DynamicVectorClass<TheaterClass *> Theaters;

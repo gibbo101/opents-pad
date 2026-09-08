@@ -33,6 +33,7 @@
 #include "psystype.h"
 #include "rules.h"
 #include "savestream.h"
+#include "scenario.h"
 #include "session.h"
 #include "tracker.h"
 #include "unittype.h"
@@ -86,10 +87,18 @@ TechnoTypeClass::TechnoTypeClass(char const * ininame, SpeedType speed) :
 	IsRemappable(false),
 	IsCloakable(false),
 	IsSelfHealing(false),
+	SelfHealingStep(-1),
+	SelfHealingRate(-1),
+	SelfHealingCap(-1),
+	IsMechanic(false),
+	IsOmniHealer(false),
 	IsExploding(false),
 	MZone(MZONE_NORMAL),
 	ThreatRange(0),
 	MaxPassengers(0),
+	Size(1),
+	SizeLimit(1),
+	IsVehicleTransport(false),
 	SightRange(0),
 	Cost(0),
 	Level(255),
@@ -138,6 +147,7 @@ TechnoTypeClass::TechnoTypeClass(char const * ininame, SpeedType speed) :
 	Dock(),
 	DeploysInto(NULL),
 	UndeploysInto(NULL),
+	UnloadingClass(NULL),
 	VoiceSelect(),
 	VoiceMove(),
 	VoiceAttack(),
@@ -151,6 +161,7 @@ TechnoTypeClass::TechnoTypeClass(char const * ininame, SpeedType speed) :
 	CameoFilename(""),
 	TurretOffset(0),
 	Explosion(),
+	ScrapExplosion(),
 	NaturalParticleSystem(NULL),
 	NaturalParticleLocation(0,0,0),
 	DamageParticleSystems(),
@@ -379,6 +390,58 @@ int TechnoTypeClass::Repair_Step(void) const
 }
 
 
+/// <summary>
+/// Returns the animations a destroyed object of this type leaves behind: its ScrapExplosion
+/// list where scrap wreckage is on and the type names one, its Explosion list otherwise.
+/// The result is a reference, so a caller that picks one entry and then reaches for another
+/// indexes the same list both times.
+/// </summary>
+TypeList<AnimTypeClass const *> const & TechnoTypeClass::Explosion_Set(void) const
+{
+	if (Scen->Special.IsScrapMetal && ScrapExplosion.Count() > 0) {
+		return(ScrapExplosion);
+	}
+
+	return(Explosion);
+}
+
+
+/// <summary>
+/// Fetches the strength one self-healing tick restores to an object of this type.
+/// </summary>
+/// <returns>Returns with the type's step, else the game-wide one, never below one.</returns>
+int TechnoTypeClass::Self_Heal_Step(void) const
+{
+	return(std::max(SelfHealingStep >= 0 ? SelfHealingStep : Rule->SelfHealStep, 1));
+}
+
+
+/// <summary>
+/// Fetches the interval between this type's self-healing ticks, in minutes.
+/// </summary>
+/// <returns>Returns with the type's interval, else the game-wide one, else RepairRate.</returns>
+double TechnoTypeClass::Self_Heal_Rate(void) const
+{
+	if (SelfHealingRate >= 0) {
+		return(SelfHealingRate);
+	}
+	return(Rule->SelfHealRate >= 0 ? Rule->SelfHealRate : Rule->RepairRate);
+}
+
+
+/// <summary>
+/// Fetches the health ratio at which an object of this type stops healing itself.
+/// </summary>
+/// <returns>Returns with the type's ceiling, else the game-wide one, else ConditionYellow.</returns>
+double TechnoTypeClass::Self_Heal_Cap(void) const
+{
+	if (SelfHealingCap >= 0) {
+		return(SelfHealingCap);
+	}
+	return(Rule->SelfHealCap >= 0 ? Rule->SelfHealCap : Rule->ConditionYellow);
+}
+
+
 /***********************************************************************************************
  * TechnoTypeClass::Is_Two_Shooter -- Determines if this object is a double shooter.           *
  *                                                                                             *
@@ -531,11 +594,13 @@ bool TechnoTypeClass::Read_INI(CCINIClass const & ini)
 		Dock = TGet_TypeList<BuildingTypeClass>(ini, Name(), "Dock", Dock);
 		DeploysInto = TGet_Class(ini, Name(), "DeploysInto", DeploysInto);
 		UndeploysInto = TGet_Class(ini, Name(), "UndeploysInto", UndeploysInto);
+		UnloadingClass = TGet_Class(ini, Name(), "UnloadingClass", UnloadingClass);
 		IsLightningRod = ini.Get_Bool(Name(), "LightningRod", IsLightningRod);
 		IsManualReload = ini.Get_Bool(Name(), "ManualReload", IsManualReload);
 		IsRadarEquipped = ini.Get_Bool(Name(), "TurretSpins", IsRadarEquipped);
 		IsTurretEquipped = ini.Get_Bool(Name(), "Turret", IsTurretEquipped);
 		Explosion = TGet_TypeList<AnimTypeClass>(ini, Name(), "Explosion", Explosion);
+		ScrapExplosion = TGet_TypeList<AnimTypeClass>(ini, Name(), "ScrapExplosion", ScrapExplosion);
 		NaturalParticleSystem = TGet_Class(ini, Name(), "NaturalParticleSystem", NaturalParticleSystem);
 		NaturalParticleLocation = ini.Get_Offset(Name(), "NaturalParticleLocation", NaturalParticleLocation);
 		DamageParticleSystems = TGet_TypeList<ParticleSystemTypeClass>(ini, Name(), "DamageParticleSystems", DamageParticleSystems);
@@ -565,9 +630,17 @@ bool TechnoTypeClass::Read_INI(CCINIClass const & ini)
 		IsInvisible = ini.Get_Bool(Name(), "Invisible", IsInvisible);
 		IsRadarVisible = ini.Get_Bool(Name(), "RadarVisible", IsRadarVisible);
 		IsSelfHealing = ini.Get_Bool(Name(), "SelfHealing", IsSelfHealing);
+		SelfHealingStep = ini.Get_Int(Name(), "SelfHealingStep", SelfHealingStep);
+		SelfHealingRate = ini.Get_Float(Name(), "SelfHealingRate", SelfHealingRate);
+		SelfHealingCap = ini.Get_Float(Name(), "SelfHealingCap", SelfHealingCap);
+		IsMechanic = ini.Get_Bool(Name(), "Mechanic", IsMechanic);
+		IsOmniHealer = ini.Get_Bool(Name(), "OmniHealer", IsOmniHealer);
 		IsNoAutoFire = ini.Get_Bool(Name(), "NoAutoFire", IsNoAutoFire);
 		ROT = ini.Get_Int(Name(), "ROT", ROT);
 		MaxPassengers = ini.Get_Int(Name(), "Passengers", MaxPassengers);
+		Size = ini.Get_Int(Name(), "Size", Size);
+		SizeLimit = ini.Get_Int(Name(), "SizeLimit", SizeLimit);
+		IsVehicleTransport = ini.Get_Bool(Name(), "IsVehicleTransport", IsVehicleTransport);
 		FireAngle = ini.Get_Int(Name(), "FireAngle", FireAngle);
 		DeployTime = ini.Get_Float(Name(), "DeployTime", DeployTime);
 		IsDisableable = ini.Get_Bool(Name(), "Disableable", IsDisableable);
@@ -905,6 +978,7 @@ void TechnoTypeClass::Serialize(SaveStreamClass & stream)
 	stream.Serialize(Dock);
 	stream.Serialize(DeploysInto);
 	stream.Serialize(UndeploysInto);
+	stream.Serialize(UnloadingClass);
 	stream.Serialize(VoiceSelect);
 	stream.Serialize(VoiceMove);
 	stream.Serialize(VoiceAttack);
@@ -916,6 +990,9 @@ void TechnoTypeClass::Serialize(SaveStreamClass & stream)
 	stream.Serialize(ThreatRange);
 	stream.Serialize(MaxDebris);
 	stream.Serialize(MaxPassengers);
+	stream.Serialize(Size);
+	stream.Serialize(SizeLimit);
+	stream.Serialize(IsVehicleTransport);
 	stream.Serialize(SightRange);
 	stream.Serialize(Cost);
 	stream.Serialize(FlightLevel);
@@ -936,6 +1013,7 @@ void TechnoTypeClass::Serialize(SaveStreamClass & stream)
 	stream.Serialize(TurretOffset);
 	stream.Serialize(Points);
 	stream.Serialize(Explosion);
+	stream.Serialize(ScrapExplosion);
 	stream.Serialize(NaturalParticleSystem);
 	stream.Serialize(NaturalParticleLocation);
 	stream.Serialize(DamageParticleSystems);
@@ -970,6 +1048,11 @@ void TechnoTypeClass::Serialize(SaveStreamClass & stream)
 	stream.Serialize(IsRemappable);
 	stream.Serialize(IsCloakable);
 	stream.Serialize(IsSelfHealing);
+	stream.Serialize(SelfHealingStep);
+	stream.Serialize(SelfHealingRate);
+	stream.Serialize(SelfHealingCap);
+	stream.Serialize(IsMechanic);
+	stream.Serialize(IsOmniHealer);
 	stream.Serialize(IsExploding);
 	stream.Serialize(IsNoAutoFire);
 	stream.Serialize(IsRadarEquipped);
@@ -1034,6 +1117,9 @@ void TechnoTypeClass::Compute_CRC(class CRCEngine & crc) const
 	crc(ThreatRange);
 	crc(MaxDebris);
 	crc(MaxPassengers);
+	crc(Size);
+	crc(SizeLimit);
+	crc(IsVehicleTransport);
 	crc(SightRange);
 	crc(Cost);
 	crc(Level);
@@ -1049,6 +1135,7 @@ void TechnoTypeClass::Compute_CRC(class CRCEngine & crc) const
 	crc(TurretOffset);
 	crc(Points);
 	crc(Explosion.Count());
+	crc(ScrapExplosion.Count());
 	crc(ShadowIndex);
 	crc(Capacity);
 	crc(IsTrain);
@@ -1069,6 +1156,11 @@ void TechnoTypeClass::Compute_CRC(class CRCEngine & crc) const
 	crc(IsRemappable);
 	crc(IsCloakable);
 	crc(IsSelfHealing);
+	crc(SelfHealingStep);
+	crc(SelfHealingRate);
+	crc(SelfHealingCap);
+	crc(IsMechanic);
+	crc(IsOmniHealer);
 	crc(IsExploding);
 	crc(IsNoAutoFire);
 	crc(IsRadarEquipped);

@@ -34,6 +34,8 @@ them.
 
 ## Formatting
 
+- Keep source files UTF-8 with no byte order mark. Escape a non-ASCII byte in
+  a C++ string or character literal; a resource script holds its text directly.
 - Use tabs for indentation, displayed at four columns, and spaces for
   alignment.
 - Keep established brace placement and local spacing.
@@ -69,7 +71,9 @@ needs no comment. Do not restate the code or narrate the edit that produced it.
 
 Use `//` or a plain `/* */` block for new prose. Reserve `///` for genuine XML
 documentation; inherited trailing `///` prose is not a convention to follow.
-Do not add Westwood-style `**` decoration.
+XML documentation sits above the definition rather than the declaration, so it
+goes in the `.cpp` unless the header defines the thing itself. Do not add
+Westwood-style `**` decoration.
 
 Keep accurate historical comments and correct inaccurate ones narrowly. A
 function banner that needs substantial rewriting becomes `///` XML

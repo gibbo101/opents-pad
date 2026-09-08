@@ -13,9 +13,18 @@
 
 #pragma once
 
-#include "sun.h"
+#if defined(_WIN32)
 
 #include <sal.h>
+
+#else
+
+// The annotation and the calling convention are the compiler's own. Off Windows
+// they carry no meaning, so they cost nothing to spell.
+#define _Printf_format_string_
+#define __cdecl
+
+#endif
 
 void Debug_Init(void);
 void Debug_Init_Console(void);

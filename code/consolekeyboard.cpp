@@ -274,7 +274,7 @@ bool Console_Keyboard(char const * title, std::string & text, int max_length)
 			surface.Blit_From(backdrop);
 			surface.Fill_Rect_Trans(Rect(left + PANEL_INSET, top + PANEL_INSET, MENU_WIDTH - 2 * PANEL_INSET, MENU_HEIGHT - 2 * PANEL_INSET), RGBClass(0, 0, 0), PANEL_OPACITY);
 			auto print = [&](std::string const & what, int x, int y, bool focused) {
-				(focused ? focus_font : font).Draw_String(&surface, (unsigned char const *)what.c_str(), x, y, FRAME_NORMAL);
+				(focused ? focus_font : font).Draw_String(&surface, what.c_str(), x, y, FRAME_NORMAL);
 			};
 			auto width = [&](std::string const & what) { return(font.Get_String_Width(what.c_str())); };
 

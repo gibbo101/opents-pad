@@ -305,6 +305,20 @@ bool TerrainClass::Mark(MarkType mark)
 
 
 /// <summary>
+/// Fetches the cell sub-positions this terrain object fills in the current theater.
+/// The type carries a temperate and a snow figure, and the theater picks between them.
+/// </summary>
+/// <returns>Returns with the occupation bits, one per sub-position.</returns>
+int TerrainClass::Occupation_Bits(void) const
+{
+	if (TheaterClass::As_Reference(Scen->Theater).IsArctic) {
+		return(Class->SnowOccupationBits);
+	}
+	return(Class->TemperateOccupationBits);
+}
+
+
+/// <summary>
 /// Clears the occupation bits for this terrain object in the cell.
 /// This routine releases the sub-positions of the cell that the terrain object was
 /// filling, so that infantry may stand there once the object is gone. Which
@@ -313,7 +327,7 @@ bool TerrainClass::Mark(MarkType mark)
 /// <param name="coord">The coordinate of the cell to clear.</param>
 void TerrainClass::Clear_Occupy_Bit(Coord const & coord)
 {
-	int bits = Scen->Theater == THEATER_TEMPERATE ? Class->TemperateOccupationBits : Class->SnowOccupationBits;
+	int bits = Occupation_Bits();
 
 	CellClass &cell = Map[coord.As_Cell()];
 
@@ -340,7 +354,7 @@ void TerrainClass::Clear_Occupy_Bit(Coord const & coord)
 /// <param name="coord">The coordinate of the cell to mark.</param>
 void TerrainClass::Set_Occupy_Bit(Coord const & coord)
 {
-	int bits = Scen->Theater == THEATER_TEMPERATE ? Class->TemperateOccupationBits : Class->SnowOccupationBits;
+	int bits = Occupation_Bits();
 
 	CellClass &cell = Map[coord.As_Cell()];
 

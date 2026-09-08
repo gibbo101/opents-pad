@@ -32,7 +32,6 @@ int Owner_From_Name(char const * text);
 CrateType Crate_From_Name(char const * name);
 LandType Land_From_Name(char const * name);
 SourceType Source_From_Name(char const * name);
-TheaterType Theater_From_Name(char const * name);
 VQType VQ_From_Name(char const * name);
 char const * Name_From_Land(LandType land);
 SpeedType Speed_From_Name(char const * name);

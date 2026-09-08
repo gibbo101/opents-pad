@@ -186,7 +186,7 @@ void TerrainTypeClass::Init(TheaterType theater)
 				/*
 				**	Load in the appropriate object shape data.
 				*/
-				_makepath(fullname, NULL, NULL, terrain->Name(), Theaters[theater].Suffix);
+				_makepath(fullname, NULL, NULL, terrain->Name(), TheaterClass::As_Reference(theater).Suffix);
 				terrain->ImageData = (ShapeSet const *)MFCD::Retrieve(fullname);
 
 			}

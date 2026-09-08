@@ -327,7 +327,7 @@ void LogicClass::AI(void)
 
 	}
 
-	if (Scen->Theater == THEATER_SNOW && Rule->IceGrowthRate != 0 && Scen->IceGrowthTimer == 0) {
+	if (TheaterClass::As_Reference(Scen->Theater).IsIceGrowth && Rule->IceGrowthRate != 0 && Scen->IceGrowthTimer == 0) {
 		Scen->IceGrowthTimer = TICKS_PER_MINUTE * Rule->IceGrowthRate;
 		Map.DirtyIceCells.Clear();
 		if (Map.Ice_Growth_AI()) {
@@ -436,7 +436,7 @@ void LogicClass::Environment_AI(void)
 		Map.Encroach_Fog();
 	}
 
-	if (Scen->Theater == THEATER_SNOW && Rule->IceGrowthRate != 0 && Scen->IceGrowthTimer == 0) {
+	if (TheaterClass::As_Reference(Scen->Theater).IsIceGrowth && Rule->IceGrowthRate != 0 && Scen->IceGrowthTimer == 0) {
 		Scen->IceGrowthTimer = TICKS_PER_MINUTE * Rule->IceGrowthRate;
 		Map.Ice_Growth_AI();
 	}

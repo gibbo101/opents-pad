@@ -22,6 +22,8 @@
 #include "isotype.hh"
 #include "land.hh"
 
+#include <string>
+
 class LightConvertClass;
 class Surface;
 class ShapeSet;
@@ -348,7 +350,7 @@ class IsometricTileTypeClass : public ObjectTypeClass
 		 * This is the name of the file the artwork is read from, theater suffix and all. It is
 		 * kept so that a tile type whose image was trimmed away can load itself again.
 		 */
-		char Filename[15+1];
+		std::string Filename;
 
 		/*
 		 * May a subterranean unit surface through ground covered by this tile set? A set that

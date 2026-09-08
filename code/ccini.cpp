@@ -87,6 +87,7 @@
 #include "category.h"
 #include "conquer.h"
 #include "coord.h"
+#include "dbgprint.h"
 #include "globals.h"
 #include "houstype.h"
 #include "incdec.h"
@@ -100,6 +101,7 @@
 #include "target.h"
 #include "theme.h"
 #include "unittype.h"
+#include "utf8.h"
 #include "veteran.h"
 #include "voc.h"
 #include "vox.h"
@@ -197,6 +199,28 @@ int CCINIClass::Load(FileClass & file, bool withdigest, bool loadcomments)
 }
 
 
+namespace {
+
+// The stored digest covers the file's original bytes, so a database transcoded from
+// Windows-1252 is hashed back through that code page.
+bool Windows_1252_Digest_Matches(INIClass const & ini, unsigned char const * expected)
+{
+	std::string text;
+	StringPipe pipe(text);
+	ini.Save(pipe);
+
+	std::string legacy = UTF8::To_Windows_1252(text);
+	SHAPipe sha;
+	sha.Put(legacy.data(), (int)legacy.size());
+
+	unsigned char digest[20];
+	sha.Result(digest);
+	return(memcmp(digest, expected, sizeof(digest)) == 0);
+}
+
+}
+
+
 /***********************************************************************************************
  * CCINIClass::Load -- Load the INI database from the data stream specified.                   *
  *                                                                                             *
@@ -245,7 +269,9 @@ int CCINIClass::Load(Straw & file, bool withdigest, bool loadcomments, char cons
 			**	If the message digests don't match, then return with the special error code.
 			*/
 			if (memcmp(digest, Digest, sizeof(digest)) != 0) {
-				return(2);
+				if (Transcoded == 0 || !Windows_1252_Digest_Matches(*this, digest)) {
+					return(2);
+				}
 			}
 		}
 	}
@@ -1259,7 +1285,7 @@ bool CCINIClass::Put_HousesType(char const * section, char const * entry, Houses
 /// </summary>
 /// <returns>Returns with the side identifier that matches the name recorded. If the entry
 /// could not be found, then the default value is returned.</returns>
-/// <remarks>A name that is not already known will add a new side to the side list.</remarks>
+/// <remarks>A name that no [Sides] entry declared is logged and leaves the default standing.</remarks>
 SideType CCINIClass::Get_Side(char const * section, char const * entry, SideType defvalue) const
 {
 	char buffer[128];
@@ -1267,8 +1293,8 @@ SideType CCINIClass::Get_Side(char const * section, char const * entry, SideType
 	if (Get_String(section, entry, "", buffer, sizeof(buffer)) && strcmpi(buffer, "<none>")) {
 		SideType side = SideClass::From_Name(buffer);
 		if (side == SIDE_NONE) {
-			SideClass * type = new SideClass(buffer);
-			return((SideType)Sides.ID(type));
+			DebugString("[%s] %s=%s names no side declared in [Sides]; ignored.\n", section, entry, buffer);
+			return(defvalue);
 		}
 		return(side);
 	}
@@ -1351,31 +1377,24 @@ bool CCINIClass::Put_VQType(char const * section, char const * entry, VQType val
 }
 
 
-/***********************************************************************************************
- * CCINIClass::Get_TheaterType -- Fetch the theater type from the INI database.                *
- *                                                                                             *
- *    This will fetch the theater identifier from the INI database.                            *
- *                                                                                             *
- * INPUT:   section  -- Identifier for the section to search for the entry under.              *
- *                                                                                             *
- *          entry    -- Identifier for the entry to search for.                                *
- *                                                                                             *
- *          defvalue -- The default value to use if the entry could not be located.            *
- *                                                                                             *
- * OUTPUT:  Returns with the theater type found. If the entry could not be found, then the     *
- *          default value is returned.                                                         *
- *                                                                                             *
- * WARNINGS:   none                                                                            *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   07/03/1996 JLB : Created.                                                                 *
- *=============================================================================================*/
+/// <summary>
+/// Fetches a theater from the INI database by the name the rules declared it under.
+/// A name no theater answers to is reported and treated as absent, because the result
+/// goes on to name the archives the whole load is read from.
+/// </summary>
+/// <returns>Returns with the theater found, or the default when the entry is missing or
+/// names no declared theater.</returns>
 TheaterType CCINIClass::Get_TheaterType(char const * section, char const * entry, TheaterType defvalue) const
 {
 	char buffer[128];
 
 	if (Get_String(section, entry, "", buffer, sizeof(buffer))) {
-		return(Theater_From_Name(buffer));
+		TheaterType theater = TheaterClass::From_Name(buffer);
+		if (theater != THEATER_NONE) {
+			return(theater);
+		}
+		DebugString("No theater is declared as \"%s\"; using %s instead.\n",
+			buffer, TheaterClass::As_Reference(defvalue).Name());
 	}
 	return(defvalue);
 }
@@ -1401,7 +1420,7 @@ TheaterType CCINIClass::Get_TheaterType(char const * section, char const * entry
  *=============================================================================================*/
 bool CCINIClass::Put_TheaterType(char const * section, char const * entry, TheaterType value)
 {
-	return(Put_String(section, entry, Theaters[value].Name));
+	return(Put_String(section, entry, TheaterClass::As_Reference(value).Name()));
 }
 
 
@@ -1862,8 +1881,8 @@ bool CCINIClass::Put_TechnoType_List(char const * section, char const * entry, T
 
 /// <summary>
 /// Fetches a house list from the INI database.
-/// This routine will read a comma separated list of house names. A side may be named in
-/// place of a house, in which case every house belonging to that side is added to the list.
+/// This routine will read a comma separated list of house names; a name that is not a
+/// house is logged and skipped.
 /// </summary>
 /// <returns>Returns with the list of house identifiers specified. If the entry could not be
 /// found, then the default value is returned.</returns>
@@ -1878,15 +1897,8 @@ TypeList<int> CCINIClass::Get_House_List(const char * section, const char * entr
 			int house = (int)HouseTypeClass::From_Name(token);
 			if (house != HOUSE_NONE) {
 				list.Add(house);
-			}
-			else {
-				SideType side = SideClass::From_Name(token);
-				if (side != SIDE_NONE) {
-					SideClass * otherside = Sides[side];
-					for (int index = 0; index < otherside->Houses.Count(); index++) {
-						list.Add(otherside->Houses[index]);
-					}
-				}
+			} else {
+				DebugString("[%s] %s names no country: %s; skipped.\n", section, entry, token);
 			}
 			token = strtok(NULL, ",");
 		}

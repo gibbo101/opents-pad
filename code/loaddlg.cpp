@@ -244,7 +244,7 @@ bool LoadOptionsClass::Delete(void)
 /// <param name="id">The notification code that accompanied the control.</param>
 void LoadOptionsClass::Load_Dialog_On_WM_COMMAND(HWND window, WPARAM wparam, LPARAM lparam, int id)
 {
-	LoadOptionsClass * _this = (LoadOptionsClass *)GetWindowLong(window, DWL_USER);
+	LoadOptionsClass * _this = (LoadOptionsClass *)GetWindowLongPtr(window, DWLP_USER);
 	switch ((int)wparam) {
 		case IDC_MISSION_LOAD_LIST:
 			if (id == 2 && ListBox_GetCount((HWND)lparam) > 0) {
@@ -273,7 +273,7 @@ void LoadOptionsClass::Load_Dialog_On_WM_COMMAND(HWND window, WPARAM wparam, LPA
 /// <param name="id">The notification code that accompanied the control.</param>
 void LoadOptionsClass::Save_Dialog_On_WM_COMMAND(HWND window, WPARAM wparam, LPARAM lparam, int id)
 {
-	LoadOptionsClass * _this = (LoadOptionsClass *)GetWindowLong(window, DWL_USER);
+	LoadOptionsClass * _this = (LoadOptionsClass *)GetWindowLongPtr(window, DWLP_USER);
 	switch ((int)wparam) {
 		case IDC_MISSION_SAVE_LIST:
 
@@ -321,7 +321,7 @@ void LoadOptionsClass::Save_Dialog_On_WM_COMMAND(HWND window, WPARAM wparam, LPA
 /// <param name="id">The notification code that accompanied the control.</param>
 void LoadOptionsClass::Delete_Dialog_On_WM_COMMAND(HWND window, WPARAM wparam, LPARAM lparam, int id)
 {
-	LoadOptionsClass * _this = (LoadOptionsClass *)GetWindowLong(window, DWL_USER);
+	LoadOptionsClass * _this = (LoadOptionsClass *)GetWindowLongPtr(window, DWLP_USER);
 	switch ((int)wparam) {
 		case IDOK:
 		case IDCANCEL:
@@ -340,9 +340,9 @@ void LoadOptionsClass::Delete_Dialog_On_WM_COMMAND(HWND window, WPARAM wparam, L
 /// command handler.
 /// </summary>
 /// <returns>Returns with the message result, or FALSE if nothing here dealt with it.</returns>
-LRESULT CALLBACK LoadOptionsClass::Load_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
+INT_PTR CALLBACK LoadOptionsClass::Load_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 {
-	int rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
+	INT_PTR rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
 
 	if (rc == 0) {
 
@@ -373,9 +373,9 @@ LRESULT CALLBACK LoadOptionsClass::Load_Dialog_Proc(HWND window, UINT message, W
 /// may type, and pass control activity along to the command handler.
 /// </summary>
 /// <returns>Returns with the message result, or FALSE if nothing here dealt with it.</returns>
-LRESULT CALLBACK LoadOptionsClass::Save_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
+INT_PTR CALLBACK LoadOptionsClass::Save_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 {
-	int rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
+	INT_PTR rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
 
 	if (rc == 0) {
 
@@ -410,9 +410,9 @@ LRESULT CALLBACK LoadOptionsClass::Save_Dialog_Proc(HWND window, UINT message, W
 /// command handler.
 /// </summary>
 /// <returns>Returns with the message result, or FALSE if nothing here dealt with it.</returns>
-LRESULT CALLBACK LoadOptionsClass::Delete_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
+INT_PTR CALLBACK LoadOptionsClass::Delete_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 {
-	int rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
+	INT_PTR rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
 
 	if (rc == 0) {
 
@@ -473,7 +473,7 @@ bool LoadOptionsClass::Dialog(void)
 
 	switch (Style) {
 		case LOAD:
-			dialog = OwnerDraw::Begin_Dialog(IDD_MISSION_LOAD, (DLGPROC)Load_Dialog_Proc);
+			dialog = OwnerDraw::Begin_Dialog(IDD_MISSION_LOAD, Load_Dialog_Proc);
 			list = GetDlgItem(dialog, IDC_MISSION_LOAD_LIST);
 			break;
 
@@ -482,12 +482,12 @@ bool LoadOptionsClass::Dialog(void)
 				WWMessageBox().Process(TXT_DISKFULL, TXT_OK, TXT_NONE, TXT_NONE);
 				return(false);
 			}
-			dialog = OwnerDraw::Begin_Dialog(IDD_MISSION_SAVE, (DLGPROC)Save_Dialog_Proc);
+			dialog = OwnerDraw::Begin_Dialog(IDD_MISSION_SAVE, Save_Dialog_Proc);
 			list = GetDlgItem(dialog, IDC_MISSION_SAVE_LIST);
 			break;
 
 		case WWDELETE:
-			dialog = OwnerDraw::Begin_Dialog(IDD_MISSION_DELETE, (DLGPROC)Delete_Dialog_Proc);
+			dialog = OwnerDraw::Begin_Dialog(IDD_MISSION_DELETE, Delete_Dialog_Proc);
 			list = GetDlgItem(dialog, IDC_MISSION_DELETE_LIST);
 			break;
 	}
@@ -499,7 +499,7 @@ bool LoadOptionsClass::Dialog(void)
 		/*
 		**	Initialize.
 		*/
-		SetWindowLong(dialog, DWL_USER, (LONG)this);
+		SetWindowLongPtr(dialog, DWLP_USER, (LONG_PTR)this);
 
 		if (list != 0) {
 			Fill_List(list);
@@ -596,7 +596,10 @@ bool LoadOptionsClass::Dialog(void)
 										WWMessageBox().Process(TXT_ERROR_SAVING_GAME, TXT_OK, TXT_NONE, TXT_NONE);
 										State = STATE_PENDING;
 									} else {
-										WWMessageBox().Process(TXT_GAME_WAS_SAVED, TXT_OK, TXT_NONE, TXT_NONE);
+										int confirmation = Save_Confirmation();
+										if (confirmation != TXT_NONE) {
+											WWMessageBox().Process(confirmation, TXT_OK, TXT_NONE, TXT_NONE);
+										}
 										if (Description) {
 											strcpy(Description, buffer);
 										}
@@ -955,11 +958,22 @@ bool LoadOptionsClass::Save_File(const char * file_name, const char * descr)
 	if (dialog != 0) {
 		OwnerDraw::Display_Dialog(dialog);
 	}
-	bool saved = SaveManager.Request_Save_Game(file_name, descr);
+	bool saved = SaveManager.Request_Save_Game(file_name, descr, false,
+		SaveManagerClass::NoticeType::Requested);
 	if (dialog != 0) {
 		OwnerDraw::End_Dialog(dialog);
 	}
 	return(saved);
+}
+
+
+/// <summary>
+/// A saved game reports itself in the message list at the frame boundary, so the dialog shows
+/// no box of its own.
+/// </summary>
+int LoadOptionsClass::Save_Confirmation(void) const
+{
+	return(TXT_NONE);
 }
 
 

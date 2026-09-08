@@ -13,10 +13,8 @@ when_omitted:
 Theater=SNOW
 ```
 
-The theater is settled before any of the map's contents are read, because it decides which tile, art and palette archives are mounted for the whole load. Two are registered, `TEMPERATE` and `SNOW`, and the match ignores case. Beyond the artwork it also gates the snow-only behavior in the simulation, so [`IceGrowthEnabled`](/keys/icegrowthenabled/) does nothing on a temperate map.
+The theater is settled before any of the map's contents are read, because it decides which tile, art and palette archives are mounted for the whole load. The name matches one the rules declared under [`[Theaters]`](/formats/rules-registries/), ignoring case; unmodified rules declare `TEMPERATE` and `SNOW`. Beyond the artwork the theater also settles the snow-only behavior in the simulation, so [`IceGrowthEnabled`](/keys/icegrowthenabled/) does nothing in a theater without ice.
 
 Unlike the rest of the scenario's settings, this one lives in the map's `[Map]` section.
 
-:::danger[An unrecognized theater name is used as an index anyway]
-A name matching neither registered theater resolves to "no theater", which is stored as `-1`. That value is then used unchecked to look up the archive names, reading in front of the table instead of inside it and handing whatever it finds to the archive loader.
-:::
+A name no theater answers to is reported and the map is played in the first declared theater, as it is when the key is missing altogether.

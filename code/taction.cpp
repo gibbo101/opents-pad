@@ -90,6 +90,7 @@
 #include "tracker.h"
 #include "trigger.h"
 #include "trigtype.h"
+#include "tutorial.h"
 #include "vanim.h"
 #include "vector.h"
 #include "velocity.h"
@@ -1163,7 +1164,7 @@ bool TActionClass::TAction_TEXT_TRIGGER(HouseClass * , ObjectClass * , TriggerCl
 	/*
 	**	Display a text message overlayed onto the tactical map.
 	*/
-	Session.Messages.Add_Message(NULL, 0, TutorialText[Data.Value], 0, TextPrintType(TPF_6PT_GRAD|TPF_USE_GRAD_PAL|TPF_FULLSHADOW), Rule->MessageDelay * TICKS_PER_MINUTE);
+	Session.Messages.Add_Message(NULL, 0, TutorialText.Fetch(Data.Value), 0, TextPrintType(TPF_6PT_GRAD|TPF_USE_GRAD_PAL|TPF_FULLSHADOW), Rule->MessageDelay * TICKS_PER_MINUTE);
 	return(true);
 }
 
@@ -1488,11 +1489,12 @@ bool TActionClass::TAction_PLAY_SOUND_RANDOM(HouseClass * , ObjectClass * , Trig
 /// <summary>
 /// Plays a sound effect at the trigger's waypoint.
 /// The sound is positioned on the map, so the player hears it only while the view is
-/// somewhere near the waypoint.
+/// somewhere near the waypoint. A looping sound stays at the waypoint, follows the
+/// view in and out of range, and travels with a save.
 /// </summary>
 bool TActionClass::TAction_PLAY_SOUND_AT(HouseClass * , ObjectClass * , TriggerClass * , Cell const & )
 {
-	Sound_Effect(Data.Sound, Scen->Get_Waypoint_Coord(EffectLocation));
+	Static_Sound(Data.Sound, Scen->Get_Waypoint_Coord(EffectLocation), STATIC_SOUND_TRIGGER);
 	return(true);
 }
 
@@ -1896,15 +1898,20 @@ bool TActionClass::TAction_PLAY_ANIM(HouseClass * , ObjectClass * , TriggerClass
 /// the damage, the combat animation and the lighting flash, and an EM pulse weapon
 /// throws its pulse as well.
 /// </summary>
+/// <returns>bool; Did the position name a weapon to detonate?</returns>
 bool TActionClass::TAction_DO_EXPLOSION(HouseClass * , ObjectClass * , TriggerClass * , Cell const & )
 {
+	WeaponType weapon = Data.Weapon;
+	if ((unsigned)weapon >= (unsigned)Weapons.Count()) {
+		return(false);
+	}
+
 	Cell waypoint = Scen->Get_Waypoint_Cell(EffectLocation);
 	Coord coord = Coord (waypoint);
 	coord.Z = Map.Get_Height_GL(coord);
 	if ( Map[waypoint].IsUnderBridge || Map[waypoint].WasUnderBridge ) {
 		coord.Z += BRIDGE_LEPTON_HEIGHT;
 	}
-	WeaponType weapon = Data.Weapon;
 	int damage = Weapons[weapon]->Attack;
 
 	WeaponTypeClass * ww = Weapons[weapon];

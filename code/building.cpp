@@ -181,6 +181,7 @@
 #include "color.hh"
 
 #include <algorithm>
+#include <limits>
 
 
 char const * const BuildingClass::INI_NAME = "Structures";
@@ -264,7 +265,10 @@ BuildingClass::BuildingClass(BuildingTypeClass const * type, HouseClass * house)
 	TranslucencyLevel(0),
 	Brightness(NORMAL_LIGHT),
 	UpgradeLevel(0),
-	GateFrame(-1)
+	GateFrame(-1),
+	ProduceCashTimer(0),
+	ProduceCashRemaining(0),
+	IsProduceCashStartupPaid(false)
 {
 	Create_ID();
 
@@ -1734,6 +1738,8 @@ void BuildingClass::AI(void)
 		Factory_AI();
 	}
 
+	Produce_Cash_AI();
+
 	/*
 	**	Check for demolition timeout. When timeout has expired, the building explodes.
 	*/
@@ -2051,7 +2057,7 @@ bool BuildingClass::Unlimbo(Coord const & coord, Dir256 dir)
 			IsLeader = true;
 		}
 
-		if (Class == Rule->BuildConst[0]) {
+		if (Rule->BuildConst.Is_In_List(Class)) {
 			House->ConYards.Add(this);
 		}
 
@@ -2144,11 +2150,11 @@ void BuildingClass::Do_Destruction(TechnoClass *last_contact, TechnoClass *sourc
 				new AnimClass(Rule->LargeFire, pos, Random_Pick(0, 7), Random_Pick(1, 3));
 			}
 		}
-		if (Class->Explosion.Count() > 0) {
+		if (Class->Explosion_Set().Count() > 0) {
 			coord.Z = PositionCoord.Z;
 			Coord ccoord = cell;
 			pos = coord + Coord_Scatter(ccoord, CELL_LEPTON / 4);
-			new AnimClass((Class->Explosion.Pick(Scen->RandomNumber())), pos, Random_Pick(0, 3), 1);
+			new AnimClass((Class->Explosion_Set().Pick(Scen->RandomNumber())), pos, Random_Pick(0, 3), 1);
 		}
 	}
 
@@ -3588,6 +3594,12 @@ void BuildingClass::Grand_Opening(bool captured)
 			IsReadyToCommence = true;
 		}
 
+		// The budget test reads HasOpened, so it must run before it is set below.
+		if (!HasOpened || (captured && Class->IsProduceCashResetOnCapture)) {
+			ProduceCashRemaining = (Class->ProduceCashBudget > 0) ? Class->ProduceCashBudget : -1;
+		}
+		ProduceCashTimer = Class->ProduceCashDelay;
+
 		House->IsRecalcNeeded = true;
 
 		HasOpened = true;
@@ -3656,7 +3668,7 @@ void BuildingClass::Grand_Opening(bool captured)
 		/*
 		**	Helicopter pads get a free attack helicopter.
 		*/
-		if (!Rule->IsSeparate && Class->IsHoverPad && !captured) {
+		if (!Rule->IsSeparate && Class->IsHoverPad && !captured && Rule->PadAircraft.Count() > 0) {
 			ScenarioInit++;
 			AircraftClass * air = new AircraftClass(Rule->PadAircraft[0], House);
 			if (air) {
@@ -4305,7 +4317,7 @@ bool BuildingClass::Captured(HouseClass * newowner)
 		TargetClass tocap = this;
 
 		IsCaptured = true;
-		if (Class == Rule->BuildConst[0]) {
+		if (Rule->BuildConst.Is_In_List(Class)) {
 			oldowner->ConYards.Delete(this);
 		}
 
@@ -4329,7 +4341,7 @@ bool BuildingClass::Captured(HouseClass * newowner)
 			House->ToCapture = NULL;
 		}
 
-		if (oldowner->Is_Player_Control() && Class->IsConstructionYard && oldowner->BQuantity.Value(Rule->BuildConst[0]->HeapID) == 0) {
+		if (oldowner->Is_Player_Control() && Class->IsConstructionYard && !oldowner->Owns_Any(oldowner->BQuantity, Rule->BuildConst)) {
 			Map.PendingObjectPtr = NULL;
 			Map.PendingObject = NULL;
 			Map.PendingHouse = HOUSE_NONE;
@@ -4343,6 +4355,11 @@ bool BuildingClass::Captured(HouseClass * newowner)
 
 		IsRepairing = false;
 		Grand_Opening(true);
+
+		// The bonus is decided by the house the building came from, not by its new owner.
+		if (oldowner->Class->IsMultiplayPassive) {
+			Produce_Cash_Startup();
+		}
 
 		if (Class->IsLaserFencePost) {
 			Init_Laser_Fence();
@@ -4367,7 +4384,7 @@ bool BuildingClass::Captured(HouseClass * newowner)
 
 		Update_Anim_Appearance();
 
-		if (Class == Rule->BuildConst[0]) {
+		if (Rule->BuildConst.Is_In_List(Class)) {
 			newowner->ConYards.Add(this);
 		}
 
@@ -7444,6 +7461,89 @@ void BuildingClass::Repair_AI(void)
 }
 
 
+/// <summary>
+/// Pays this building's owner the cash its type produces, once the interval has run out.
+/// A building pays only while it is open for business, not being sold, and, if it runs on
+/// power, supplied with all of it.
+/// </summary>
+void BuildingClass::Produce_Cash_AI(void)
+{
+	if (!HasOpened || Class->ProduceCashDelay <= 0 || ProduceCashRemaining == 0) {
+		return;
+	}
+
+	// The most negative amount cannot be negated for the drain path.
+	int amount = Class->ProduceCashAmount;
+	if (amount == 0 || amount == std::numeric_limits<int>::min()) {
+		return;
+	}
+
+	if (Mission == MISSION_DECONSTRUCTION || MissionQueue == MISSION_DECONSTRUCTION) {
+		return;
+	}
+
+	if (House->Class->IsMultiplayPassive) {
+		return;
+	}
+
+	// The house's supply is consulted even for a building that drains none of it.
+	if (Class->IsPowered && (!Is_Powered_On() || House->Power_Fraction() < 1.0)) {
+		ProduceCashTimer.Stop();
+		return;
+	}
+	ProduceCashTimer.Start();
+
+	if (ProduceCashTimer != 0) {
+		return;
+	}
+	ProduceCashTimer = Class->ProduceCashDelay;
+
+	// Clamping lands the budget exactly on zero, so the last installment is paid in full.
+	if (ProduceCashRemaining > 0) {
+		amount = std::clamp(amount, -ProduceCashRemaining, ProduceCashRemaining);
+	}
+
+	// A payment the credits cannot hold is refused rather than charged against the budget.
+	if (amount > 0 && House->Credits > std::numeric_limits<int>::max() - amount) {
+		return;
+	}
+
+	if (ProduceCashRemaining > 0) {
+		ProduceCashRemaining -= (amount < 0) ? -amount : amount;
+	}
+
+	if (amount > 0) {
+		House->Refund_Money(amount);
+	} else {
+		House->Spend_Money(-amount);
+	}
+}
+
+
+/// <summary>
+/// Pays this building's current owner the capture bonus its type grants.
+/// The caller decides whether the house the building came from qualifies. A type granting the
+/// bonus once will not grant it again, and a house outside the contest is paid nothing.
+/// </summary>
+void BuildingClass::Produce_Cash_Startup(void)
+{
+	if (Class->ProduceCashStartup <= 0 || House->Class->IsMultiplayPassive) {
+		return;
+	}
+
+	if (Class->IsProduceCashStartupOneTime && IsProduceCashStartupPaid) {
+		return;
+	}
+
+	if (House->Credits > std::numeric_limits<int>::max() - Class->ProduceCashStartup) {
+		return;
+	}
+
+	IsProduceCashStartupPaid = true;
+	House->Refund_Money(Class->ProduceCashStartup);
+}
+
+
 /***********************************************************************************************
  * BuildingClass::Animation_AI -- Handles normal building animation processing.                *
  *                                                                                             *
@@ -8810,6 +8910,9 @@ void BuildingClass::Serialize(SaveStreamClass & stream)
 	stream.Serialize(Brightness);
 	stream.Serialize(UpgradeLevel);
 	stream.Serialize(GateFrame);
+	stream.Serialize(ProduceCashTimer);
+	stream.Serialize(ProduceCashRemaining);
+	stream.Serialize(IsProduceCashStartupPaid);
 }
 
 
@@ -8885,6 +8988,9 @@ void BuildingClass::Compute_CRC(CRCEngine & crc) const
 	crc(IsDamagedAnims);
 	crc(Brightness);
 	crc(UpgradeLevel);
+	crc((int)ProduceCashTimer);
+	crc(ProduceCashRemaining);
+	crc(IsProduceCashStartupPaid);
 }
 
 

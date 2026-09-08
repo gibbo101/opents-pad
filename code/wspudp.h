@@ -33,8 +33,6 @@
 
 #include "wsproto.h"
 
-#include <nspapi.h>
-
 
 /*
 **	Class to allow access to UDP specific portions of the Winsock interface.
@@ -48,8 +46,7 @@ class UDPInterfaceClass : public WinsockInterfaceClass {
 		UDPInterfaceClass (void);
 		virtual ~UDPInterfaceClass(void) override;
 
-		virtual int Message_Handler(HWND window, UINT message, UINT wParam, LONG lParam) override;
-		virtual bool Open_Socket ( SOCKET socketnum ) override;
+		virtual bool Open_Socket(void) override;
 		virtual void Set_Broadcast_Address ( const IPXAddressClass &address ) override;
 		virtual void Clear_Broadcast_Addresses(void) override;
 		virtual void Broadcast (void *buffer, int buffer_len) override;
@@ -75,10 +72,6 @@ class UDPInterfaceClass : public WinsockInterfaceClass {
 			return(PROTOCOL_UDP);
 		};
 
-		virtual int Protocol_Event_Message (void) override {
-			return(WM_UDPASYNCEVENT);
-		};
-
 		virtual int Get_Num_Local_Addresses(void) override {
 			return(LocalAddresses.Count());
 		};
@@ -87,16 +80,20 @@ class UDPInterfaceClass : public WinsockInterfaceClass {
 			return(LocalAddresses[index]);
 		};
 
+	protected:
+
+		virtual void Receive_Pending(void) override;
+		virtual void Send_Pending(void) override;
+
 	private:
 
 		void Register_Local_Addresses();
 
-		/*
-		 * Wrappers around sendto/recvfrom that add and strip the tunnel routing header.
-		 * They fall through to plain Winsock when no tunnel is configured.
-		 */
-		int Send_To(const char *buffer, int buffer_len, sockaddr_in *destination);
-		int Receive_From(char *buffer, int buffer_len, sockaddr_in *source);
+		// Wrappers around the socket that add and strip the tunnel routing header. A
+		// receive that answers NONE with a length of zero delivered nothing this client
+		// should see, which a caller draining the socket passes over.
+		TransferResult Send_To(void const * buffer, int length, IPXAddressClass const & to);
+		TransferResult Receive_From(void * buffer, int length, IPXAddressClass & from);
 
 		/*
 		**	Addresses to send to when broadcasting a packet.

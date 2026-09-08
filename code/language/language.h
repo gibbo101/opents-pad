@@ -873,6 +873,10 @@
 #define TXT_LOADING_SAVED_GAME          1115
 #define TXT_CHAT_HINT                   1116
 #define TXT_DIFFICULTY_LEVEL            1117
+#define TXT_ADD_TO_TEAM                 1118
+#define TXT_ADD_TO_TEAM_DESC            1119
+#define TXT_GAME_SAVED                  1120
+#define TXT_GAME_AUTO_SAVED             1121
 #define IDC_LADDER_TYPE                 1043
 #define IDC_LADDER_LOCATION             1044
 #define IDC_FINDGAME_LOCATION           1046
@@ -1159,7 +1163,8 @@
 #define IDC_DESYNC_LOAD                 1711
 #define IDC_DESYNC_CONTINUE             1712
 #define IDC_DESYNC_QUIT                 1713
-#define IDC_OPTMAIN_CONTROLLER          1714
+#define IDC_EDGE_SCROLL                 1714
+#define IDC_OPTMAIN_CONTROLLER          1715
 
 // Next default values for new objects
 //
@@ -1167,7 +1172,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        3007
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1714
+#define _APS_NEXT_CONTROL_VALUE         1716
 #define _APS_NEXT_SYMED_VALUE           3105
 #endif
 #endif

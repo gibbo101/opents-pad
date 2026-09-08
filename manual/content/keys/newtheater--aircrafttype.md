@@ -8,7 +8,7 @@ when_omitted:
   value: "no"
 ---
 
-The file keeps its `.SHP` extension and the second letter of its name is rewritten instead: `T` in temperate and `A` in snow. The rewrite is applied only when the Image ID starts with one of six two-letter prefixes — `GA`, `GT`, `NA`, `NT`, `CA`, or `CT` — and the comparison ignores case. Any other name is left exactly as written, so the flag does nothing for it.
+The file keeps its `.SHP` extension and the second letter of its name is rewritten instead, to the theater's [`ImageLetter`](/keys/imageletter/): `T` in temperate and `A` in snow. The rewrite is applied only where the Image ID's second letter is already the image letter of some declared theater, and the comparison ignores case. Any other name is left exactly as written, so the flag does nothing for it — which is how the civilian artwork that carries the flag in error, `CITY`, `ABAN`, `BBOARD`, `MWAR` and `OBL1`, escapes being renamed.
 
 ```ini title="art.ini"
 [GACNST] ; the Image ID of a BuildingType

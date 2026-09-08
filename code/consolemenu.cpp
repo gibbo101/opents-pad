@@ -134,7 +134,7 @@ int Draw_Pad_Prompt(Surface & surface, MSFont & font, PadButtonType button, char
 	if (used > 0) {
 		Draw_Pad_Glyph(surface, button, x, y - GLYPH_INSET, Pad_Prompt_Glyph_Size(height));
 	}
-	font.Draw_String(&surface, (unsigned char const *)text, x + used, y, FRAME_NORMAL);
+	font.Draw_String(&surface, text, x + used, y, FRAME_NORMAL);
 	return(used + font.Get_String_Width(text));
 }
 
@@ -480,7 +480,7 @@ void ConsoleMenuClass::Draw(void)
 		return(*(focused ? (FocusOverride != NULL ? FocusOverride : FocusFont.get()) : (IdleFont != NULL ? IdleFont : Font.get())));
 	};
 	auto print = [&](std::string const & text, int x, int y, bool focused = false) {
-		font_for(focused).Draw_String(&surface, (unsigned char const *)text.c_str(), x, y, FRAME_NORMAL);
+		font_for(focused).Draw_String(&surface, text.c_str(), x, y, FRAME_NORMAL);
 	};
 	auto width = [&](std::string const & text) {
 		return(Font->Get_String_Width(text.c_str()));
@@ -491,7 +491,7 @@ void ConsoleMenuClass::Draw(void)
 			surface, backdrop, Rect(left, top, MENU_WIDTH, MENU_HEIGHT),
 			print,
 			[&](std::string const & text, int x, int y, RGBClass const & color) {
-				Font_For(color)->Draw_String(&surface, (unsigned char const *)text.c_str(), x, y, FRAME_NORMAL);
+				Font_For(color)->Draw_String(&surface, text.c_str(), x, y, FRAME_NORMAL);
 			},
 			width,
 			height,

@@ -57,11 +57,11 @@ class WWKeyboardClass
 		unsigned short Get(void);
 		bool Put(unsigned short key);
 		void Clear(void);
-		char To_ASCII(unsigned short num);
+		int To_ASCII(unsigned short num);
 		bool Down(unsigned short key);
 
 		/* Define the main hook for the message processing loop.					*/
-		int Message_Handler(HWND hwnd, UINT message, UINT wParam, LONG lParam);
+		int Message_Handler(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 		/* Define the public access variables which are used with the			*/
 		/*   Keyboard Class.																	*/

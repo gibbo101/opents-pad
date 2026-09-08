@@ -34,6 +34,7 @@
 #include "stimer.h"
 #include "wdtnet.h"
 #include "windlg.h"
+#include "utf8.h"
 #include "worlddom.h"
 #include "wstring.h"
 #include "xpipe.h"
@@ -258,7 +259,7 @@ void _DrawMessage(int color, const char * message, HWND window)
 			int idx = length - 1;
 
 			while (idx > 0) {
-				if (!isgraph(message[idx])) {
+				if (!isgraph((unsigned char)message[idx])) {
 					found = idx;
 					break;
 				}
@@ -412,7 +413,7 @@ int ODMessageBox(const char * text, int type, bool (*callback)(void), bool large
 /// whichever of the buttons the player pressed.
 /// </summary>
 /// <returns>Returns with TRUE if the message was dealt with here, FALSE otherwise.</returns>
-int CALLBACK ODMessageBox_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
+INT_PTR CALLBACK ODMessageBox_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 {
 	switch (message) {
 		case WM_DRAWITEM:
@@ -529,7 +530,7 @@ void DisplayGameopts(HWND window, BOOL initialize)
 }
 
 
-void Net2EncodeGameopt(char *out);
+void Net2EncodeGameopt(char *out, int size);
 
 
 /// <summary>
@@ -653,10 +654,10 @@ void PumpGameopts(bool force, bool now)
 			_last_scenario_file_length = Session.ScenarioFileLength;
 			_last_scenario_is_official = Session.ScenarioIsOfficial;
 
-			char buffer[513];
+			char buffer[MAX_GAMEOPT_LENGTH];
 			memset(buffer, '\0', sizeof(buffer));
 
-			Net2EncodeGameopt(buffer);
+			Net2EncodeGameopt(buffer, sizeof(buffer));
 
 			SendPublicGameopts(buffer);
 		}
@@ -674,7 +675,7 @@ void SendPublicGameopts(char const * options)
 	memset(&packet, 0, sizeof(packet));
 	packet.Command = NET_PUB_GAMEOPT;
 	strcpy(packet.Name, Session.Handle);
-	strcpy(packet.Options.Buf, options);
+	UTF8::Copy(packet.Options.Buf, sizeof(packet.Options.Buf), options);
 	packet.Options.Color = Session.ColorIdx;
 	packet.Options.NameCRC = Compute_Name_CRC(Session.GameName);
 	for (int i = 1; i < Session.Players.Count(); i++) {
@@ -695,7 +696,7 @@ void SendPrivateGameopts(char const * player, char const * options)
 	memset(&Session.GPacket, 0, sizeof(Session.GPacket));
 	Session.GPacket.Command = NET_PRIV_GAMEOPT;
 	strcpy(Session.GPacket.Name, Session.Handle);
-	strcpy(Session.GPacket.Options.Buf, options);
+	UTF8::Copy(Session.GPacket.Options.Buf, sizeof(Session.GPacket.Options.Buf), options);
 	Session.GPacket.Options.Color = Session.ColorIdx;
 	Session.GPacket.Options.NameCRC = Compute_Name_CRC(Session.GameName);
 	for (int i = 1; i < Session.Players.Count(); i++) {
@@ -1162,7 +1163,7 @@ bool Scenario_Select_Callback(void)
 	return(false);
 }
 
-int CALLBACK Scenario_DlgProc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
+INT_PTR CALLBACK Scenario_DlgProc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
 
 
 /// <summary>
@@ -1178,7 +1179,7 @@ int Scenario_Dialog(HWND top)
 	Hide_Mouse();
 	Draw_Menu_Background();
 	Show_Mouse();
-	ScenarioPick = WS_Create_Dialog(ProgramInstance, IDD_MPLAYER_SELECT_MAP, top, (DLGPROC)Scenario_DlgProc, FALSE);
+	ScenarioPick = WS_Create_Dialog(ProgramInstance, IDD_MPLAYER_SELECT_MAP, top, Scenario_DlgProc, FALSE);
 	Center_Window_Within_Window(ScenarioPick);
 	OwnerDraw::Subclass_Dialog(ScenarioPick, 0);
 	ShowWindow(ScenarioPick, SW_NORMAL);
@@ -1193,7 +1194,7 @@ int Scenario_Dialog(HWND top)
 /// </summary>
 /// <returns>Returns with TRUE if the message was dealt with here, FALSE to leave it to the
 /// dialog manager.</returns>
-int CALLBACK Scenario_DlgProc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
+INT_PTR CALLBACK Scenario_DlgProc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 {
 	switch (message) {
 		case WM_NCDESTROY:
@@ -1277,6 +1278,7 @@ void Commit_Session_Specials(void)
 {
 	Special.IsHarvesterImmune = Session.Options.HarvTruce;
 	Special.IsDestroyBridges = Session.Options.BridgeDestruction;
+	Special.IsScrapMetal = Session.Options.ScrapMetal;
 	Special.IsTGrowth = true;
 	Special.IsTSpread = true;
 	Special.Apply_To_Game();

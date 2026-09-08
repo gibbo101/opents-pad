@@ -1,4 +1,4 @@
 ---
 key: NewTheater
-summary: Rewrites the second letter of a type's artwork filename to match the theater.
+summary: Rewrites the second letter of a type's artwork filename to the theater's image letter.
 ---

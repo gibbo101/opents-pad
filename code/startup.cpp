@@ -38,6 +38,7 @@
 #include "_alpha.h"
 #include "_command.h"
 #include "_convert.h"
+#include "_deploymentconfig.h"
 #include "_font.h"
 #include "_keyboar.h"
 #include "_mixfile.h"
@@ -45,7 +46,6 @@
 #include "_rules.h"
 #include "_surface.h"
 #include "_tactica.h"
-#include "_winfix.h"
 #include "_zbuffer.h"
 #include "aircraft.h"
 #include "airctype.h"
@@ -67,10 +67,10 @@
 #include "cstream.h"
 #include "data.h"
 #include "dbgprint.h"
-#include "dllver.h"
+#include "deploymentconfig.h"
 #include "drive.h"
 #include "droppod.h"
-#include "dsaudio.h"
+#include "audio/audioengine.h"
 #include "dsurface.h"
 #include "empulse.h"
 #include "except.h"
@@ -140,6 +140,7 @@
 #include "trim.h"
 #include "tube.h"
 #include "tunnel.h"
+#include "tutorial.h"
 #include "unit.h"
 #include "unittype.h"
 #include "vanim.h"
@@ -429,10 +430,6 @@ int CALLBACK WinMain ( HINSTANCE instance , HINSTANCE , char * , int command_sho
 	char	path_to_exe[MAX_PATH];
 	char	buffer[512];
 
-#ifdef STEVES_NEW_CATCHER
-	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF|_CRTDBG_LEAK_CHECK_DF);
-#endif
-
 	// First, so that everything after it is covered, including the rest of this function.
 	Install_Exception_Handler();
 
@@ -520,12 +517,6 @@ int CALLBACK WinMain ( HINSTANCE instance , HINSTANCE , char * , int command_sho
 		return(EXIT_SUCCESS);
 	}
 
-	if (GetDllVersion("comctl32.dll") < PACKVERSION(4, 70)) {
-		sprintf(buffer, Fetch_String(TXT_DLL_INVALID), "comctl32.dll", 4, 70, "comctl32.dll");
-		MessageBox(NULL, buffer, Fetch_String(TXT_SHORT_TITLE), MB_ICONERROR);
-		exit(EXIT_FAILURE);
-	}
-
 	OleInitialize(NULL);
 
 	if (RegisterClasses()) {
@@ -562,9 +553,11 @@ int CALLBACK WinMain ( HINSTANCE instance , HINSTANCE , char * , int command_sho
 
 		/*
 		 * Before anything is read, so that every file the game goes on to open is looked
-		 * for where this deployment actually keeps it.
+		 * for where this deployment actually keeps it: the directories are applied, then
+		 * the deployment's own file is read, then the folders it names are installed.
 		 */
-		Init_Search_Folders();
+		DeploymentConfig.Read_File(Data_Directory().c_str());
+		Init_Search_Folders(DeploymentConfig.SearchPaths.c_str());
 
 		// The recording's name was settled during static initialization, before there was
 		// anywhere for a player's files to go. Naming it again settles it where it belongs.
@@ -625,7 +618,7 @@ int CALLBACK WinMain ( HINSTANCE instance , HINSTANCE , char * , int command_sho
 
 		Exception_Run_Post_Window_Test();
 
-		Audio.Init(MainWindow, 16, 0, 22050);
+		AudioEngine.Init();
 
 		int drawablewidth = 0;
 		int drawableheight = 0;
@@ -701,7 +694,7 @@ int CALLBACK WinMain ( HINSTANCE instance , HINSTANCE , char * , int command_sho
 		*/
 		ReadyToQuit = 1;
 
-		Audio.End();
+		AudioEngine.End();
 
 		/*
 		**	Post a message to our message handler to tell it to clean up.
@@ -766,10 +759,8 @@ void __cdecl Prog_End(void)
 	}
 	ColorSchemes.Clear();
 
-	for (i = 0; i < TutorialText.Count(); i++) {
-		free((void *)TutorialText.Fetch_By_Position(i));
-	}
-	TutorialText.Clear();
+	// The theaters outlive every scenario, so they are not released with its objects.
+	TheaterClass::Clear();
 
 	Delete_All_Objects();
 
@@ -1030,9 +1021,6 @@ void __cdecl Prog_End(void)
 		TacticalMap = NULL;
 	}
 
-	delete SpeechBuffer[0];
-	SpeechBuffer[0] = NULL;
-
 	Free_Vocs();
 
 	CDFileClass::Clear_Search_Drives();
@@ -1076,10 +1064,6 @@ void __cdecl Prog_End(void)
 		CloseHandle(AppMutex);
 		AppMutex = NULL;
 	}
-
-#ifdef STEVES_NEW_CATCHER
-	_CrtDumpMemoryLeaks();
-#endif
 }
 
 /***********************************************************************************************
@@ -1098,7 +1082,7 @@ void __cdecl Prog_End(void)
  *=============================================================================================*/
 void Emergency_Exit(void)
 {
-	Audio.End();
+	AudioEngine.End();
 
 	ReadyToQuit = 1;
 

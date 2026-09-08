@@ -172,6 +172,7 @@ SessionClass::SessionClass(void)
 	Options.BuildOffAlly = false;
 	Options.AutoDeployMCV = false;
 	Options.AttackNeutralUnits = false;
+	Options.ScrapMetal = false;
 	Options.AIDifficulty = DIFF_NORMAL;
 
 	UniqueID = 0;
@@ -240,7 +241,7 @@ SessionClass::SessionClass(void)
 
 	MetaSize = MAX_IPX_PACKET_SIZE;
 
-	PlayerIsGDI = true;
+	PlayerHouse = HOUSE_FIRST;
 
 	memset(KickVoteCount, 0, sizeof(KickVoteCount));
 	memset(KickVoteWho, -1, sizeof(KickVoteWho));
@@ -605,6 +606,7 @@ bool SessionClass::Log_To_File(FILE *out)
 	fprintf(out,"Options.BuildOffAlly = %d\n", Options.BuildOffAlly);
 	fprintf(out,"Options.AutoDeployMCV = %d\n", Options.AutoDeployMCV);
 	fprintf(out,"Options.AttackNeutralUnits = %d\n", Options.AttackNeutralUnits);
+	fprintf(out,"Options.ScrapMetal = %d\n", Options.ScrapMetal);
 	fprintf(out,"ObiWan = %d\n", ObiWan);
 	fprintf(out,"AIOnly = %d\n", AIOnly);
 
@@ -1389,6 +1391,7 @@ void GameOptionsType::Serialize(SaveStreamClass & stream)
 	stream.Serialize(BuildOffAlly);
 	stream.Serialize(AutoDeployMCV);
 	stream.Serialize(AttackNeutralUnits);
+	stream.Serialize(ScrapMetal);
 	stream.Serialize(ScenarioDescription);
 }
 

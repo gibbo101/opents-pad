@@ -125,6 +125,7 @@
 #include "trigger.h"
 #include "trigtype.h"
 #include "tube.h"
+#include "tutorial.h"
 #include "unit.h"
 #include "unittype.h"
 #include "vanim.h"
@@ -132,6 +133,8 @@
 #include "vein.h"
 #include "vox.h"
 #include "warhead.h"
+#include "ambient.h"
+#include "voc.h"
 #include "wave.h"
 #include "waypoint.h"
 #include "weapon.h"
@@ -646,7 +649,7 @@ static bool Get_All(IStream *stream, bool save_net)
 	}
 	Enable_Addon(Scen->RequiredAddOn);
 
-	if (!Prep_For_Side(Scen->IsGDI ? SIDE_GDI : SIDE_NOD)) {
+	if (Prep_For_Side_Or_First(Scen->PlayerSide) == SIDE_NONE) {
 		return(false);
 	}
 
@@ -675,14 +678,9 @@ static bool Get_All(IStream *stream, bool save_net)
 
 	Rule->Load(stream);
 
-	if (Scen->SpeechSide != SIDE_NONE) {
-		if (!Prep_Speech_For_Side(Scen->SpeechSide)) {
-			return(false);
-		}
-	} else {
-		if (!Prep_Speech_For_Side(Scen->IsGDI ? SIDE_GDI : SIDE_NOD)) {
-			return(false);
-		}
+	SideType speech = Scen->SpeechSide != SIDE_NONE ? Scen->SpeechSide : Scen->PlayerSide;
+	if (Prep_Speech_For_Side_Or_First(speech) == SIDE_NONE) {
+		return(false);
 	}
 
 	if (FAILED(Load_Vector(stream))) {	/// AnimTypes
@@ -1198,6 +1196,14 @@ static void Serialize_Misc_Values(SaveStreamClass & stream)
 	if (stream.Is_Loading()) {
 		SaveManager.Autosave.Seed_Slots(campaign_slot, skirmish_slot);
 	}
+
+	// The scenario's own tutorial lines travel here, since a load never re-reads the map.
+	stream.Serialize(TutorialText);
+
+	// Placed sounds and the sounds attached to objects come back on the next
+	// sound tick; the playing sounds themselves are not saved.
+	Static_Sounds_Serialize(stream);
+	AmbientSounds.Serialize(stream);
 }
 
 

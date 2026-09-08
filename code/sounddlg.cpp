@@ -37,7 +37,7 @@
 #include "sounddlg.h"
 
 #include "dbgprint.h"
-#include "dsaudio.h"
+#include "audio/audioengine.h"
 #include "globals.h"
 #include "goptions.h"
 #include "incdec.h"
@@ -65,14 +65,14 @@ void SoundControlsClass::Dialog(void)
 
 	HWND dialog;
 	if (!GameActive) {
-		dialog = OwnerDraw::Begin_Dialog(IDD_SOUND_OPTIONS_DIALOG_LITE, (DLGPROC)Sound_Option_Dialog_Func);
+		dialog = OwnerDraw::Begin_Dialog(IDD_SOUND_OPTIONS_DIALOG_LITE, Sound_Option_Dialog_Func);
 	} else {
-		dialog = OwnerDraw::Begin_Dialog(IDD_SOUND_OPTIONS_DIALOG, (DLGPROC)Sound_Option_Dialog_Func);
+		dialog = OwnerDraw::Begin_Dialog(IDD_SOUND_OPTIONS_DIALOG, Sound_Option_Dialog_Func);
 	}
 
 	if (dialog) {
 
-		SetWindowLong(dialog, DWL_USER, (LONG)&rc);
+		SetWindowLongPtr(dialog, DWLP_USER, (LONG_PTR)&rc);
 
 		OwnerDraw::Display_Dialog(dialog);
 
@@ -106,15 +106,15 @@ void SoundControlsClass::Dialog(void)
  *                                                                                             *
  * HISTORY:    12/31/1994 MML : Created.                                                       *
  *=============================================================================================*/
-BOOL CALLBACK SoundControlsClass::Sound_Option_Dialog_Func(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
+INT_PTR CALLBACK SoundControlsClass::Sound_Option_Dialog_Func(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 {
-	int rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
+	INT_PTR rc = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
 
 	if (rc == 0) {
 		switch (message) {
 			case WM_INITDIALOG: {
 					DialogInitialized = false;
-					bool enabled = Audio_Available();
+					bool enabled = AudioEngine.Is_Available();
 
 					/*
 					**	Music volume slider.
@@ -255,7 +255,7 @@ BOOL CALLBACK SoundControlsClass::Sound_Option_Dialog_Func(HWND window, UINT mes
 							if (button) {
 								Options.Set_Voice_Volume(Slider_GetPos(button) / (double)VOLUME_LEVELS, false);
 							}
-							int * res = (int *)GetWindowLong(window, DWL_USER);
+							int * res = (int *)GetWindowLongPtr(window, DWLP_USER);
 							*res = IDOK;
 						}
 						break;

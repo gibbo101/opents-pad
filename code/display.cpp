@@ -3201,7 +3201,7 @@ void DisplayClass::Read_INI(CCINIClass const & ini)
 	**	is custom to this data. Load the custom data (as it related to terrain)
 	**	at this point.
 	*/
-	Scen->Theater = ini.Get_TheaterType(name, "Theater", THEATER_TEMPERATE);
+	Scen->Theater = ini.Get_TheaterType(name, "Theater", THEATER_FIRST);
 
 	/*
 	**	Now that the theater is known, init the entire map hierarchy

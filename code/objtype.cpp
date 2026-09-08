@@ -336,7 +336,7 @@ BuildingClass * ObjectTypeClass::Who_Can_Build_Me(bool intheory, bool needsnopow
 			building->Mission != MISSION_DECONSTRUCTION && building->MissionQueue != MISSION_DECONSTRUCTION &&
 			(!legal || building->House->Can_Build(this, true, true) > 0) &&
 			(building->Class->Get_Ownable() & ownable) &&
-			(building->Class != Rule->BuildConst[0] || (1L << building->ActLike) & ownable)) {
+			(!Rule->BuildConst.Is_In_List(building->Class) || Rule->IsMultiMCV || (building->ActLike != HOUSE_NONE && ((1L << building->ActLike) & ownable) != 0))) {
 
 			/*
 			**	HACK ALERT: Helipads can build aircraft and airstrips can build
@@ -587,33 +587,9 @@ void ObjectTypeClass::Fetch_Normal_Image(void)
 	_makepath(fullname, NULL, NULL, GraphicName, ".SHP");
 
 	if (IsTheater) {
-		_makepath(fullname, NULL, NULL, GraphicName, Theaters[Scen->Theater].Suffix);
+		_makepath(fullname, NULL, NULL, GraphicName, TheaterClass::As_Reference(Scen->Theater).Suffix);
 	} else if (IsNewTheater) {
-		TheaterType theater = Scen->Theater;
-		char prefix[4];
-
-		if (theater != THEATER_NONE) {
-			strncpy(prefix, fullname, 2);
-			prefix[2] = 0;
-			if (stricmp(prefix, "ga") == 0 ||
-				stricmp(prefix, "na") == 0 ||
-				stricmp(prefix, "gt") == 0 ||
-				stricmp(prefix, "nt") == 0 ||
-				stricmp(prefix, "ca") == 0 ||
-				stricmp(prefix, "ct") == 0)
-			{
-				switch (theater) {
-					case THEATER_TEMPERATE:
-						fullname[1] = 'T';
-						break;
-					case THEATER_SNOW:
-						fullname[1] = 'A';
-						break;
-					default:
-						break;
-				}
-			}
-		}
+		Theater_Naming_Convention(fullname, Scen->Theater);
 	}
 
 	ShapeSet const * image = (ShapeSet const *)MFCD::Retrieve(fullname);
@@ -683,35 +659,22 @@ bool ObjectTypeClass::Read_INI(CCINIClass const & ini)
 
 /// <summary>
 /// Converts an artwork name to the current theater's spelling.
-/// This routine handles the new theater naming convention, where the second letter of a
-/// structure's artwork name selects the temperate or the snow version of the art. Names
-/// that do not follow the convention are left untouched.
+/// Only a name whose second letter is already some theater's image letter follows this
+/// convention, so the civilian artwork that carries NewTheater= in error is left alone.
 /// </summary>
 /// <param name="name">The artwork name to adjust in place.</param>
 void ObjectTypeClass::Theater_Naming_Convention(char * name, TheaterType theater) const
 {
-	char prefix[4];
+	char letter = TheaterClass::As_Reference(theater).ImageLetter;
 
-	if (theater != THEATER_NONE) {
-		strncpy(prefix, name, 2);
-		prefix[2] = 0;
-		if (stricmp(prefix, "ga") == 0 ||
-			stricmp(prefix, "na") == 0 ||
-			stricmp(prefix, "gt") == 0 ||
-			stricmp(prefix, "nt") == 0 ||
-			stricmp(prefix, "ca") == 0 ||
-			stricmp(prefix, "ct") == 0)
-		{
-			switch (theater) {
-				case THEATER_TEMPERATE:
-					name[1] = 'T';
-					break;
-				case THEATER_SNOW:
-					name[1] = 'A';
-					break;
-				default:
-					break;
-			}
+	if (letter == '\0' || name[0] == '\0' || name[1] == '\0') {
+		return;
+	}
+
+	for (int index = 0; index < Theaters.Count(); index++) {
+		if (toupper((unsigned char)name[1]) == toupper((unsigned char)Theaters[index]->ImageLetter)) {
+			name[1] = letter;
+			return;
 		}
 	}
 }

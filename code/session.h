@@ -267,6 +267,11 @@ struct RemoteFileTransferType {
 };
 
 
+// The encoded game options carry the settings, the scenario description, name and digest,
+// and a name, house and color for every player.
+#define MAX_GAMEOPT_LENGTH	(MAX_PLAYERS * (MPLAYER_NAME_MAX + 8) + 384)
+
+
 //...........................................................................
 // Packet sent over the network Global Channel
 //...........................................................................
@@ -364,7 +369,7 @@ struct GlobalPacketType {
 		 * NET_PRIV_GAMEOPT commands.
 		 */
 		struct {
-			char Buf[400];
+			char Buf[MAX_GAMEOPT_LENGTH];
 			int Color;
 			unsigned int NameCRC;
 		} Options;
@@ -454,6 +459,7 @@ struct GameOptionsType {
 	bool		BuildOffAlly;		// A mutually allied house's buildings anchor this player's placements.
 	bool		AutoDeployMCV;		// Every house's starting base unit deploys as the match begins.
 	bool		AttackNeutralUnits;	// A target scan considers a neutral house's objects.
+	bool		ScrapMetal;			// A wreck leaves the animations its type names in ScrapExplosion.
 	char		ScenarioDescription [DESCRIP_MAX];	//Used on client machines only
 
 	bool Save(IStream * stream);
@@ -570,10 +576,10 @@ class SessionClass
 		DiffType CampaignCDifficulty;
 
 		/*
-		 * If the local player is playing a GDI house, then this flag will be true. A starting
-		 * multiplayer scenario takes its side and its speech set from it.
+		 * The country the local player chose in the lobby. A starting multiplayer scenario takes
+		 * its presented side and its speech set from it.
 		 */
-		bool PlayerIsGDI;
+		HousesType PlayerHouse;
 
 		//.....................................................................
 		// Max allowable # of players & actual # of (human) players

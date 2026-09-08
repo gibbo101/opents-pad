@@ -22,7 +22,7 @@
 #include "data.h"
 #include "dbgprint.h"
 #include "dict.h"
-#include "dsaudio.h"
+#include "audio/audioengine.h"
 #include "dsurface.h"
 #include "globals.h"
 #include "goptions.h"
@@ -41,6 +41,7 @@
 #include "session.h"
 #include "srfcache.h"
 #include "theme.h"
+#include "utf8.h"
 #include "voc.h"
 #include "vox.h"
 #include "windlg.h"
@@ -116,7 +117,7 @@ LRESULT CALLBACK ProgressBarCtrlProc(HWND window, UINT message, WPARAM wparam, L
 LRESULT CALLBACK TrackBarCtrlProc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
 LRESULT CALLBACK GroupBoxCtrlProc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
 LRESULT CALLBACK HotkeyCtrlProc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
-LRESULT CALLBACK Custom_Message_Box_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
+INT_PTR CALLBACK Custom_Message_Box_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
 
 BOOL CALLBACK ODRemoveFromDict(HWND window, LPARAM);
 int WINAPI ODUpdateWindowRect(HWND window, RECT *rect);
@@ -130,6 +131,18 @@ BOOL CALLBACK ODAddWindowToList(HWND window, ArrayList<HWND> * list);
 BOOL CALLBACK SetUserData2(HWND window, LPARAM lparam);
 BOOL CALLBACK InitializeCtrl(HWND window, LPARAM lparam);
 void ODDrawCharRemap(Surface & dst_surf, const char *text, int max_chars, Rect const & rect, char const *font_name, COLORREF color, char flags, int char_spacing);
+
+
+// The dialog fonts are 256-cell sheets in Windows-1252 order; a code point without a cell
+// draws as '?'.
+static unsigned char OD_Glyph(char32_t code)
+{
+	if (code < ' ') {
+		return((unsigned char)code);
+	}
+	int index = UTF8::Windows_1252_Glyph(code);
+	return((unsigned char)(index < 0 ? '?' : index));
+}
 
 
 ///////////////////////////////////
@@ -154,7 +167,7 @@ OwnerDraw::CellData::CellData(void)
 /// <returns>Returns with the handle itself, taken as an unsigned value.</returns>
 unsigned int Hash_HWND(HWND &key)
 {
-	return(*(unsigned int*)&key);
+	return((unsigned int)(uintptr_t)key);
 }
 
 
@@ -166,7 +179,7 @@ unsigned int Hash_HWND(HWND &key)
 /// <returns>Returns with the hash value formed from the window and the message.</returns>
 unsigned int Hash_CtrlMsg(CtrlMsgData &key)
 {
-	return((unsigned int)((int)key.message * (int)key.window));
+	return((unsigned int)((uintptr_t)key.message * (uintptr_t)key.window));
 }
 
 
@@ -438,8 +451,8 @@ static LRESULT CALLBACK ComboDropWinCtrlProc_Internal(HWND hWnd, UINT Msg, WPARA
 
 					if (have_font) {
 						int text_width = 0;
-						for (int i = 0; i < (int)strlen(text); ++i) {
-							text_width += font_data.charWidths[(unsigned char)text[i]];
+						for (char const * cursor = text; *cursor; ) {
+							text_width += font_data.charWidths[OD_Glyph(UTF8::Decode(cursor))];
 						}
 
 						int max_width = width - 10;
@@ -448,9 +461,9 @@ static LRESULT CALLBACK ComboDropWinCtrlProc_Internal(HWND hWnd, UINT Msg, WPARA
 
 						if (text_width > max_width) {
 							while (strlen(text) > 0) {
-								int last = (int)strlen(text) - 1;
-								text_width -= font_data.charWidths[(unsigned char)text[last]];
-								text[last] = '\0';
+								char * last = UTF8::Previous(text, text + strlen(text));
+								text_width -= font_data.charWidths[OD_Glyph(UTF8::Peek(last))];
+								*last = '\0';
 								if (!clipped) {
 									text_width += ellipsis_width;
 								}
@@ -587,7 +600,7 @@ static LRESULT CALLBACK ComboDropWinCtrlProc_Internal(HWND hWnd, UINT Msg, WPARA
 				break;
 			}
 
-			Sound_Effect(Rule->GenericClick, 1.0, 0);
+			Sound_Effect(Rule->GenericClick);
 
 			if (x >= 0 && y >= 0 && x <= client.right && y <= client.bottom) {
 				LRESULT item_height = SendMessage(OwnerComboHandle, CB_GETITEMHEIGHT, 0, 0);
@@ -873,7 +886,7 @@ BOOL CALLBACK InitializeCtrl(HWND window, LPARAM lparam)
 		customProc = DefaultCtrlProc;
 	}
 
-	WNDPROC originalProc = (WNDPROC)SetWindowLong(window, GWL_WNDPROC, (LONG)CtrlProc);
+	WNDPROC originalProc = (WNDPROC)SetWindowLongPtr(window, GWLP_WNDPROC, (LONG_PTR)CtrlProc);
 
 	if (!CustomWndProcs.contains(window)) {
 		CustomWndProcs.add(window, customProc);
@@ -1615,7 +1628,7 @@ static LRESULT CALLBACK CtrlProc_Internal(HWND window, UINT message, WPARAM wpar
 			 */
 			owner = window;
 			while (owner != NULL) {
-				if (GetWindowLong(owner, DWL_DLGPROC) != 0) {
+				if (GetWindowLongPtr(owner, DWLP_DLGPROC) != 0) {
 					break;
 				}
 				owner = GetParent(owner);
@@ -1705,7 +1718,7 @@ static LRESULT CALLBACK CtrlProc_Internal(HWND window, UINT message, WPARAM wpar
 					if (sibling == NULL) {
 						break;
 					}
-					if (GetWindowLong(sibling, DWL_DLGPROC)) {
+					if (GetWindowLongPtr(sibling, DWLP_DLGPROC)) {
 						Rect sibling_rect;
 						Get_Display_Rect(sibling, (LPRECT)&sibling_rect);
 						RECT intersect;
@@ -1727,7 +1740,7 @@ cleanup:
 	ctrlmessages.remove(key);
 
 	if (is_paint) {
-		if (GetWindowLong(window, DWL_DLGPROC)) {
+		if (GetWindowLongPtr(window, DWLP_DLGPROC)) {
 			if (num_rect_updates > 1) {
 				data->animState = 2;
 			}
@@ -1747,17 +1760,14 @@ cleanup:
 				screen_rect.Width = max_update_rect.x - min_update_rect.x;
 				screen_rect.Height = max_update_rect.y - min_update_rect.y;
 
-				if (GetWindowLong(window, DWL_DLGPROC) && data->animState == 1) {
+				if (GetWindowLongPtr(window, DWLP_DLGPROC) && data->animState == 1) {
 
 					/*
 					 * Animated dialog reveal -- the screen wipes open from the
 					 * center outward with sliding "leftbar"/"rightbar" edges.
 					 */
 					if (Options.SoundVolume > 0.0) {
-						if (MixFileClass::Retrieve("EMBLEM.AUD")) {
-							int volume = (int)(Options.SoundVolume * 64.0f);
-							Audio.Play_Sample(MixFileClass::Retrieve("EMBLEM.AUD"), 255, volume);
-						}
+						AudioEngine.Play_Sample(MixFileClass::Retrieve("EMBLEM.AUD"), AUDIO_GROUP_SFX, 64.0f / 255.0f, 255);
 					}
 
 					struct _timeb start_time;
@@ -1880,8 +1890,8 @@ cleanup:
 								Sleep(wait);
 							}
 
-							if (Audio_Available() && GameInFocus == true) {
-								Audio.Sound_Callback();
+							if (AudioEngine.Is_Available() && GameInFocus == true) {
+								AudioEngine.Sound_Callback();
 								Theme.AI();
 								Speak_AI();
 							}
@@ -2092,7 +2102,7 @@ LRESULT CALLBACK ButtonCtrlProc(HWND window, UINT message, WPARAM wparam, LPARAM
 				if (style & WS_DISABLED) {
 					updown = 'u';
 				} else if (updown == 'd' && _prev_state == 'u') {
-					Sound_Effect(Rule->GenericClick, 1.0, 0);
+					Sound_Effect(Rule->GenericClick);
 				}
 
 				int widths[2] = {7, 7};
@@ -3135,15 +3145,15 @@ LRESULT CALLBACK ComboBoxCtrlProc(HWND window, UINT message, WPARAM wparam, LPAR
 					int max_width = client_rect.right - 28;
 					int ellipsis_width = 3 * font_data.charWidths['.'];
 					bool clipped = false;
-					for (int i = 0; i < (int)strlen(_buffer); ++i) {
-						text_width += font_data.charWidths[(unsigned char)_buffer[i]];
+					for (char const * cursor = _buffer; *cursor; ) {
+						text_width += font_data.charWidths[OD_Glyph(UTF8::Decode(cursor))];
 					}
 
 					if (text_width >= max_width) {
 						while (strlen(_buffer) > 0) {
-							int last = (int)strlen(_buffer) - 1;
-							text_width -= font_data.charWidths[(unsigned char)_buffer[last]];
-							_buffer[last] = '\0';
+							char * last = UTF8::Previous(_buffer, _buffer + strlen(_buffer));
+							text_width -= font_data.charWidths[OD_Glyph(UTF8::Peek(last))];
+							*last = '\0';
 							if (!clipped) {
 								text_width += ellipsis_width;
 							}
@@ -3334,7 +3344,7 @@ LRESULT CALLBACK ListBoxCtrlProc(HWND window, UINT message, WPARAM wparam, LPARA
 		}
 		needs_scrollbar = (count * item_height > client_rect.bottom - client_rect.top);
 		max_position = count - (client_rect.bottom - client_rect.top) / item_height;
-		if ((unsigned int)data->attachedWindow > 1) {
+		if ((uintptr_t)data->attachedWindow > 1) {
 			SCROLLINFO info;
 			info.fMask = SIF_RANGE | SIF_POS;
 			info.nMin = 0;
@@ -3526,7 +3536,7 @@ LRESULT CALLBACK ListBoxCtrlProc(HWND window, UINT message, WPARAM wparam, LPARA
 		}
 
 		case WM_SIZE: {
-			if ((int)data->attachedWindow > 1) {
+			if ((uintptr_t)data->attachedWindow > 1) {
 				RECT parent_display;
 				Get_Display_Rect(GetParent(window), &parent_display);
 				Rect win_display;
@@ -3862,11 +3872,11 @@ LRESULT CALLBACK ListBoxCtrlProc(HWND window, UINT message, WPARAM wparam, LPARA
 			int paint_disabled = SendMessage(window, OD_DISABLEPAINT, 0, 1);
 			if ((style & LBS_MULTIPLESEL) != 0) {
 				int select = (SendMessage(window, LB_GETSEL, index, 0) == 0);
-				Sound_Effect(Rule->GenericClick, 1.0, 0);
+				Sound_Effect(Rule->GenericClick);
 				SendMessage(window, LB_SETSEL, select, index);
 				InvalidateRect(window, NULL, FALSE);
 			} else if ((style & LBS_NOSEL) == 0) {
-				Sound_Effect(Rule->GenericClick, 1.0, 0);
+				Sound_Effect(Rule->GenericClick);
 				SendMessage(window, LB_SETCURSEL, index, 0);
 				InvalidateRect(window, NULL, FALSE);
 			}
@@ -4024,7 +4034,6 @@ LRESULT CALLBACK ListBoxCtrlProc(HWND window, UINT message, WPARAM wparam, LPARA
 	if (needs_scrollbar == 1) {
 		if (data->attachedWindow == NULL) {
 			data->attachedWindow = (HWND)1;
-			GetWindowLong(window, GWL_WNDPROC);
 			parent = GetParent(window);
 			RECT parent_display;
 			Get_Display_Rect(parent, &parent_display);
@@ -4917,7 +4926,7 @@ LRESULT CALLBACK TrackBarCtrlProc(HWND window, UINT message, WPARAM wparam, LPAR
 		SendMessage(parent, WM_HSCROLL, MAKEWPARAM(TB_THUMBTRACK, (unsigned short)(value + minimum)), (LPARAM)window);
 
 		if (play_click == true && !data->TrackBar.clickSuppress) {
-			Sound_Effect(Rule->GenericClick, 1.0f, 0);
+			Sound_Effect(Rule->GenericClick);
 		}
 	}
 
@@ -5749,12 +5758,12 @@ int OD_Draw_Text_Remap(Surface & surface, const char * text, Rect const & rect, 
 		}
 
 		int text_width = 0;
-		for (int i = 0; i < line_len; ++i) {
-			text_width += char_spacing + data.charWidths[(unsigned char)text[i]];
+		for (char const * cursor = text; cursor - text < line_len; ) {
+			text_width += char_spacing + data.charWidths[OD_Glyph(UTF8::Decode(cursor))];
 		}
 
 		if (text_width > draw_rect.Width - draw_rect.X) {
-			int fallback = line_len - 1;
+			int fallback = (int)UTF8::Boundary_Before(line_ptr, line_len - 1);
 			int cut = line_len - 1;
 
 			flags &= ~4;
@@ -5911,8 +5920,8 @@ void ODDrawCharRemap(Surface & dst_surf, const char *text, int max_chars, Rect c
 	}
 
 	int total_width = 0;
-	for (i = 0; i < max_chars; ++i) {
-		total_width += font_data.charWidths[(unsigned char)text[i]] + char_spacing;
+	for (char const * cursor = text; cursor - text < max_chars; ) {
+		total_width += font_data.charWidths[OD_Glyph(UTF8::Decode(cursor))] + char_spacing;
 	}
 
 	if ((flags & OD_DRAW_CHAR_FLAG_HORIZONTAL_CENTER) != 0) {
@@ -5940,12 +5949,13 @@ void ODDrawCharRemap(Surface & dst_surf, const char *text, int max_chars, Rect c
 		int src_stride = sheet_i->Stride();
 
 		int x = draw_rect.X;
-		for (int i = 0; i < max_chars; ++i) {
+		for (char const * cursor = text; cursor - text < max_chars; ) {
 
-			if ((unsigned char)text[i] <= ' ') {
-				x += font_data.charWidths[(unsigned char)text[i]] + char_spacing;
+			unsigned char index = OD_Glyph(UTF8::Decode(cursor));
+			if (index <= ' ') {
+				x += font_data.charWidths[index] + char_spacing;
 			} else {
-				int glyph = (unsigned char)text[i] + 1;
+				int glyph = index + 1;
 				int src_x = (glyph % chars_per_row) * cell_w;
 				int src_y = (glyph / chars_per_row) * cell_h;
 
@@ -5977,7 +5987,7 @@ void ODDrawCharRemap(Surface & dst_surf, const char *text, int max_chars, Rect c
 					dst_col += 2;
 				}
 
-				x += font_data.charWidths[(unsigned char)text[i]] + char_spacing;
+				x += font_data.charWidths[index] + char_spacing;
 			}
 		}
 	}
@@ -6728,7 +6738,7 @@ int OwnerDraw::Release_Mouse(void)
 /// <remarks>Every dialog begun with this routine must be finished with End_Dialog.</remarks>
 HWND OwnerDraw::Begin_Dialog(int id, DLGPROC proc)
 {
-	LPCDLGTEMPLATE templ = (LPCDLGTEMPLATE)Fetch_Resource((LPCSTR)(int)MAKEINTRESOURCE(id), (LPCSTR)RT_DIALOG);
+	LPCDLGTEMPLATE templ = (LPCDLGTEMPLATE)Fetch_Resource(MAKEINTRESOURCE(id), (LPCSTR)RT_DIALOG);
 	if (templ == NULL) {
 		return(NULL);
 	}
@@ -6745,14 +6755,14 @@ HWND OwnerDraw::Begin_Dialog(int id, DLGPROC proc)
 	}
 
 	g_Dialogs[idx].handle = handle;
-	g_Dialogs[idx].id = (int)MAKEINTRESOURCE(id);
+	g_Dialogs[idx].id = LOWORD(id);
 
 	Capture_Mouse();
 
 	Add_Modeless_Dialog(handle);
 
 	g_TopWindow = handle;
-	g_TopWindowID = (int)MAKEINTRESOURCE(id);
+	g_TopWindowID = LOWORD(id);
 
 	return(handle);
 }
@@ -6820,7 +6830,7 @@ void OwnerDraw::Display_Dialog(HWND window)
 /// background painting and control coloring that all dialogs share is performed.
 /// </summary>
 /// <returns>Returns with the message result, or zero if the caller should handle it.</returns>
-int OwnerDraw::Default_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
+INT_PTR OwnerDraw::Default_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 {
 	switch (message) {
 		case WM_DRAWITEM:
@@ -6856,7 +6866,7 @@ int OwnerDraw::Default_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPA
 		case WM_CTLCOLORDLG:
 		case WM_CTLCOLORSCROLLBAR:
 		case WM_CTLCOLORSTATIC:
-			return((int)GetStockObject(BLACK_BRUSH));
+			return((INT_PTR)GetStockObject(BLACK_BRUSH));
 
 		case OD_SUBCLASSED:
 			SendMessage(window, OD_SETTOP, (WPARAM)window, 1);
@@ -6956,9 +6966,9 @@ int OwnerDraw::Move_Dialog(HWND window, int x, int y)
 /// created.</returns>
 HWND OwnerDraw::Custom_Message_Box(const char *btn1txt, const char *btn2txt, bool * cancelled)
 {
-	HWND dlg = OwnerDraw::Begin_Dialog(IDD_MSGBOX_1, (DLGPROC)Custom_Message_Box_Proc);
+	HWND dlg = OwnerDraw::Begin_Dialog(IDD_MSGBOX_1, Custom_Message_Box_Proc);
 
-	SetWindowLong(dlg, 8, (LONG)cancelled);
+	SetWindowLongPtr(dlg, DWLP_USER, (LONG_PTR)cancelled);
 	SetDlgItemText(dlg, IDC_MSGBOX_TEXT, btn1txt);
 
 	if (btn2txt) {
@@ -6979,13 +6989,13 @@ HWND OwnerDraw::Custom_Message_Box(const char *btn1txt, const char *btn2txt, boo
 /// keyboard and raises the flag the box was opened with.
 /// </summary>
 /// <returns>Returns with the message result, or zero when the message was consumed here.</returns>
-LRESULT CALLBACK Custom_Message_Box_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
+INT_PTR CALLBACK Custom_Message_Box_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 {
-	LRESULT res = Default_Dialog_Proc(window, message, wparam, lparam);
+	INT_PTR res = Default_Dialog_Proc(window, message, wparam, lparam);
 
 	if (res == 0) {
 		if (message == WM_COMMAND && wparam == IDCANCEL) {
-			bool * cancelled = (bool *)GetWindowLong(window, DWL_USER);
+			bool * cancelled = (bool *)GetWindowLongPtr(window, DWLP_USER);
 			if (cancelled) {
 				Keyboard->Put(KN_ESC);
 				*cancelled = true;

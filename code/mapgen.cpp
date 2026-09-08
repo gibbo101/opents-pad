@@ -70,7 +70,7 @@
 
 bool (*RMGCallback)() = MapGen_Call_Back;
 
-BOOL CALLBACK Map_Seed_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
+INT_PTR CALLBACK Map_Seed_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
 
 
 double Random_Fraction(void);
@@ -3276,7 +3276,7 @@ int Do_Random_Map_Dialog(bool (*callback)())
 	if (dialog) {
 		RMGCallback = callback;
 		RandomMapGen.SeedData.Callback = callback;
-		SetWindowLongA(dialog, DWL_USER, (LONG)&res);
+		SetWindowLongPtrA(dialog, DWLP_USER, (LONG_PTR)&res);
 		OwnerDraw::Display_Dialog(dialog);
 		while (res == 0) {
 			if (OwnerDraw::Dialog_Message_Handler() == 1) {
@@ -3478,24 +3478,25 @@ void Do_Random_Map(HWND dialog, bool (*callback)())
 /// <summary>
 /// Dialog procedure for the random map generator ("Map Seed") dialog.
 /// Handles previewing, generating, saving, loading and deleting random maps, and randomizing
-/// the generator settings. The dialog's result code is written through the DWL_USER pointer set
-/// up by Do_Random_Map_Dialog so that writing it ends that dialog's modal message loop.
+/// the generator settings. The dialog's result code is written through the DWLP_USER
+/// pointer set up by Do_Random_Map_Dialog so that writing it ends that dialog's modal
+/// message loop.
 /// </summary>
 /// <param name="window">Handle to the dialog window.</param>
 /// <param name="message">Window message identifier.</param>
 /// <param name="wparam">Message-specific first parameter.</param>
 /// <param name="lparam">Message-specific second parameter.</param>
 /// <returns>TRUE if the message was processed, FALSE otherwise.</returns>
-BOOL CALLBACK Map_Seed_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
+INT_PTR CALLBACK Map_Seed_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 {
 	static int _unused = -1;
 
-	BOOL result = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
+	INT_PTR result = OwnerDraw::Default_Dialog_Proc(window, message, wparam, lparam);
 	if (result) {
 		return(result);
 	}
 
-	LONG * state = (LONG *)GetWindowLongA(window, DWL_USER);
+	LONG * state = (LONG *)GetWindowLongPtrA(window, DWLP_USER);
 
 	switch (message) {
 
@@ -4422,6 +4423,16 @@ bool MapSeedClass::Save_File(const char * file_name, const char * descr)
 
 
 /// <summary>
+/// Saved settings are not a game, and this dialog runs with no scenario behind it, so it
+/// confirms a save with a box of its own rather than through the message list.
+/// </summary>
+int MapSeedClass::Save_Confirmation(void) const
+{
+	return(TXT_GAME_WAS_SAVED);
+}
+
+
+/// <summary>
 /// Loads a saved set of map generator settings.
 /// Name a file to read it directly. Pass NULL instead and the standard load dialog asks the
 /// player which of the saved maps to bring back.
@@ -4811,7 +4822,7 @@ void MapGeneratorClass::Generate_Random_Map(bool full_init, HWND dialog)
 	Generate_Lights();
 
 	DebugString("RMG: Adding veinholes\n");
-	if (Scen->Theater == THEATER_TEMPERATE) {
+	if (!TheaterClass::As_Reference(Scen->Theater).IsArctic) {
 		Generate_Veinholes();
 	}
 
@@ -5027,20 +5038,19 @@ void MapGeneratorClass::Init_Map(bool full_init)
 
 	double tod = _tod_values[SeedData.Time];
 
-	TheaterType _biome_to_theater[BIOME_COUNT] = {
-		THEATER_SNOW,
-		THEATER_SNOW,
-		THEATER_TEMPERATE,
-		THEATER_TEMPERATE,
-		THEATER_TEMPERATE,
+	// The generator lays out only the two theaters Tiberian Sun shipped, so it names them
+	// rather than numbering them.
+	auto _biome_to_theater = [&_theaters](int index) {
+		TheaterType theater = TheaterClass::From_Name(_theaters[index]);
+		if (theater == THEATER_NONE) {
+			DebugString("RMG: No theater is declared as \"%s\"; generating in %s.\n",
+				_theaters[index], TheaterClass::As_Reference(THEATER_FIRST).Name());
+			return(THEATER_FIRST);
+		}
+		return(theater);
 	};
 
-	double _tod_scales[2] = {
-		1.0,
-		0.75
-	};
-
-	double scale = _tod_scales[_biome_to_theater[biome]];
+	double scale = TheaterClass::As_Reference(_biome_to_theater(biome)).IsArctic ? 0.75 : 1.0;
 
 	/*
 	 * Interpolate the local map dimensions between the minimum and maximum size
@@ -5114,10 +5124,10 @@ void MapGeneratorClass::Init_Map(bool full_init)
 
 		bool changed = true;
 		TheaterType last = Scen->Theater;
-		TheaterType theater = _biome_to_theater[SeedData.Biome];
+		TheaterType theater = _biome_to_theater(SeedData.Biome);
 
 		if (MapSeeder != NULL) {
-			last = _biome_to_theater[MapSeeder->Biome];
+			last = _biome_to_theater(MapSeeder->Biome);
 			if (MapSeeder->Width == SeedData.Width && MapSeeder->Height == SeedData.Height && last == theater
 					&& MapSeeder->NumPlayers == SeedData.NumPlayers) {
 				changed = false;
@@ -7713,7 +7723,8 @@ void MapGeneratorClass::Create_Tiberium(void)
 	if (SeedData.NumPlayers > 0) {
 		do {
 			int d = (int)((*mean_distances - min_mean_distance) * _distance_scale) + 500;
-			Create_Tiberium_Patch(Scen->Get_Waypoint_Cell((WAYPOINT)tib_index), d, ++tib_index, use_blue_tiberium, use_blue_tiberium, 0);
+			Create_Tiberium_Patch(Scen->Get_Waypoint_Cell((WAYPOINT)tib_index), d, tib_index + 1, use_blue_tiberium, use_blue_tiberium, 0);
+			tib_index++;
 			mean_distances++;
 		} while (tib_index < SeedData.NumPlayers);
 		mean_distances = mean_distances_start;

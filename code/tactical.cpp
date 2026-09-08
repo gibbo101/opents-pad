@@ -3547,7 +3547,7 @@ void Tactical::Draw_Waypoints(bool inshroud)
 	int dashsave3 = dashtable[3];
 
 	ShapeSet const * mouseshapes = (ShapeSet const *)MixFileClass::Retrieve("MOUSE.SHP");
-	int coloridx = (Scen->Theater != THEATER_SNOW) ? LTGREY : BLACK;
+	int coloridx = TheaterClass::As_Reference(Scen->Theater).IsArctic ? BLACK : LTGREY;
 
 	for (PathType path = PATH_FIRST; path < PATH_COUNT; path++) {
 		PlayerPtr->Ensure_Path(path);

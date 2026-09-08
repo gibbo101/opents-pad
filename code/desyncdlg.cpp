@@ -169,7 +169,7 @@ void DesyncDialogClass::Notify_Chat(char const * name, char const * text)
 		return;
 	}
 
-	char buffer[256];
+	char buffer[MAX_MESSAGE_LENGTH + MAX_MESSAGE_PREFIX];
 	std::snprintf(buffer, sizeof(buffer), "%s: %s", name, text);
 	Append_Chat_Line(buffer);
 }
@@ -652,7 +652,7 @@ void DesyncDialogClass::Draw_Countdown_Bar(HWND window)
 }
 
 
-BOOL CALLBACK DesyncDialogClass::Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
+INT_PTR CALLBACK DesyncDialogClass::Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 {
 	switch (message) {
 		case WM_INITDIALOG:
@@ -679,7 +679,7 @@ BOOL CALLBACK DesyncDialogClass::Dialog_Proc(HWND window, UINT message, WPARAM w
 		case WM_CTLCOLORDLG:
 		case WM_CTLCOLORSCROLLBAR:
 		case WM_CTLCOLORSTATIC:
-			return((BOOL)GetStockObject(BLACK_BRUSH));
+			return((INT_PTR)GetStockObject(BLACK_BRUSH));
 
 		case WM_ERASEBKGND:
 			return(TRUE);

@@ -45,7 +45,7 @@
 
 #pragma once
 
-#include "win.h"
+#include <cstddef>
 
 /*
 ********************************** Defines **********************************
