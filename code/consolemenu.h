@@ -97,10 +97,7 @@ struct ConsoleRowType
 	std::string Prompt;
 };
 
-/// <summary>
-/// Makes every console menu draw on the named title-screen file instead of the shell
-/// page's backdrop until cleared with NULL, for screens opened from within a mission.
-/// </summary>
+// Keeps the pointer, so the name must outlive the setting; NULL clears it.
 void Console_Set_Backdrop_File(char const * name);
 
 // The title-screen file console screens draw on right now.
@@ -168,10 +165,6 @@ class ConsoleMenuClass
 		/// </summary>
 		void Finish(ConsoleMenuResult result) { IsFinished = true; FinishResult = result; }
 
-		/// <summary>
-		/// Registers a mouse target within the menu box: pointing at it calls hover, clicking
-		/// it calls click. Rows and the two prompts are targets already.
-		/// </summary>
 		void Add_Hit_Area(Rect const & area, std::function<void()> hover, std::function<void()> click);
 
 		ConsoleMenuResult Process(void);

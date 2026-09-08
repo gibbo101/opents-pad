@@ -36,9 +36,6 @@ class MSFont
 
 		void Get_String_Rect(char const * string, Rect & rect);
 
-		/// <summary>
-		/// Recolors the glyphs to the given color, keeping each palette entry's brightness.
-		/// </summary>
 		void Set_Color(RGBClass const & color);
 
 		virtual int Get_Character_Width(char32_t code);

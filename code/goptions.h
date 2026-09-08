@@ -52,9 +52,4 @@ enum ConsoleIngameResult {
 	INGAME_MENU_ABORT,
 };
 
-/// <summary>
-/// Runs the console pause menu over the frozen frame under the controller scheme, with the
-/// options, briefing, save, load, and confirmations inside it. Sets SpecialDialog to
-/// SDLG_LOAD when a multiplayer load must run from the menu loop.
-/// </summary>
 ConsoleIngameResult Console_Ingame_Menu(void);

@@ -74,6 +74,11 @@ RGBClass const CONSOLE_IDLE_COLOR(96, 208, 248);
 
 static char const * _BackdropFile = NULL;
 
+/// <summary>
+/// Makes every console menu draw on the named title-screen file instead of the shell
+/// page's backdrop until cleared with NULL, for screens opened from within a mission.
+/// The pointer is kept, not a copy of the name.
+/// </summary>
 void Console_Set_Backdrop_File(char const * name)
 {
 	_BackdropFile = name;
@@ -236,6 +241,10 @@ void ConsoleMenuClass::Set_Side_Panel(std::function<void(Surface &, Rect const &
 }
 
 
+/// <summary>
+/// Registers a mouse target within the menu box: pointing at it calls hover, clicking it
+/// calls click. Rows and the two prompts are targets already.
+/// </summary>
 void ConsoleMenuClass::Add_Hit_Area(Rect const & area, std::function<void()> hover, std::function<void()> click)
 {
 	Hits.push_back({area, hover, click});

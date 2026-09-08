@@ -138,6 +138,11 @@ static std::string Save_Box(void)
 }
 
 
+/// <summary>
+/// Runs the console pause menu over the frozen frame under the controller scheme, with the
+/// options, briefing, save, load, and confirmations inside it. Sets SpecialDialog to
+/// SDLG_LOAD when a multiplayer load must run from the menu loop.
+/// </summary>
 ConsoleIngameResult Console_Ingame_Menu(void)
 {
 	enum { ACTION_NONE, ACTION_RESUME, ACTION_OPTIONS, ACTION_AUDIO, ACTION_CONTROLS, ACTION_BRIEFING, ACTION_SAVE, ACTION_LOAD, ACTION_RESTART, ACTION_ABORT };

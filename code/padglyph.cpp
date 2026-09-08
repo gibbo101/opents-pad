@@ -39,6 +39,11 @@ bool On_Steam_Deck(void)
 }
 
 
+/// <summary>
+/// The style prompts draw in right now. Auto resolves to the Deck set on a Steam Deck, to
+/// the PlayStation set when the system lists a Sony controller, to the Xbox set while a
+/// controller is connected, and to plain text otherwise.
+/// </summary>
 int Resolved_Prompt_Style(void)
 {
 	if (Options.PromptStyle != PROMPT_STYLE_AUTO) {
@@ -65,6 +70,10 @@ static int Style_Row(int style)
 }
 
 
+/// <summary>
+/// Draws the glyph for a button in the current style within a box of the given size at x, y
+/// and returns the width used, or 0 when the style is plain text and nothing was drawn.
+/// </summary>
 int Draw_Pad_Glyph(Surface & surface, PadButtonType button, int x, int y, int size)
 {
 	int row = Style_Row(Resolved_Prompt_Style());
@@ -76,6 +85,11 @@ int Draw_Pad_Glyph(Surface & surface, PadButtonType button, int x, int y, int si
 }
 
 
+/// <summary>
+/// Draws a button's glyph with its drawn content, rather than its whole tile, fitted to a
+/// box of the given size at x, y, so glyphs whose art carries different margins come out
+/// the same size. Returns the width used, or 0 when the style is plain text.
+/// </summary>
 int Draw_Pad_Glyph_Fitted(Surface & surface, PadButtonType button, int x, int y, int size)
 {
 	int row = Style_Row(Resolved_Prompt_Style());
@@ -110,12 +124,21 @@ int Draw_Pad_Glyph_Fitted(Surface & surface, PadButtonType button, int x, int y,
 }
 
 
+/// <summary>
+/// Draws a whole baked square RGBA image, source pixels on a side, into a square box of the
+/// given size at x, y, blended the same way as Draw_Baked_Image_Part.
+/// </summary>
 void Draw_Baked_Image(Surface & surface, unsigned char const * pixels, int source, int x, int y, int size, int opacity)
 {
 	Draw_Baked_Image_Part(surface, pixels, source, 0, 0, source, source, x, y, size, size, opacity);
 }
 
 
+/// <summary>
+/// Draws a rectangle of a baked square RGBA image, given in source pixels, into a box of the
+/// given width and height at x, y, averaging source samples per drawn pixel and blending by
+/// coverage scaled by opacity in percent.
+/// </summary>
 void Draw_Baked_Image_Part(Surface & surface, unsigned char const * pixels, int source, int sourcex, int sourcey, int sourcewidth, int sourceheight, int x, int y, int width, int height, int opacity)
 {
 	if (width < 1 || height < 1 || sourcewidth < 1 || sourceheight < 1 || opacity < 1) {

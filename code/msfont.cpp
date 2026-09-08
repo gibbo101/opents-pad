@@ -256,6 +256,9 @@ bool MSFont::Init(char const * file_name, char const * palette_name)
 }
 
 
+/// <summary>
+/// Recolors the glyphs to the given color, keeping each palette entry's brightness.
+/// </summary>
 void MSFont::Set_Color(RGBClass const & color)
 {
 	if (Drawer == NULL) {
