@@ -2345,7 +2345,7 @@ void DisplayClass::Mouse_Left_Release(Coord const & coord, Cell const & cell, Ob
 	} else {
 
 		if (IsRubberBand) {
-			Point2D size = TacticalMap->RubberBandEnd - TacticalMap->RubberBandStart;
+			Point2D size = TacticalMap->RubberBandEnd - TacticalMap->Rubber_Band_Anchor();
 			unsigned int held = Get_Game_Time() - _BandPressTime;
 			if (Band_Is_Click(size, TacticalRect.Height, held)) {
 				TacticalMap->End_Rubber_Band();

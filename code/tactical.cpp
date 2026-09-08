@@ -118,6 +118,7 @@ Tactical::Tactical(void) :
 	VisibleCellRect(RECT_NONE),
 	RubberBandStart(0,0),
 	RubberBandEnd(0,0),
+	RubberBandView(0,0),
 	WaypointAnimCounter(0),
 	WaypointAnimTimer()
 {
@@ -3001,7 +3002,19 @@ void Tactical::Start_Rubber_Band(Point2D const & point)
 	if (RubberBandStart == Point2D(0, 0)) {
 		RubberBandStart = point;
 		RubberBandEnd = point;
+		RubberBandView = Get_Tactical_Position();
 	}
+}
+
+
+/// <summary>
+/// The band's fixed corner as it lies in the view now: the point it began at, moved by
+/// however far the view has scrolled since, so the corner stays on the map rather than on
+/// the screen.
+/// </summary>
+Point2D Tactical::Rubber_Band_Anchor(void)
+{
+	return(RubberBandStart + RubberBandView - Get_Tactical_Position());
 }
 
 
@@ -3028,7 +3041,7 @@ void Tactical::Select_Rubber_Band(void (*select_callback)(ObjectClass * object))
 {
 	if (RubberBandStart != Point2D(0, 0)) {
 
-		Point2D start = RubberBandStart;
+		Point2D start = Rubber_Band_Anchor();
 		Point2D end = RubberBandEnd;
 
 		/*
@@ -3069,7 +3082,7 @@ void Tactical::Draw_Rubber_Band(void)
 {
 	if (RubberBandStart != Point2D(0, 0)) {
 
-		Point2D start = RubberBandStart;
+		Point2D start = Rubber_Band_Anchor();
 		Point2D end = RubberBandEnd;
 
 		/*
