@@ -73,7 +73,7 @@ int Console_Wrap(int value, int low, int high)
 void Console_Load_Map_Preview(void)
 {
 	delete MultiplayerMapPreview;
-	MultiplayerMapPreview = NULL;
+	MultiplayerMapPreview = nullptr;
 	if (CCFileClass(Session.ScenarioFileName).Is_Available()) {
 		MultiplayerMapPreview = new MapPreviewClass;
 		if (stricmp(Session.Scenarios[Session.Options.ScenarioIndex]->Get_Filename(), RANDOM_MAP_FILE_NAME) == 0) {
@@ -87,9 +87,9 @@ void Console_Load_Map_Preview(void)
 
 void Console_Draw_Map_Preview(Surface & surface, Rect const & panel)
 {
-	if (MultiplayerMapPreview == NULL) return;
+	if (MultiplayerMapPreview == nullptr) return;
 	XSurface * preview = MultiplayerMapPreview->Get_Preview_Surface();
-	if (preview == NULL) return;
+	if (preview == nullptr) return;
 
 	Rect source = preview->Get_Rect();
 	int width = std::min(source.Width, panel.Width);
@@ -103,7 +103,7 @@ Surface * Console_Side_Icon(bool gdi)
 {
 	char const * name = gdi ? "gdii.pcx" : "nodi.pcx";
 	Surface * icon = SurfaceCache.GetSurface(name);
-	if (icon == NULL && SurfaceCache.CachePCX(name)) {
+	if (icon == nullptr && SurfaceCache.CachePCX(name)) {
 		icon = SurfaceCache.GetSurface(name);
 	}
 	return(icon);
@@ -249,6 +249,6 @@ bool Console_Skirmish_Screen(void)
 	}
 
 	delete MultiplayerMapPreview;
-	MultiplayerMapPreview = NULL;
+	MultiplayerMapPreview = nullptr;
 	return(accepted);
 }

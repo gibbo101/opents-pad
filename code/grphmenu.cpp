@@ -173,17 +173,17 @@ GraphicMenuItem * GraphicMenu::Find_Item(int id) const
 	for (GraphicMenuItem * item : Items) {
 		if (item->Get_ID() == id) return(item);
 	}
-	return(NULL);
+	return(nullptr);
 }
 
 
 /// <summary>
 /// Finds the enabled item with artwork nearest to a rectangle in the given direction, or
-/// the first such item when the rectangle is invalid. NULL when none lies that way.
+/// the first such item when the rectangle is invalid. nullptr when none lies that way.
 /// </summary>
 GraphicMenuItem * GraphicMenu::Nearest_Item(Rect const & from, int dx, int dy) const
 {
-	GraphicMenuItem * best = NULL;
+	GraphicMenuItem * best = nullptr;
 	int best_score = 0;
 	for (GraphicMenuItem * candidate : Items) {
 		Rect rect = candidate->Get_Active_Rect();
@@ -201,7 +201,7 @@ GraphicMenuItem * GraphicMenu::Nearest_Item(Rect const & from, int dx, int dy) c
 			continue;
 		}
 		int score = forward + sideways * STEP_SIDEWAYS_WEIGHT;
-		if (best == NULL || score < best_score) {
+		if (best == nullptr || score < best_score) {
 			best = candidate;
 			best_score = score;
 		}
@@ -245,18 +245,18 @@ int GraphicMenu::Presentation(void)
 	GamepadStateType previous = Gamepad_Read();
 	auto select = [&](GraphicMenuItem * temp, bool silent = false) {
 		if (item != temp) {
-			if (item != NULL) {
+			if (item != nullptr) {
 				item->Set_Selected(false);
 			}
 			item = temp;
-			if (temp != NULL) {
+			if (temp != nullptr) {
 				temp->Set_Selected(true, silent);
 			}
 		}
 	};
 	auto step = [&](int dx, int dy, bool silent = false) {
-		GraphicMenuItem * best = Nearest_Item(item != NULL ? item->Get_Active_Rect() : Rect(), dx, dy);
-		if (best != NULL) {
+		GraphicMenuItem * best = Nearest_Item(item != nullptr ? item->Get_Active_Rect() : Rect(), dx, dy);
+		if (best != nullptr) {
 			select(best, silent);
 		}
 	};
@@ -278,7 +278,7 @@ int GraphicMenu::Presentation(void)
 		// A pad press switched the scheme under this page; it is rebuilt as a console screen.
 		if (padded && !started_padded) {
 			restart = true;
-			item = NULL;
+			item = nullptr;
 			break;
 		}
 		Hide_Mouse();
@@ -299,7 +299,7 @@ int GraphicMenu::Presentation(void)
 				step(-1, 0);
 			} else if (padded && plain == KN_RIGHT) {
 				step(1, 0);
-			} else if (padded && (plain == KN_RETURN || plain == KN_SPACE) && item != NULL) {
+			} else if (padded && (plain == KN_RETURN || plain == KN_SPACE) && item != nullptr) {
 				done = true;
 			} else if (padded && plain == KN_ESC && BackID >= 0) {
 				back();
@@ -321,7 +321,7 @@ int GraphicMenu::Presentation(void)
 			if (pad.Down && !previous.Down) step(0, 1);
 			if (pad.Left && !previous.Left) step(-1, 0);
 			if (pad.Right && !previous.Right) step(1, 0);
-			if (pad.Accept && !previous.Accept && item != NULL) done = true;
+			if (pad.Accept && !previous.Accept && item != nullptr) done = true;
 			if (pad.Back && !previous.Back) back();
 			previous = pad;
 		}

@@ -218,7 +218,7 @@ void Reset_Surfaces(void)
 		}
 		if (TabSurface) {
 			delete TabSurface;
-			TabSurface = NULL;
+			TabSurface = nullptr;
 		}
 		if (CompositeSurface) {
 			delete CompositeSurface;

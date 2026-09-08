@@ -297,7 +297,7 @@ static void Destroy_Layer(BackendLayer & layer)
 	}
 
 	delete [] layer.ConvertBuffer;
-	layer.ConvertBuffer = NULL;
+	layer.ConvertBuffer = nullptr;
 	layer.Width = 0;
 	layer.Height = 0;
 }
@@ -345,7 +345,7 @@ static bool Set_Layer_Size(BackendLayer & layer, int width, int height)
 /// </summary>
 static void Present_Layer(BackendLayer & layer, BackendQuad const & quad, BackendScaleMode mode)
 {
-	if (!bgfx::isValid(layer.Texture) || quad.Pixels == NULL) {
+	if (!bgfx::isValid(layer.Texture) || quad.Pixels == nullptr) {
 		return;
 	}
 
@@ -354,7 +354,7 @@ static void Present_Layer(BackendLayer & layer, BackendQuad const & quad, Backen
 		// are copied: the last row ends at the layer's width rather than at the pitch.
 		uint32_t size = (uint32_t)((layer.Height - 1) * quad.Pitch + layer.Width * 2);
 		bgfx::updateTexture2D(layer.Texture, 0, 0, 0, 0, (uint16_t)layer.Width, (uint16_t)layer.Height, bgfx::copy(quad.Pixels, size), (uint16_t)quad.Pitch);
-	} else if (layer.ConvertBuffer != NULL) {
+	} else if (layer.ConvertBuffer != nullptr) {
 		for (int y = 0; y < layer.Height; y++) {
 			unsigned short const * source = (unsigned short const *)((char const *)quad.Pixels + y * quad.Pitch);
 			unsigned int * dest = layer.ConvertBuffer + y * layer.Width;
@@ -592,14 +592,14 @@ void Backend_On_Resize(int drawablewidth, int drawableheight)
 /// Uploads the frame, and the sidebar and bar when given, and puts them on the screen.
 /// </summary>
 /// <param name="frame">The frame's pixels and where it lands in the window.</param>
-/// <param name="sidebar">The sidebar's pixels and place, or NULL while it is part of the
+/// <param name="sidebar">The sidebar's pixels and place, or nullptr while it is part of the
 /// frame.</param>
-/// <param name="bar">The top bar's pixels and place, or NULL while it is part of the
+/// <param name="bar">The top bar's pixels and place, or nullptr while it is part of the
 /// frame.</param>
 /// <param name="mode">How the pictures are filtered when drawn larger than they are.</param>
 void Backend_Present(BackendQuad const & frame, BackendQuad const * sidebar, BackendQuad const * bar, BackendScaleMode mode)
 {
-	if (!_Initialized || frame.Pixels == NULL || !bgfx::isValid(_Frame.Texture)) {
+	if (!_Initialized || frame.Pixels == nullptr || !bgfx::isValid(_Frame.Texture)) {
 		return;
 	}
 
@@ -616,10 +616,10 @@ void Backend_Present(BackendQuad const & frame, BackendQuad const * sidebar, Bac
 
 	// The sidebar goes last so that, sliding over the frame and the bar, it covers them.
 	Present_Layer(_Frame, frame, mode);
-	if (bar != NULL) {
+	if (bar != nullptr) {
 		Present_Layer(_Bar, *bar, mode);
 	}
-	if (sidebar != NULL) {
+	if (sidebar != nullptr) {
 		Present_Layer(_Sidebar, *sidebar, mode);
 	}
 

@@ -87,7 +87,7 @@ struct ConsoleRowType
 	std::function<std::string()> Value;
 	std::function<void(int)> Step;
 	std::function<void()> Activate;
-	std::function<Surface *()> Icon;			// A small image to show after the value, or NULL.
+	std::function<Surface *()> Icon;			// A small image to show after the value, or nullptr.
 	// Colors to show after the value as hicolor pixels; the Selected one is drawn larger.
 	std::function<std::vector<int>()> Swatches;
 	std::function<int()> Selected;
@@ -97,7 +97,7 @@ struct ConsoleRowType
 	std::string Prompt;
 };
 
-// Keeps the pointer, so the name must outlive the setting; NULL clears it.
+// Keeps the pointer, so the name must outlive the setting; nullptr clears it.
 void Console_Set_Backdrop_File(char const * name);
 
 // The title-screen file console screens draw on right now.

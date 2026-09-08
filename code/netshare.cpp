@@ -1350,8 +1350,8 @@ void Update_Network_Dialog_Preview(HWND win)
 	MultiplayerMapPreview = new MapPreviewClass;
 	if (MultiplayerMapPreview != NULL) {
 		MultiplayerMapPreview->Read_INI_Preview(Session.ScenarioFileName);
-		if (win != NULL) {
-			InvalidateRect(win, NULL, FALSE);
+		if (win != nullptr) {
+			InvalidateRect(win, nullptr, FALSE);
 		}
 	}
 }

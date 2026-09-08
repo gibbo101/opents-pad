@@ -29,6 +29,6 @@ int Console_Wrap(int value, int low, int high);
 void Console_Load_Map_Preview(void);
 void Console_Draw_Map_Preview(Surface & surface, Rect const & panel);
 
-// The lobby's small faction icons, magenta keyed, or NULL when the art is missing.
+// The lobby's small faction icons, magenta keyed, or nullptr when the art is missing.
 Surface * Console_Side_Icon(bool gdi);
 std::vector<int> Console_Player_Swatches(void);

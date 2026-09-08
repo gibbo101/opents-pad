@@ -23,5 +23,5 @@ void Win_Cursor_Set(ShapeSet const * shape, int frame, int hotx, int hoty, bool 
 void Win_Cursor_Set_Visible(bool visible);
 bool Win_Cursor_Handle_Set_Cursor(void);
 void Win_Cursor_Refresh(void);
-HCURSOR Win_Cursor_Current(void);		// The current cursor, or NULL while hidden.
+HCURSOR Win_Cursor_Current(void);		// The current cursor, or nullptr while hidden.
 void Win_Cursor_Shutdown(void);

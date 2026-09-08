@@ -83,7 +83,7 @@ class MSDimAnim : public MSAnim
 	public:
 		MSDimAnim(Surface const & lit, Rect const & area);
 		virtual bool Advance(Surface * surface, Rect & rect) override;
-		virtual void Redraw(Surface * surface, Rect const * rect = NULL) override;
+		virtual void Redraw(Surface * surface, Rect const * rect = nullptr) override;
 		virtual Rect Get_Rect(void) const override { return(Area); }
 
 	private:
@@ -164,7 +164,7 @@ void MSDimAnim::Darken(Surface * surface, Rect const & rect)
 	Rect draw = Intersect(rect, Area);
 	if (!draw.Is_Valid() || Mask.empty() || surface->Bytes_Per_Pixel() != sizeof(unsigned short)) return;
 	char * buffer = (char *)surface->Lock(draw.TopLeft);
-	if (buffer == NULL) return;
+	if (buffer == nullptr) return;
 	for (int y = 0; y < draw.Height; y++) {
 		unsigned short * row = (unsigned short *)(buffer + y * surface->Stride());
 		for (int x = 0; x < draw.Width; x++) {
@@ -199,7 +199,7 @@ bool MSDimAnim::Advance(Surface * surface, Rect & rect)
 void MSDimAnim::Redraw(Surface * surface, Rect const * rect)
 {
 	if (Active && !Mask.empty()) {
-		Darken(surface, rect != NULL ? *rect : Area);
+		Darken(surface, rect != nullptr ? *rect : Area);
 	}
 }
 
@@ -224,7 +224,7 @@ GraphicMenuImageItem::GraphicMenuImageItem(int id, MSEngine & engine, Point2D co
 	GraphicMenuItem(id),
 	Engine(&engine),
 	ActiveRect(rect),
-	Dimmer(NULL)
+	Dimmer(nullptr)
 {
 	Image = NULL;
 	HighlightImage = NULL;
@@ -264,7 +264,7 @@ GraphicMenuImageItem::GraphicMenuImageItem(int id, MSEngine & engine, Point2D co
 		}
 	}
 	MSPCXAnim * lit = dynamic_cast<MSPCXAnim *>(HighlightImage);
-	if (Options.ControlScheme == CONTROL_CONTROLLER && lit != NULL && lit->Image != NULL
+	if (Options.ControlScheme == CONTROL_CONTROLLER && lit != nullptr && lit->Image != nullptr
 		&& std::min(lit->Get_Rect().Width, lit->Get_Rect().Height) >= DIM_MIN_SIZE) {
 		Dimmer = new MSDimAnim(*lit->Image, lit->Get_Rect());
 		engine.Add_Animation(Dimmer);
@@ -275,7 +275,7 @@ GraphicMenuImageItem::GraphicMenuImageItem(int id, MSEngine & engine, Point2D co
 
 void GraphicMenuImageItem::Refresh_Dimmer(void)
 {
-	if (Dimmer != NULL) {
+	if (Dimmer != nullptr) {
 		Dimmer->Set_Active(Enabled && !Selected);
 	}
 }
@@ -284,7 +284,7 @@ void GraphicMenuImageItem::Refresh_Dimmer(void)
 // The dimmer covers the whole image, which can reach past the active area.
 Rect GraphicMenuImageItem::Refresh_Rect(void) const
 {
-	if (Dimmer != NULL) {
+	if (Dimmer != nullptr) {
 		return(Union(ActiveRect, Dimmer->Get_Rect()));
 	}
 	return(ActiveRect);
@@ -332,7 +332,7 @@ void GraphicMenuImageItem::On_Selected_Change(bool selected, bool silent)
 	Refresh_Dimmer();
 	Engine->Restore_Anims(Refresh_Rect());
 	Engine->Restore_And_Advance();
-	if (selected && !silent && HighlightSound != NULL) {
+	if (selected && !silent && HighlightSound != nullptr) {
 		HighlightSound->Play();
 	}
 }

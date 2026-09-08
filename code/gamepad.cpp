@@ -73,7 +73,7 @@ constexpr LPARAM KEY_RELEASE_LPARAM = 0xC0000000;
 // XInput is loaded at first use so a machine without it still runs the game.
 static XInputGetStateType Get_State_Function(void)
 {
-	static XInputGetStateType _function = NULL;
+	static XInputGetStateType _function = nullptr;
 	static bool _tried = false;
 
 	if (!_tried) {
@@ -81,9 +81,9 @@ static XInputGetStateType Get_State_Function(void)
 		static char const * const _names[] = {"xinput1_4.dll", "xinput1_3.dll", "xinput9_1_0.dll"};
 		for (char const * name : _names) {
 			HMODULE module = LoadLibraryA(name);
-			if (module != NULL) {
+			if (module != nullptr) {
 				_function = (XInputGetStateType)GetProcAddress(module, "XInputGetState");
-				if (_function != NULL) {
+				if (_function != nullptr) {
 					break;
 				}
 				FreeLibrary(module);
@@ -102,23 +102,23 @@ enum { VENDOR_SONY = 0x054C, VENDOR_MICROSOFT = 0x045E };
 static bool Kind_From_Linux_Devices(GamepadKindType & kind, bool & listed, bool log)
 {
 	FILE * file = fopen("Z:\\proc\\bus\\input\\devices", "r");
-	if (file == NULL) return(false);
+	if (file == nullptr) return(false);
 	kind = GAMEPAD_KIND_UNKNOWN;
 	listed = false;
 	char line[512];
 	unsigned vendor = 0;
 	unsigned product = 0;
-	while (fgets(line, sizeof(line), file) != NULL) {
+	while (fgets(line, sizeof(line), file) != nullptr) {
 		if (line[0] == 'I') {
 			vendor = product = 0;
 			char const * v = strstr(line, "Vendor=");
 			char const * p = strstr(line, "Product=");
-			if (v != NULL) vendor = strtoul(v + 7, NULL, 16);
-			if (p != NULL) product = strtoul(p + 8, NULL, 16);
+			if (v != nullptr) vendor = strtoul(v + 7, nullptr, 16);
+			if (p != nullptr) product = strtoul(p + 8, nullptr, 16);
 		} else if (line[0] == 'N') {
 			// Only game controllers count, not the pad's touchpad or motion sensors.
-			bool pad = strstr(line, "Controller") != NULL || strstr(line, "pad") != NULL || strstr(line, "Joystick") != NULL;
-			bool extra = strstr(line, "Touchpad") != NULL || strstr(line, "Motion") != NULL;
+			bool pad = strstr(line, "Controller") != nullptr || strstr(line, "pad") != nullptr || strstr(line, "Joystick") != nullptr;
+			bool extra = strstr(line, "Touchpad") != nullptr || strstr(line, "Motion") != nullptr;
 			if (!pad || extra) continue;
 			listed = true;
 			if (log) {
@@ -176,7 +176,7 @@ GamepadKindType Gamepad_Kind(void)
 	}
 
 	UINT count = 0;
-	if (GetRawInputDeviceList(NULL, &count, sizeof(RAWINPUTDEVICELIST)) != 0 || count == 0) {
+	if (GetRawInputDeviceList(nullptr, &count, sizeof(RAWINPUTDEVICELIST)) != 0 || count == 0) {
 		return(_kind);
 	}
 	std::vector<RAWINPUTDEVICELIST> list(count);
@@ -219,7 +219,7 @@ GamepadStateType Gamepad_Read(void)
 	GamepadStateType result = {};
 
 	XInputGetStateType get_state = Get_State_Function();
-	if (get_state == NULL) {
+	if (get_state == nullptr) {
 		return(result);
 	}
 
@@ -318,7 +318,7 @@ static void Send_Key(WORD vk, bool down)
 // Tells the player what a held cross just selected, in the message list at the top left.
 static void Announce(char const * text)
 {
-	Session.Messages.Add_Message(NULL, 0, text, PlayerPtr->Scheme, TextPrintType(TPF_6PT_GRAD|TPF_USE_GRAD_PAL|TPF_FULLSHADOW), int(Rule->MessageDelay * TICKS_PER_MINUTE));
+	Session.Messages.Add_Message(nullptr, 0, text, PlayerPtr->Scheme, TextPrintType(TPF_6PT_GRAD|TPF_USE_GRAD_PAL|TPF_FULLSHADOW), int(Rule->MessageDelay * TICKS_PER_MINUTE));
 	Map.Flag_To_Redraw();
 }
 
@@ -361,7 +361,7 @@ static void Remember_Explored(void)
 {
 	_ExploredBeforeReveal.assign(Map.Array.Length(), 0);
 	Map.Reset_Iterator();
-	for (CellClass * cell = Map.Iterate(); cell != NULL; cell = Map.Iterate()) {
+	for (CellClass * cell = Map.Iterate(); cell != nullptr; cell = Map.Iterate()) {
 		_ExploredBeforeReveal[Cell_Index(cell->CellID)] = EXPLORED_HELD
 			| (cell->IsMapped ? EXPLORED_MAPPED : 0) | (cell->IsVisible ? EXPLORED_VISIBLE : 0)
 			| (cell->IsFogMapped ? EXPLORED_FOG_MAPPED : 0) | (cell->IsFogVisible ? EXPLORED_FOG_VISIBLE : 0);
@@ -377,7 +377,7 @@ static void Restore_Explored(void)
 	bool matched = _ExploredBeforeReveal.size() == std::size_t(Map.Array.Length()) && RevealSighted.size() == _ExploredBeforeReveal.size();
 	if (matched) {
 		Map.Reset_Iterator();
-		for (CellClass * cell = Map.Iterate(); cell != NULL; cell = Map.Iterate()) {
+		for (CellClass * cell = Map.Iterate(); cell != nullptr; cell = Map.Iterate()) {
 			unsigned char flags = _ExploredBeforeReveal[Cell_Index(cell->CellID)];
 			if (!(flags & EXPLORED_HELD)) continue;
 			cell->IsMapped = (flags & EXPLORED_MAPPED) != 0;
@@ -386,7 +386,7 @@ static void Restore_Explored(void)
 			cell->IsFogVisible = (flags & EXPLORED_FOG_VISIBLE) != 0;
 		}
 		Map.Reset_Iterator();
-		for (CellClass * cell = Map.Iterate(); cell != NULL; cell = Map.Iterate()) {
+		for (CellClass * cell = Map.Iterate(); cell != nullptr; cell = Map.Iterate()) {
 			if (RevealSighted[Cell_Index(cell->CellID)]) {
 				Map.Map_Cell(cell->CellID, PlayerPtr);
 			}
@@ -473,9 +473,9 @@ static bool Is_Combat(ObjectClass const * object)
 {
 	if (object->RTTI != RTTI_UNIT && object->RTTI != RTTI_INFANTRY) return(false);
 	TechnoTypeClass const * type = ((TechnoClass const *)object)->Techno_Type_Class();
-	if (type == NULL) return(false);
-	if (type->Weapons[0].Weapon != NULL) return(true);
-	return(type->DeploysInto != NULL && type->DeploysInto->Weapons[0].Weapon != NULL);
+	if (type == nullptr) return(false);
+	if (type->Weapons[0].Weapon != nullptr) return(true);
+	return(type->DeploysInto != nullptr && type->DeploysInto->Weapons[0].Weapon != nullptr);
 }
 
 
@@ -497,7 +497,7 @@ static void Select_Combat_On_Map(void)
 {
 	auto take = [](ObjectClass * object) {
 		HouseClass * house = object->Owner_HouseClass();
-		if (house == NULL || !house->Is_Player_Control() || object->IsInLimbo) return;
+		if (house == nullptr || !house->Is_Player_Control() || object->IsInLimbo) return;
 		if (!object->Class_Of()->IsSelectable || !Is_Combat(object)) return;
 		if (!object->IsSelected) object->Select();
 	};
@@ -568,12 +568,12 @@ static void CALLBACK Pointer_Motion_Tick(UINT, UINT, DWORD_PTR, DWORD_PTR, DWORD
 	// Without the shared input state this thread carries the game's cursor itself,
 	// never the hidden one the game shows for a moment around each draw.
 	if (_MotionAttachFailed) {
-		static HCURSOR _carried = NULL;
+		static HCURSOR _carried = nullptr;
 		HCURSOR current = Win_Cursor_Current();
-		if (current != NULL) {
+		if (current != nullptr) {
 			_carried = current;
 		}
-		if (_carried != NULL) {
+		if (_carried != nullptr) {
 			SetCursor(_carried);
 		}
 	}
@@ -675,7 +675,7 @@ static void Snap_Pointer_To_Object(void)
 {
 	enum { SNAP_CELLS = 2 };			// Cells searched each way from the pointer's.
 	int snap_radius = Options.PadSnap * OptionsClass::PAD_SNAP_STEP;		// Map pixels.
-	if (snap_radius <= 0 || Map.PadFocus || TacticalMap == NULL || TacticalRect.Width <= 0) {
+	if (snap_radius <= 0 || Map.PadFocus || TacticalMap == nullptr || TacticalRect.Width <= 0) {
 		return;
 	}
 	POINT at;
@@ -687,14 +687,14 @@ static void Snap_Pointer_To_Object(void)
 	}
 	Cell cell;
 	Coord coord;
-	ObjectClass * under = NULL;
+	ObjectClass * under = nullptr;
 	bool fog = false;
 	bool shadow = false;
 	Map.Resolve_Point(local, cell, coord, under, fog, shadow);
-	if (under != NULL) {
+	if (under != nullptr) {
 		return;
 	}
-	ObjectClass * best = NULL;
+	ObjectClass * best = nullptr;
 	Point2D best_pixel;
 	int best_distance = snap_radius * snap_radius + 1;
 	for (int dy = -SNAP_CELLS; dy <= SNAP_CELLS; dy++) {
@@ -704,7 +704,7 @@ static void Snap_Pointer_To_Object(void)
 			// Only what the player can see is a target.
 			if (Map[around].Is_Shrouded()) continue;
 			if (Scen->Special.IsFogOfWar && Map[around].Is_Fogged()) continue;
-			for (ObjectClass * object = Map[around].Cell_Occupier(); object != NULL; object = object->Next) {
+			for (ObjectClass * object = Map[around].Cell_Occupier(); object != nullptr; object = object->Next) {
 				int kind = object->What_Am_I();
 				if (kind != RTTI_UNIT && kind != RTTI_INFANTRY && kind != RTTI_AIRCRAFT && kind != RTTI_BUILDING) continue;
 				// The four kinds are all technos, so the cast holds.
@@ -723,7 +723,7 @@ static void Snap_Pointer_To_Object(void)
 			}
 		}
 	}
-	if (best == NULL || best_pixel == local) {
+	if (best == nullptr || best_pixel == local) {
 		return;
 	}
 	POINT target = {TacticalRect.X + best_pixel.X, TacticalRect.Y + best_pixel.Y};
@@ -942,7 +942,7 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 			_cross_sent = true;
 		} else if (_cross_stage == CROSS_UNDECIDED && now - _cross_since >= HOLD_MS) {
 			ObjectClass * over = Map.HoverObject;
-			bool own = over != NULL && over->Owner_HouseClass() != NULL && over->Owner_HouseClass()->Is_Player_Control();
+			bool own = over != nullptr && over->Owner_HouseClass() != nullptr && over->Owner_HouseClass()->Is_Player_Control();
 			if (own) {
 				Send_Mouse(MOUSEEVENTF_LEFTDOWN);
 				Send_Mouse(MOUSEEVENTF_LEFTUP);
@@ -1085,8 +1085,8 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 	// R2 scatters, or with R1 guards; in waypoint mode, where neither has a job, it takes back
 	// the last waypoint placed while the path has one.
 	if (Pressed(pad.RightTrigger, previous.RightTrigger)) {
-		WaypointPathClass * path = (Map.IsWaypointMode && PlayerPtr->SelectedPath != PATH_NONE) ? PlayerPtr->Paths[PlayerPtr->SelectedPath] : NULL;
-		if (path != NULL && path->Waypoint_Count() > 0) {
+		WaypointPathClass * path = (Map.IsWaypointMode && PlayerPtr->SelectedPath != PATH_NONE) ? PlayerPtr->Paths[PlayerPtr->SelectedPath] : nullptr;
+		if (path != nullptr && path->Waypoint_Count() > 0) {
 			Execute_Command("DeleteWaypoint");
 		} else {
 			Execute_Command(pad.RightShoulder ? "GuardObject" : "ScatterObject");
@@ -1229,7 +1229,7 @@ void Note_Keyboard_Mouse_Reset(void)
 
 /// <summary>
 /// Samples the controller for the message pump: the menu button presses Escape into the
-/// keyboard buffer, the topmost open dialog (NULL when none) gets the d-pad, accept, and
+/// keyboard buffer, the topmost open dialog (nullptr when none) gets the d-pad, accept, and
 /// back as key messages, and play input is kept for Gamepad_Frame_Tick.
 /// </summary>
 void Gamepad_Pump(void * dialog)
@@ -1247,7 +1247,7 @@ void Gamepad_Pump(void * dialog)
 
 	static unsigned long _chord_since = 0;
 
-	if (Keyboard == NULL) {
+	if (Keyboard == nullptr) {
 		return;
 	}
 	unsigned long now = timeGetTime();
@@ -1269,7 +1269,7 @@ void Gamepad_Pump(void * dialog)
 			Options.ControlScheme = CONTROL_CONTROLLER;
 			Options.ControlSchemeAuto = false;
 			Options.Save_Settings();
-			if (dialog != NULL) {
+			if (dialog != nullptr) {
 				PostMessage((HWND)dialog, WM_KEYDOWN, VK_ESCAPE, 0);
 				PostMessage((HWND)dialog, WM_KEYUP, VK_ESCAPE, KEY_RELEASE_LPARAM);
 			}
@@ -1306,7 +1306,7 @@ void Gamepad_Pump(void * dialog)
 		Keyboard->Put(KN_ESC | WWKEY_RLS_BIT);
 	}
 
-	if (dialog == NULL && Play_Allowed()) {
+	if (dialog == nullptr && Play_Allowed()) {
 		if (_PlaySamples.size() >= PLAY_SAMPLE_CAP) {
 			_PlaySamples.erase(_PlaySamples.begin());
 		}
@@ -1318,10 +1318,10 @@ void Gamepad_Pump(void * dialog)
 	Pointer_Motion_Stop();
 
 	HWND window = (HWND)dialog;
-	if (window != NULL) {
+	if (window != nullptr) {
 		auto press = [&](int vk) {
 			HWND target = GetFocus();
-			if (target == NULL || !IsChild(window, target)) {
+			if (target == nullptr || !IsChild(window, target)) {
 				target = window;
 			}
 			PostMessage(target, WM_KEYDOWN, vk, 0);

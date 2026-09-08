@@ -295,7 +295,7 @@ void Win_Cursor_Refresh(void)
 
 HCURSOR Win_Cursor_Current(void)
 {
-	return(_CursorVisible ? _CurrentCursor : NULL);
+	return(_CursorVisible ? _CurrentCursor : nullptr);
 }
 
 

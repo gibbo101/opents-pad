@@ -186,7 +186,7 @@ char const * const _FaceNames[4] = {"Y", "B", "X", "A"};
 struct PadCalloutType
 {
 	PadPartType Part;
-	char const * Name[4];		// By prompt style: text, Xbox, PlayStation, Deck; NULL draws the face glyph.
+	char const * Name[4];		// By prompt style: text, Xbox, PlayStation, Deck; nullptr draws the face glyph.
 	char const * Line1;
 	char const * Line2;
 };
@@ -199,10 +199,10 @@ struct PadPageType
 };
 
 PadCalloutType const _FacePage[] = {
-	{PAD_PART_FOURTH, {NULL, NULL, NULL, NULL}, "Sidebar in and out", "With R1: keep it in"},
-	{PAD_PART_BACK, {NULL, NULL, NULL, NULL}, "Cancel, deselect", "Sidebar: hold, cancel, back"},
-	{PAD_PART_ACCEPT, {NULL, NULL, NULL, NULL}, "Select, order, place", "Hold still: all of a type"},
-	{PAD_PART_THIRD, {NULL, NULL, NULL, NULL}, "Cycle repair, sell,", "power and waypoint"},
+	{PAD_PART_FOURTH, {nullptr, nullptr, nullptr, nullptr}, "Sidebar in and out", "With R1: keep it in"},
+	{PAD_PART_BACK, {nullptr, nullptr, nullptr, nullptr}, "Cancel, deselect", "Sidebar: hold, cancel, back"},
+	{PAD_PART_ACCEPT, {nullptr, nullptr, nullptr, nullptr}, "Select, order, place", "Hold still: all of a type"},
+	{PAD_PART_THIRD, {nullptr, nullptr, nullptr, nullptr}, "Cycle repair, sell,", "power and waypoint"},
 };
 PadCalloutType const _ShoulderPage[] = {
 	{PAD_PART_L2, {"LT", "LT", "L2", "L2"}, "Shape: make team 1 to 4", "With R1: force move"},
@@ -347,7 +347,7 @@ void Console_Controls_Screen(void)
 			canvas.Frame.Draw_Line(Point2D(column_edge, from.Y), Point2D(column_edge, line_y), yellow);
 			canvas.Frame.Draw_Line(Point2D(column_edge, line_y), Point2D(column_edge + (right ? 4 : -4), line_y), yellow);
 
-			if (callout.Name[name_index] != NULL) {
+			if (callout.Name[name_index] != nullptr) {
 				canvas.PrintColor(callout.Name[name_index], column_x, label_y, gold);
 			} else {
 				if (Draw_Pad_Glyph(canvas.Frame, _FaceButtons[callout.Part - PAD_PART_FOURTH], column_x, label_y - 1, glyph) == 0) {

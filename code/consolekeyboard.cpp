@@ -282,7 +282,7 @@ bool Console_Keyboard(char const * title, std::string & text, int max_length)
 			};
 			auto width = [&](std::string const & what) { return(font.Get_String_Width(what.c_str())); };
 
-			std::string heading = title != NULL ? title : "";
+			std::string heading = title != nullptr ? title : "";
 			print(heading, left + (MENU_WIDTH - width(heading)) / 2, top + TITLE_Y, false);
 
 			Rect field(left + FIELD_X, top + FIELD_Y, FIELD_WIDTH, FIELD_HEIGHT);

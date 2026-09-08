@@ -64,7 +64,7 @@ enum {
 static Surface * Cached_Icon(char const * name)
 {
 	Surface * icon = SurfaceCache.GetSurface(name);
-	if (icon == NULL && SurfaceCache.CachePCX(name)) {
+	if (icon == nullptr && SurfaceCache.CachePCX(name)) {
 		icon = SurfaceCache.GetSurface(name);
 	}
 	return(icon);
@@ -135,14 +135,14 @@ static void Draw_Players(ConsoleCanvas & canvas)
 		canvas.PrintColor(name, left, y, RGBClass(GetRValue(rgb), GetGValue(rgb), GetBValue(rgb)));
 		int x = left + PLAYERS_NAME_WIDTH + PLAYERS_GAP;
 		Surface * side = Console_Side_Icon(player.Player.House == HOUSE_GOOD);
-		if (side != NULL) {
+		if (side != nullptr) {
 			Rect source = side->Get_Rect();
 			Console_Draw_Icon(canvas.Frame, *side, x, y + (canvas.LineHeight - source.Height) / 2);
 			x += source.Width + PLAYERS_GAP;
 		}
 		bool is_host = strcmp(player.Name, Session.GameName) == 0;
-		Surface * mark = is_host ? Cached_Icon("wolhost.pcx") : player.Player.Status != 0 ? Cached_Icon("wolacpt.pcx") : NULL;
-		if (mark != NULL) {
+		Surface * mark = is_host ? Cached_Icon("wolhost.pcx") : player.Player.Status != 0 ? Cached_Icon("wolacpt.pcx") : nullptr;
+		if (mark != nullptr) {
 			Console_Draw_Icon(canvas.Frame, *mark, x, y + (canvas.LineHeight - mark->Get_Rect().Height) / 2);
 		}
 	}
@@ -166,7 +166,7 @@ static std::string Lobby_Signature(void)
 		+ ',' + std::to_string(Session.Options.Bases) + ',' + std::to_string(Session.Options.Goodies) + ',' + std::to_string(Session.Options.FogOfWar)
 		+ ',' + std::to_string(Session.Options.BridgeDestruction) + ',' + std::to_string(Session.Options.MCVRedeploy) + ',' + std::to_string(Session.Options.ShortGame)
 		+ ',' + std::to_string(Session.Options.CrapEngineers) + ',' + std::to_string(Session.Options.AlliesAllowed) + ',' + std::to_string(Session.Options.HarvTruce);
-	text += ';' + std::to_string(MultiplayerMapPreview != NULL);
+	text += ';' + std::to_string(MultiplayerMapPreview != nullptr);
 	text += ';' + std::to_string(Net2ConsoleMessages.size()) + Latest_Message();
 	return(text);
 }
@@ -317,7 +317,7 @@ static void Sign_Off_Everywhere(void)
 			Ipx.Send_Global_Message(&packet, sizeof(packet), 1, &Session.Chat[index]->Address);
 			Call_Back();
 		}
-		Ipx.Send_Global_Message(&packet, sizeof(packet), 0, NULL);
+		Ipx.Send_Global_Message(&packet, sizeof(packet), 0, nullptr);
 	}
 	CDTimerClass<SystemTimerClass> timeout = SIGN_OFF_TIMEOUT;
 	while (Ipx.Global_Num_Send() > 0 && timeout != 0) {
@@ -535,7 +535,7 @@ static bool Console_Host_Screen(std::string & notice)
 
 	if (!started) {
 		delete MultiplayerMapPreview;
-		MultiplayerMapPreview = NULL;
+		MultiplayerMapPreview = nullptr;
 		Unjoin_Game(CurGame);
 		JoinState = JOIN_NOTHING;
 		Net2GameStarted = false;
@@ -560,7 +560,7 @@ static bool Console_Guest_Screen(std::string & notice)
 	_netresponse = 0;
 	Net2GameStarted = false;
 	delete MultiplayerMapPreview;
-	MultiplayerMapPreview = NULL;
+	MultiplayerMapPreview = nullptr;
 
 	std::vector<int> sides = Multiplay_Sides();
 	int wanted_side = -1;

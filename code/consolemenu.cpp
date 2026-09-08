@@ -72,11 +72,11 @@ RGBClass const CONSOLE_FOCUS_COLOR(48, 224, 248);
 RGBClass const CONSOLE_IDLE_COLOR(96, 208, 248);
 
 
-static char const * _BackdropFile = NULL;
+static char const * _BackdropFile = nullptr;
 
 /// <summary>
 /// Makes every console menu draw on the named title-screen file instead of the shell
-/// page's backdrop until cleared with NULL, for screens opened from within a mission.
+/// page's backdrop until cleared with nullptr, for screens opened from within a mission.
 /// The pointer is kept, not a copy of the name.
 /// </summary>
 void Console_Set_Backdrop_File(char const * name)
@@ -87,7 +87,7 @@ void Console_Set_Backdrop_File(char const * name)
 
 char const * Console_Backdrop_File(void)
 {
-	return(_BackdropFile != NULL ? _BackdropFile : Get_New_Menu()->Background);
+	return(_BackdropFile != nullptr ? _BackdropFile : Get_New_Menu()->Background);
 }
 
 
@@ -177,12 +177,12 @@ ConsoleNavType ConsoleRepeatClass::Due(GamepadStateType const & pad)
 
 
 ConsoleMenuClass::ConsoleMenuClass(char const * title) :
-	Title(title != NULL ? title : ""),
+	Title(title != nullptr ? title : ""),
 	AcceptPrompt("Accept"),
 	BackPrompt("Back"),
 	PanelOpacity(PANEL_OPACITY),
-	IdleFont(NULL),
-	FocusOverride(NULL),
+	IdleFont(nullptr),
+	FocusOverride(nullptr),
 	PreviousPad(),
 	Focus(0),
 	First(0),
@@ -228,8 +228,8 @@ int ConsoleMenuClass::Add_Row(ConsoleRowType const & row)
 
 void ConsoleMenuClass::Set_Prompts(char const * accept, char const * back)
 {
-	AcceptPrompt = accept != NULL ? accept : "";
-	BackPrompt = back != NULL ? back : "";
+	AcceptPrompt = accept != nullptr ? accept : "";
+	BackPrompt = back != nullptr ? back : "";
 	IsDirty = true;
 }
 
@@ -375,7 +375,7 @@ bool ConsoleMenuClass::Poll_Input(ConsoleMenuResult & result)
 			area.Y += box_origin.Y;
 			if (area.Is_Point_Within(point)) return(&hit);
 		}
-		return(NULL);
+		return(nullptr);
 	};
 	auto row_at = [&](Point2D const & point) -> int {
 		for (int index = 0; index < int(RowRects.size()); index++) {
@@ -392,7 +392,7 @@ bool ConsoleMenuClass::Poll_Input(ConsoleMenuResult & result)
 			IsDirty = true;
 		}
 		HitType const * hit = hit_at(mouse);
-		if (hit != NULL && hit->Hover) {
+		if (hit != nullptr && hit->Hover) {
 			hit->Hover();
 			IsDirty = true;
 		}
@@ -410,7 +410,7 @@ bool ConsoleMenuClass::Poll_Input(ConsoleMenuResult & result)
 				return(true);
 			}
 			HitType const * hit = hit_at(mouse);
-			if (hit != NULL && hit->Click) {
+			if (hit != nullptr && hit->Click) {
 				hit->Click();
 				IsDirty = true;
 				continue;
@@ -486,7 +486,7 @@ void ConsoleMenuClass::Draw(void)
 	Ensure_Fonts();
 	int height = Font->Get_Font_Height();
 	auto font_for = [&](bool focused) -> MSFont & {
-		return(*(focused ? (FocusOverride != NULL ? FocusOverride : FocusFont.get()) : (IdleFont != NULL ? IdleFont : Font.get())));
+		return(*(focused ? (FocusOverride != nullptr ? FocusOverride : FocusFont.get()) : (IdleFont != nullptr ? IdleFont : Font.get())));
 	};
 	auto print = [&](std::string const & text, int x, int y, bool focused = false) {
 		font_for(focused).Draw_String(&surface, text.c_str(), x, y, FRAME_NORMAL);
@@ -583,7 +583,7 @@ void ConsoleMenuClass::Draw(void)
 			int x = value_left + (value.empty() ? 0 : width(value) + SWATCH_GAP);
 			if (row.Icon) {
 				Surface * icon = row.Icon();
-				if (icon != NULL) {
+				if (icon != nullptr) {
 					Rect source = icon->Get_Rect();
 					Console_Draw_Icon(surface, *icon, x, y + (height - source.Height) / 2);
 					x += source.Width + SWATCH_GAP;

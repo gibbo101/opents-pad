@@ -3339,11 +3339,11 @@ void Tactical::Select_These(Rect const & rect, void (*select_callback)(ObjectCla
 			// in the player's own objects by where they stand on the map.
 			for (int index = 0; index < Technos.Count(); index++) {
 				TechnoClass * techno = Technos[index];
-				if (techno == NULL || !techno->IsActive || techno->IsInLimbo) {
+				if (techno == nullptr || !techno->IsActive || techno->IsInLimbo) {
 					continue;
 				}
 				HouseClass * owner = techno->Owner_HouseClass();
-				if (owner == NULL || !owner->Is_Player_Control()) {
+				if (owner == nullptr || !owner->Is_Player_Control()) {
 					continue;
 				}
 				consider(techno, Coord_To_Pixel_Absolute(techno->Center_Coord()) - Point2D(TacPixelX, TacPixelY));

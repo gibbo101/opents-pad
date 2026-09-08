@@ -227,7 +227,7 @@ bool Skirmish_Mode_Dialog(void)
 	Draw_Menu_Background();
 	Show_Mouse();
 
-	HWND dialog = NULL;
+	HWND dialog = nullptr;
 	if (Options.ControlScheme == CONTROL_CONTROLLER) {
 		rc = Console_Skirmish_Screen() ? IDOK : IDCANCEL;
 	} else {

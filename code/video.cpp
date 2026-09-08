@@ -498,11 +498,11 @@ void Video_Present(void)
 	frame.DestHeight = _ScaleInfo.DestHeight;
 
 	BackendQuad sidebar;
-	BackendQuad const * sidebarquad = NULL;
+	BackendQuad const * sidebarquad = nullptr;
 	float slide = Video_Sidebar_Slide();
-	if (_ScaleInfo.Is_Split() && SidebarSurface != NULL && slide > 0.0f) {
+	if (_ScaleInfo.Is_Split() && SidebarSurface != nullptr && slide > 0.0f) {
 		DSurface * side = (DSurface *)SidebarSurface;
-		if (side->Get_Buffer() != NULL && side->Get_Width() == _ScaleInfo.SidebarWidth && side->Get_Height() == _ScaleInfo.SidebarHeight) {
+		if (side->Get_Buffer() != nullptr && side->Get_Width() == _ScaleInfo.SidebarWidth && side->Get_Height() == _ScaleInfo.SidebarHeight) {
 			sidebar.Pixels = side->Get_Buffer();
 			sidebar.Pitch = side->Stride();
 			// An overlay on its way in is drawn short of its place by the share still to come.
@@ -516,10 +516,10 @@ void Video_Present(void)
 	}
 
 	BackendQuad bar;
-	BackendQuad const * barquad = NULL;
-	if (_ScaleInfo.Bar_Is_Split() && TabSurface != NULL) {
+	BackendQuad const * barquad = nullptr;
+	if (_ScaleInfo.Bar_Is_Split() && TabSurface != nullptr) {
 		DSurface * top = (DSurface *)TabSurface;
-		if (top->Get_Buffer() != NULL && top->Get_Width() == _ScaleInfo.BarWidth && top->Get_Height() == _ScaleInfo.BarHeight) {
+		if (top->Get_Buffer() != nullptr && top->Get_Width() == _ScaleInfo.BarWidth && top->Get_Height() == _ScaleInfo.BarHeight) {
 			bar.Pixels = top->Get_Buffer();
 			bar.Pitch = top->Stride();
 			bar.DestX = _ScaleInfo.BarDestX;

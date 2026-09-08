@@ -171,7 +171,7 @@ bool LoadOptionsClass::Console_Load(void)
 			char date[32];
 			char clock[32];
 			GetDateFormat(LANG_USER_DEFAULT, 0, &time, "dd MMM", date, sizeof(date));
-			GetTimeFormat(LANG_USER_DEFAULT, TIME_NOSECONDS, &time, NULL, clock, sizeof(clock));
+			GetTimeFormat(LANG_USER_DEFAULT, TIME_NOSECONDS, &time, nullptr, clock, sizeof(clock));
 			snprintf(buffer, sizeof(buffer), "%s %s", date, clock);
 		}
 		stamps.push_back(buffer);
@@ -796,7 +796,7 @@ void LoadOptionsClass::Scan_Files(void)
 void LoadOptionsClass::Fill_List(HWND window)
 {
 	OwnerDraw::CellData thecell;
-	FileEntryClass * fdata = NULL;
+	FileEntryClass * fdata = nullptr;
 	char buffer[128];
 
 	Scan_Files();

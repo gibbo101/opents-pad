@@ -388,7 +388,7 @@ void Net2DisplayGameList(void)
 	if (CurGame < 0) {
 		CurGame = 0;
 	}
-	if (window == NULL) {
+	if (window == nullptr) {
 		return;
 	}
 
@@ -699,9 +699,9 @@ void Net2Start_Hosted_Game(void)
 
 	PumpGameopts(true, true);
 
-	if (MultiplayerMapPreview != NULL) {
+	if (MultiplayerMapPreview != nullptr) {
 		delete MultiplayerMapPreview;
-		MultiplayerMapPreview = NULL;
+		MultiplayerMapPreview = nullptr;
 	}
 
 	PregameSetup();
@@ -2708,7 +2708,7 @@ void Get_Join_Responses(void)
 					item = (char *)Fetch_String(TXT_SERIAL_DUP);
 				}
 				if (Net2IsConsole) {
-					Net2ConsoleNotice = item != NULL ? item : Fetch_String(TXT_REQUEST_DENIED);
+					Net2ConsoleNotice = item != nullptr ? item : Fetch_String(TXT_REQUEST_DENIED);
 				} else if (item) {
 					ODMessageBox(item, 0, Net2Callback, 0);
 				}

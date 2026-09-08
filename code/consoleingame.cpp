@@ -263,7 +263,7 @@ ConsoleIngameResult Console_Ingame_Menu(void)
 		}
 	}
 
-	Console_Set_Backdrop_File(NULL);
+	Console_Set_Backdrop_File(nullptr);
 	Play_Display_Mode();
 
 	Keyboard->Clear();

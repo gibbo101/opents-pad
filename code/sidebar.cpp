@@ -1033,7 +1033,7 @@ void SidebarClass::Draw_It(bool complete)
 		IsToBlitSidebar = true;
 		Waypoint.IsDrawn = false;
 	}
-	if (ToolTips != NULL) {
+	if (ToolTips != nullptr) {
 		ToolTips->Draw_Current(true);
 	}
 	IsToRedraw = false;
@@ -1105,7 +1105,7 @@ static ShapeButtonClass const & Pad_Mode_Button(int mode)
 // other side's in the right.
 static HousesType Pad_Column_House(int column)
 {
-	HousesType own = PlayerPtr != NULL ? PlayerPtr->ActLike : HOUSE_GOOD;
+	HousesType own = PlayerPtr != nullptr ? PlayerPtr->ActLike : HOUSE_GOOD;
 	if (column == 0) return(own);
 	return(own == HOUSE_GOOD ? HOUSE_BAD : HOUSE_GOOD);
 }
@@ -1142,7 +1142,7 @@ int SidebarClass::Pad_Items(int section, PadItemType * items, int max) const
 			StripClass::BuildType const & entry = Column[strip].Buildables[index];
 			if (entry.BuildableType != kind) continue;
 			TechnoTypeClass const * type = Fetch_Techno_Type(entry.BuildableType, entry.BuildableID);
-			if (type == NULL || !Pad_Type_Belongs(type, column)) continue;
+			if (type == nullptr || !Pad_Type_Belongs(type, column)) continue;
 			items[count++] = {strip, index};
 		}
 	}
@@ -1161,7 +1161,7 @@ bool SidebarClass::Pad_Active_Item(int section, PadItemType & item) const
 	PadItemType items[StripClass::MAX_BUILDABLES];
 	int count = Pad_Items(section, items, StripClass::MAX_BUILDABLES);
 	for (int index = 0; index < count; index++) {
-		if (Column[items[index].Column].Buildables[items[index].Index].Factory != NULL) {
+		if (Column[items[index].Column].Buildables[items[index].Index].Factory != nullptr) {
 			item = items[index];
 			return(true);
 		}
@@ -1266,7 +1266,7 @@ void SidebarClass::Pad_Panel_Hide(void)
 
 void SidebarClass::Pad_Panel_Cover(bool covering)
 {
-	if (TacticalMap == NULL) {
+	if (TacticalMap == nullptr) {
 		return;
 	}
 	int covered = 0;
@@ -1398,7 +1398,7 @@ void SidebarClass::Pad_Radar_Jump(void)
 {
 	PadRadarHeld = false;
 	Cell cell(0, 0);
-	ObjectClass * object = NULL;
+	ObjectClass * object = nullptr;
 	Resolve_Radar_Point(PadRadar, cell, object);
 	if (cell != CELL_NONE) {
 		Jump_To_Radar_Cell(cell);
@@ -1462,7 +1462,7 @@ void SidebarClass::Pad_Accept(void)
 			Pad_Remember(PadSection, items[at]);
 		}
 	}
-	if (PendingObject != NULL || IsTargettingMode != SUPER_NONE) {
+	if (PendingObject != nullptr || IsTargettingMode != SUPER_NONE) {
 		// Placing a building or aiming a superweapon happens with the pointer on the map.
 		Pad_Leave();
 		return;
@@ -1509,7 +1509,7 @@ bool SidebarClass::Pad_Back(void)
 	PadItemType items[StripClass::MAX_BUILDABLES];
 	int count = Pad_Items(PadSection, items, StripClass::MAX_BUILDABLES);
 	int at = PadRow * PAD_COLUMNS + PadCol;
-	if (at < count && Column[items[at].Column].Buildables[items[at].Index].Factory != NULL) {
+	if (at < count && Column[items[at].Column].Buildables[items[at].Index].Factory != nullptr) {
 		Column[items[at].Column].Press(items[at].Index, GadgetClass::RIGHTPRESS);
 	} else {
 		Pad_Toggle_Grid(true);
@@ -1563,12 +1563,12 @@ static BuildingTypeClass const * Pad_Owned_Factory(int column, int row)
 {
 	for (int index = 0; index < Buildings.Count(); index++) {
 		BuildingClass const * building = Buildings[index];
-		if (building == NULL || building->IsInLimbo || building->House != PlayerPtr) continue;
+		if (building == nullptr || building->IsInLimbo || building->House != PlayerPtr) continue;
 		BuildingTypeClass const * type = building->Class;
 		if (!Pad_Type_Belongs(type, column)) continue;
 		if (Pad_Kind_Matches(type, row)) return(type);
 	}
-	return(NULL);
+	return(nullptr);
 }
 
 
@@ -1603,7 +1603,7 @@ static SuperWeaponType Pad_Side_Super(int column)
 // whose factory the player holds appear.
 static bool Pad_Section_Shown(int row, int column)
 {
-	return(Pad_Owned_Factory(column, PAD_KIND_STRUCTURES) != NULL || Pad_Owned_Factory(column, row) != NULL);
+	return(Pad_Owned_Factory(column, PAD_KIND_STRUCTURES) != nullptr || Pad_Owned_Factory(column, row) != nullptr);
 }
 
 
@@ -1612,13 +1612,13 @@ static bool Pad_Section_Shown(int row, int column)
 static BuildingTypeClass const * Pad_Section_Factory(int row, int column)
 {
 	BuildingTypeClass const * owned = Pad_Owned_Factory(column, row);
-	if (owned != NULL) return(owned);
+	if (owned != nullptr) return(owned);
 	for (int index = 0; index < BuildingTypes.Count(); index++) {
 		BuildingTypeClass const * type = BuildingTypes[index];
 		if (!Pad_Type_Belongs(type, column)) continue;
 		if (Pad_Kind_Matches(type, row)) return(type);
 	}
-	return(NULL);
+	return(nullptr);
 }
 
 
@@ -1631,26 +1631,26 @@ static void Pad_Clear_Sprite_Cache(void)
 
 
 // The building's own sprite, its idle frame drawn in the player's colours and shrunk to fit a
-// cell, kept once per building and scheme; NULL when the building has no art. Pixel 0 is the
+// cell, kept once per building and scheme; nullptr when the building has no art. Pixel 0 is the
 // transparent key, so a black sprite pixel is nudged off it.
 static BSurface const * Pad_Building_Sprite(BuildingTypeClass const * type)
 {
-	if (type == NULL || PlayerPtr == NULL) return(NULL);
+	if (type == nullptr || PlayerPtr == nullptr) return(nullptr);
 	auto key = std::make_pair(type, PlayerPtr->Scheme);
 	auto found = _PadSpriteCache.find(key);
 	if (found != _PadSpriteCache.end()) return(found->second.get());
 
 	ShapeSet const * shape = static_cast<ShapeSet const *>(type->Get_Image_Data());
-	ConvertClass * converter = unsigned(PlayerPtr->Scheme) < unsigned(ColorSchemes.Count()) ? ColorSchemes[PlayerPtr->Scheme]->Converter : NULL;
-	if (shape == NULL || shape->Get_Count() == 0 || converter == NULL) {
+	ConvertClass * converter = unsigned(PlayerPtr->Scheme) < unsigned(ColorSchemes.Count()) ? ColorSchemes[PlayerPtr->Scheme]->Converter : nullptr;
+	if (shape == nullptr || shape->Get_Count() == 0 || converter == nullptr) {
 		_PadSpriteCache[key] = nullptr;
-		return(NULL);
+		return(nullptr);
 	}
 	// The bib, where there is one, lies under the building at the same centre, as in play.
 	ShapeSet const * bib = type->BibShape;
 	int width = shape->Get_Width();
 	int height = shape->Get_Height();
-	if (bib != NULL) {
+	if (bib != nullptr) {
 		width = std::max(width, bib->Get_Width());
 		height = std::max(height, bib->Get_Height());
 	}
@@ -1663,17 +1663,17 @@ static BSurface const * Pad_Building_Sprite(BuildingTypeClass const * type)
 		return(rect);
 	};
 	Rect frame = placed(shape);
-	if (bib != NULL) {
+	if (bib != nullptr) {
 		frame = Union(frame, placed(bib));
 	}
 	if (!frame.Is_Valid()) {
 		_PadSpriteCache[key] = nullptr;
-		return(NULL);
+		return(nullptr);
 	}
 
 	BSurface full(width, height, PAD_HICOLOR_BPP);
 	full.Fill(0);
-	if (bib != NULL) {
+	if (bib != nullptr) {
 		Draw_Shape(full, *converter, bib, 0, centre, Rect(0, 0, width, height), ShapeFlags_Type(SHAPE_CENTER|SHAPE_WIN_REL));
 	}
 	Draw_Shape(full, *converter, shape, 0, centre, Rect(0, 0, width, height), ShapeFlags_Type(SHAPE_CENTER|SHAPE_WIN_REL));
@@ -1727,12 +1727,12 @@ static BSurface const * Pad_Building_Sprite(BuildingTypeClass const * type)
 
 
 // The cameo standing for a section: the factory the player holds, else the side's factory for
-// that kind, else for structures any building of that side; NULL leaves the cell blank.
+// that kind, else for structures any building of that side; nullptr leaves the cell blank.
 static ShapeSet const * Pad_Section_Icon(int row, int column)
 {
-	if (row >= PAD_KIND_SPECIAL) return(NULL);
+	if (row >= PAD_KIND_SPECIAL) return(nullptr);
 	BuildingTypeClass const * owned = Pad_Owned_Factory(column, row);
-	if (owned != NULL && owned->Get_Cameo_Data() != NULL) {
+	if (owned != nullptr && owned->Get_Cameo_Data() != nullptr) {
 		return(static_cast<ShapeSet const *>(owned->Get_Cameo_Data()));
 	}
 	for (int pass = 0; pass < 2; pass++) {
@@ -1742,11 +1742,11 @@ static ShapeSet const * Pad_Section_Icon(int row, int column)
 			bool match = pass == 0 ? Pad_Kind_Matches(type, row) : type->Level >= 0;
 			if (!match) continue;
 			ShapeSet const * cameo = static_cast<ShapeSet const *>(type->Get_Cameo_Data());
-			if (cameo != NULL) return(cameo);
+			if (cameo != nullptr) return(cameo);
 		}
 		if (row != PAD_KIND_STRUCTURES) break;
 	}
-	return(NULL);
+	return(nullptr);
 }
 
 
@@ -1781,7 +1781,7 @@ static void Pad_Draw_Focus_Ring(Rect const & area, int color)
 // darkening is followed by a black wash.
 static void Pad_Darken_Cell(int x, int y, Rect const & cliprect)
 {
-	if (SidebarClass::StripClass::DarkenShapes != NULL) {
+	if (SidebarClass::StripClass::DarkenShapes != nullptr) {
 		Draw_Shape(*SidebarSurface, *SidebarDrawer, SidebarClass::StripClass::DarkenShapes, 0, Point2D(x, y), cliprect, ShapeFlags_Type(SHAPE_WIN_REL|SHAPE_DARKEN));
 	}
 	Rect wash(x, cliprect.Y + y, SidebarClass::StripClass::OBJECT_WIDTH, SidebarClass::StripClass::OBJECT_HEIGHT);
@@ -1817,15 +1817,15 @@ void SidebarClass::Draw_Pad_Section_Cell(int row, int column, Rect const & clipr
 		Column[active.Column].Draw_Cameo(active.Index, x, y, cliprect);
 	} else if (shown) {
 		BSurface const * sprite = Pad_Building_Sprite(Pad_Section_Factory(row, column));
-		ShapeSet const * icon = sprite != NULL ? NULL : Pad_Section_Icon(row, column);
-		if (sprite != NULL) {
+		ShapeSet const * icon = sprite != nullptr ? nullptr : Pad_Section_Icon(row, column);
+		if (sprite != nullptr) {
 			SidebarSurface->Blit_From(Pad_Cell_Rect(x, y, cliprect), *sprite, sprite->Get_Rect(), true);
-		} else if (icon != NULL) {
+		} else if (icon != nullptr) {
 			// The strip's blank-slot shape is never drawn by the engine and may be missing, so
 			// a cell without an icon shows the frame alone.
 			Draw_Shape(*SidebarSurface, *CameoDrawer, icon, 0, Point2D(x, y), cliprect, ShapeFlags_Type(SHAPE_WIN_REL));
 		}
-		factory_face = sprite != NULL || icon != NULL;
+		factory_face = sprite != nullptr || icon != nullptr;
 		if (factory_face && !has_items) {
 			Pad_Darken_Cell(x, y, cliprect);
 		}
@@ -1834,7 +1834,7 @@ void SidebarClass::Draw_Pad_Section_Cell(int row, int column, Rect const & clipr
 	if (factory_face && row == PAD_KIND_STRUCTURES) {
 		// The side's emblem marks whose column this is, over the factory image alone.
 		Surface * emblem = Console_Side_Icon(Pad_Column_House(column) == HOUSE_GOOD);
-		if (emblem != NULL) {
+		if (emblem != nullptr) {
 			Rect source = emblem->Get_Rect();
 			Console_Draw_Icon(*SidebarSurface, *emblem, x + StripClass::OBJECT_WIDTH - source.Width - PAD_EMBLEM_INSET, cliprect.Y + y + PAD_EMBLEM_INSET);
 		}
@@ -1853,12 +1853,12 @@ void SidebarClass::Draw_Pad_Super_Cell(int column, Rect const & cliprect, int co
 	int y = COLUMN_ONE_Y + int(PAD_KIND_SPECIAL) * int(StripClass::OBJECT_HEIGHT);
 	PadItemType supers[StripClass::MAX_BUILDABLES];
 	int super_count = Pad_Supers(supers);
-	bool shown = super_count > 0 || Pad_Owned_Factory(0, PAD_KIND_STRUCTURES) != NULL;
+	bool shown = super_count > 0 || Pad_Owned_Factory(0, PAD_KIND_STRUCTURES) != nullptr;
 	if (shown && column == 0 && super_count > 0) {
 		PadItemType current = supers[PadSuper % super_count];
 		Column[current.Column].Draw_Cameo(current.Index, x, y, cliprect);
 	} else if (shown) {
-		ShapeSet const * icon = NULL;
+		ShapeSet const * icon = nullptr;
 		if (column != 0 && super_count > 1) {
 			PadItemType next = supers[(PadSuper + 1) % super_count];
 			icon = Column[next.Column].Get_Special_Cameo(SuperWeaponType(Column[next.Column].Buildables[next.Index].BuildableID));
@@ -1866,14 +1866,14 @@ void SidebarClass::Draw_Pad_Super_Cell(int column, Rect const & cliprect, int co
 			// With nothing on the field yet the side's first superweapon stands in, dulled.
 			icon = Column[0].Get_Special_Cameo(Pad_Side_Super(0));
 		}
-		if (icon != NULL) {
+		if (icon != nullptr) {
 			Draw_Shape(*SidebarSurface, *CameoDrawer, icon, 0, Point2D(x, y), cliprect, ShapeFlags_Type(SHAPE_WIN_REL));
 		}
 		bool dark = column == 0 ? super_count == 0 : super_count < 2;
 		if (column != 0) {
 			Pad_Draw_Next_Arrow(x, cliprect.Y + y, !dark);
 		}
-		if (dark && icon != NULL) {
+		if (dark && icon != nullptr) {
 			Pad_Darken_Cell(x, y, cliprect);
 		}
 		Print_Pad_Caption(Pad_Section_Name(PAD_KIND_SPECIAL, column), x, y, cliprect);
@@ -1926,7 +1926,7 @@ void SidebarClass::Pad_Focus_Caption(char * buffer, int size)
 			return;
 		}
 		TechnoTypeClass const * type = Fetch_Techno_Type(entry.BuildableType, entry.BuildableID);
-		if (type != NULL) {
+		if (type != nullptr) {
 			snprintf(buffer, size, Fetch_String(TXT_MONEY_FORMAT_2), type->Full_Name(), type->Cost_Of(PlayerPtr));
 		}
 		return;
@@ -1937,7 +1937,7 @@ void SidebarClass::Pad_Focus_Caption(char * buffer, int size)
 		if (PadCol == 0 && super_count > 0) {
 			PadItemType current = supers[PadSuper % super_count];
 			snprintf(buffer, size, "%s", SuperWeaponTypes[Column[current.Column].Buildables[current.Index].BuildableID]->Full_Name());
-		} else if (super_count > 0 || Pad_Owned_Factory(0, PAD_KIND_STRUCTURES) != NULL) {
+		} else if (super_count > 0 || Pad_Owned_Factory(0, PAD_KIND_STRUCTURES) != nullptr) {
 			snprintf(buffer, size, "%s", Pad_Section_Name(PadRow, PadCol));
 		}
 		return;
@@ -2842,16 +2842,16 @@ char const * SidebarClass::StripClass::Help_Text(int id)
 /// </summary>
 void SidebarClass::StripClass::Draw_Cameo(int index, int x, int y, Rect const & cliprect)
 {
-	ShapeSet const * shapefile = NULL;
+	ShapeSet const * shapefile = nullptr;
 	bool production = false;
 	bool completed = false;
 	int stage = 0;
 	bool darken = false;
-	FactoryClass * factory = NULL;
-	char const * state = NULL;
+	FactoryClass * factory = nullptr;
+	char const * state = nullptr;
 	bool isready = false;
-	char const * name = NULL;
-	TechnoTypeClass const * obj = NULL;
+	char const * name = nullptr;
+	TechnoTypeClass const * obj = nullptr;
 
 	/*
 	**	Fetch the shape number for the object type located at this current working
@@ -2863,7 +2863,7 @@ void SidebarClass::StripClass::Draw_Cameo(int index, int x, int y, Rect const & 
 		if (Buildables[index].BuildableType != RTTI_SPECIAL) {
 
 			obj = Fetch_Techno_Type(Buildables[index].BuildableType, Buildables[index].BuildableID);
-			if (obj != NULL) {
+			if (obj != nullptr) {
 
 				name = obj->Full_Name();
 
@@ -2873,10 +2873,10 @@ void SidebarClass::StripClass::Draw_Cameo(int index, int x, int y, Rect const & 
 				*/
 				bool isbusy = false;
 				if (obj->RTTI == RTTI_BUILDINGTYPE) {
-					isbusy = (PlayerPtr->Fetch_Factory(Buildables[index].BuildableType) != NULL);
+					isbusy = (PlayerPtr->Fetch_Factory(Buildables[index].BuildableType) != nullptr);
 				}
 
-				if (obj->Who_Can_Build_Me(true, true, true, PlayerPtr) == NULL) {
+				if (obj->Who_Can_Build_Me(true, true, true, PlayerPtr) == nullptr) {
 					isbusy = true;
 				}
 
@@ -2886,7 +2886,7 @@ void SidebarClass::StripClass::Draw_Cameo(int index, int x, int y, Rect const & 
 
 				shapefile = (ShapeSet const *)obj->Get_Cameo_Data();
 				factory = Buildables[index].Factory;
-				if (factory != NULL) {
+				if (factory != nullptr) {
 					production	= true;
 					completed	= factory->Has_Completed();
 					if (completed) {
@@ -2922,7 +2922,7 @@ void SidebarClass::StripClass::Draw_Cameo(int index, int x, int y, Rect const & 
 			darken = false;
 		}
 
-		if (obj != NULL || spc != SUPER_NONE) {
+		if (obj != nullptr || spc != SUPER_NONE) {
 			/*
 			**	If this item is flashing then take care of it.
 			**
@@ -2948,7 +2948,7 @@ void SidebarClass::StripClass::Draw_Cameo(int index, int x, int y, Rect const & 
 	*/
 	if (shapefile != LogoShapes) {
 
-		if (shapefile != NULL) {
+		if (shapefile != nullptr) {
 			Draw_Shape(*SidebarSurface, *CameoDrawer, shapefile, 0, Point2D(x, y), cliprect, ShapeFlags_Type(SHAPE_WIN_REL));
 		}
 
@@ -2961,15 +2961,15 @@ void SidebarClass::StripClass::Draw_Cameo(int index, int x, int y, Rect const & 
 		}
 	}
 
-	if (name != NULL) {
+	if (name != nullptr) {
 		Print_Pad_Caption(name, x, y, cliprect);
 	}
 
 	bool hasqueuecount = false;
-	if (obj != NULL) {
+	if (obj != nullptr) {
 		FactoryClass * factory = PlayerPtr->Fetch_Factory(obj->RTTI);
 
-		if (factory != NULL) {
+		if (factory != nullptr) {
 			int total = factory->Total(obj);
 			if (total > 1 || total > 0 && !factory->Is_Currently_Producing(obj)) {
 				Fancy_Text_Print("%d", *SidebarSurface, cliprect, Point2D(x + QUEUE_COUNT_X_OFFSET, y + TEXT_Y_OFFSET), Fetch_Scheme_By_Name("LightGrey"), TBLACK, TextPrintType(TPF_RIGHT|TPF_FULLSHADOW|TPF_8POINT), total);
@@ -2987,7 +2987,7 @@ void SidebarClass::StripClass::Draw_Cameo(int index, int x, int y, Rect const & 
 		/*
 		**	Display text showing that the object is ready to place.
 		*/
-		if (state != NULL) {
+		if (state != nullptr) {
 			Fancy_Text_Print("%s", *SidebarSurface, cliprect, Point2D(x + TEXT_X_OFFSET, y + TEXT_Y_OFFSET), Fetch_Scheme_By_Name("LightBlue"), TBLACK, TextPrintType(TPF_CENTER|TPF_FULLSHADOW|TPF_8POINT), state);
 		}
 
@@ -3536,7 +3536,7 @@ unsigned SidebarClass::StripClass::Press(int index, unsigned flags)
 int SidebarClass::StripClass::SelectClass::Action(unsigned flags, KeyNumType & key)
 {
 	// The pad view lays its own cells over the strip, so its slots answer to nothing here.
-	if (Strip == NULL || Options.ControlScheme == CONTROL_CONTROLLER) {
+	if (Strip == nullptr || Options.ControlScheme == CONTROL_CONTROLLER) {
 		return(1);
 	}
 	int index = Strip->TopIndex + Index;
@@ -3873,7 +3873,7 @@ const char * SidebarClass::Help_Text(int id)
 /// </summary>
 int SidebarClass::Sidebar_Height(void) const
 {
-	if (SidebarSurface != NULL) {
+	if (SidebarSurface != nullptr) {
 		return(SidebarSurface->Get_Height());
 	}
 	return(TacticalRect.Y + TacticalRect.Height);

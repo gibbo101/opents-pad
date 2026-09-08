@@ -99,7 +99,7 @@ void Windows_Message_Handler(void)
 {
 	if (MainWindow == 0) return;
 
-	Gamepad_Pump(_ModelessDialogs.Count() > 0 ? _ModelessDialogs[_ModelessDialogs.Count() - 1] : NULL);
+	Gamepad_Pump(_ModelessDialogs.Count() > 0 ? _ModelessDialogs[_ModelessDialogs.Count() - 1] : nullptr);
 
 	MSG msg;
 

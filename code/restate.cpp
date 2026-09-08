@@ -301,9 +301,9 @@ RestateMission::RestateMission(void) :
 	String(NULL),
 	Font(NULL),
 	Drawer(NULL),
-	ButtonList(NULL),
+	ButtonList(nullptr),
 	Padded(false),
-	PromptFont(NULL),
+	PromptFont(nullptr),
 	Prompt(PROMPT_NONE)
 {
 	Buttons.Clear();
@@ -568,9 +568,9 @@ void RestateMission::Cleanup(void)
 		delete Font;
 		Font = NULL;
 	}
-	if (PromptFont != NULL) {
+	if (PromptFont != nullptr) {
 		delete PromptFont;
-		PromptFont = NULL;
+		PromptFont = nullptr;
 	}
 	Prompt = PROMPT_NONE;
 	if (Drawer != NULL) {
@@ -607,7 +607,7 @@ void RestateMission::Do_Custom_Draw(Surface *surface)
 
 void RestateMission::Draw_Prompts(Surface * surface)
 {
-	if (!Padded || PromptFont == NULL || Prompt == PROMPT_NONE) {
+	if (!Padded || PromptFont == nullptr || Prompt == PROMPT_NONE) {
 		return;
 	}
 	int y = CenterY + CONSOLE_PROMPT_Y;
@@ -616,7 +616,7 @@ void RestateMission::Draw_Prompts(Surface * surface)
 	char const * accept = Fetch_String(Prompt == PROMPT_MORE ? TXT_MORE : _ResumesMission ? TXT_RESUME_MISSION : TXT_OK);
 	int x = CenterX + CONSOLE_SHELL_WIDTH - CONSOLE_PROMPT_INSET - used - PromptFont->Get_String_Width(accept);
 	Draw_Pad_Prompt(*surface, *PromptFont, PAD_BUTTON_ACCEPT, accept, x, y);
-	if (Prompt == PROMPT_FINAL && Scenario != NULL && Scenario->BriefMovie != VQ_NONE) {
+	if (Prompt == PROMPT_FINAL && Scenario != nullptr && Scenario->BriefMovie != VQ_NONE) {
 		Draw_Pad_Prompt(*surface, *PromptFont, PAD_BUTTON_BACK, Fetch_String(TXT_VIDEO), CenterX + CONSOLE_PROMPT_INSET, y);
 	}
 }
@@ -659,7 +659,7 @@ bool RestateMission::User_Input(void)
 		if (pad.Accept && !previous.Accept) {
 			input = KN_SPACE;
 		} else if (pad.Back && !previous.Back) {
-			bool video = Prompt == PROMPT_FINAL && Scenario != NULL && Scenario->BriefMovie != VQ_NONE;
+			bool video = Prompt == PROMPT_FINAL && Scenario != nullptr && Scenario->BriefMovie != VQ_NONE;
 			input = video ? (BUTTON_VIDEO|KN_BUTTON) : KN_SPACE;
 		}
 		previous = pad;

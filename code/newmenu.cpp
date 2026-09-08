@@ -318,9 +318,9 @@ int NewMenuClass::Console_Menu_Page(GraphicMenu & page, DynamicVectorClass<int> 
 	std::vector<ArtType> art;
 	auto add_art = [&](int id) {
 		GraphicMenuImageItem * item = dynamic_cast<GraphicMenuImageItem *>(page.Find_Item(id));
-		MSPCXAnim * idle = item != NULL ? dynamic_cast<MSPCXAnim *>(item->Image) : NULL;
-		MSPCXAnim * lit = item != NULL ? dynamic_cast<MSPCXAnim *>(item->HighlightImage) : NULL;
-		if (idle == NULL || idle->Image == NULL) return(-1);
+		MSPCXAnim * idle = item != nullptr ? dynamic_cast<MSPCXAnim *>(item->Image) : nullptr;
+		MSPCXAnim * lit = item != nullptr ? dynamic_cast<MSPCXAnim *>(item->HighlightImage) : nullptr;
+		if (idle == nullptr || idle->Image == nullptr) return(-1);
 		int row = menu.Add_Row({"", nullptr, nullptr, [&, id]{ chosen = id; menu.Finish(CONSOLE_MENU_ACCEPT); }});
 		menu.Add_Hit_Area(idle->Get_Rect(), [&, row]{ menu.Set_Focus(row); }, [&, id]{ chosen = id; menu.Finish(CONSOLE_MENU_ACCEPT); });
 		art.push_back({row, idle, lit});
@@ -364,7 +364,7 @@ int NewMenuClass::Console_Menu_Page(GraphicMenu & page, DynamicVectorClass<int> 
 
 	menu.Set_Backdrop_Panel([&](ConsoleCanvas & canvas) {
 		for (ArtType const & piece : art) {
-			MSPCXAnim * strip = (menu.Get_Focus() == piece.Row && piece.Lit != NULL && piece.Lit->Image != NULL) ? piece.Lit : piece.Idle;
+			MSPCXAnim * strip = (menu.Get_Focus() == piece.Row && piece.Lit != nullptr && piece.Lit->Image != nullptr) ? piece.Lit : piece.Idle;
 			Rect at = strip->Get_Rect();
 			at.X += canvas.Box.X;
 			at.Y += canvas.Box.Y;

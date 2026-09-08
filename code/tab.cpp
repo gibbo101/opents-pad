@@ -141,7 +141,7 @@ void TabClass::Draw_It(bool complete)
 			Surface * bar_surface = LogicalSurface;
 			int barwidth = CompositeSurface->Get_Width();
 			int width = CompositeSurface->Get_Width() + SidebarSurface->Get_Width();
-			if (TabSurface != NULL) {
+			if (TabSurface != nullptr) {
 				bar_surface = TabSurface;
 				barwidth = TabSurface->Get_Width();
 				width = barwidth;
@@ -163,7 +163,7 @@ void TabClass::Draw_It(bool complete)
 			// Under the controller scheme the pad's menu button glyph sits before the label.
 			Draw_Tab_Label(bar, sidex + (EVA_WIDTH/2) * 2/*RESFACTOR*/, TXT_TAB_BUTTON_CONTROLS, PAD_BUTTON_MENU, Options.ControlScheme == CONTROL_CONTROLLER);
 
-			if (TabSurface != NULL) {
+			if (TabSurface != nullptr) {
 				Video_Mark_Dirty();
 			} else if (LogicalSurface != TileSurface) {
 				TileSurface->Blit_From(Rect(0, 0, TileSurface->Get_Width(), tab_height), *LogicalSurface, Rect(0, 0, TileSurface->Get_Width(), tab_height));
@@ -184,7 +184,7 @@ void TabClass::Draw_It(bool complete)
 // for; the pair is centred together.
 static void Draw_Tab_Label(Surface & surface, int centre, int text, PadButtonType button, bool glyph)
 {
-	if (glyph && Metal12FontPtr != NULL) {
+	if (glyph && Metal12FontPtr != nullptr) {
 		enum { GLYPH = 16, GAP = 4 };
 		int tab_height = TAB_HEIGHT * 2/*RESFACTOR*/;
 		int textwidth = Metal12FontPtr->String_Pixel_Width(Fetch_String(text));
@@ -228,7 +228,7 @@ void TabClass::Draw_Credits_Tab(void)
 
 	// The split bar ends in the Sidebar tab, which the sidebar covers when it is in; the
 	// credits are the sidebar's alone, as on the PlayStation.
-	if (TabSurface != NULL) {
+	if (TabSurface != nullptr) {
 		Draw_Sidebar_Tab(*TabSurface, TabSurface->Get_Width() - TabShape->Get_Width());
 		Video_Mark_Dirty();
 	}
@@ -237,8 +237,8 @@ void TabClass::Draw_Credits_Tab(void)
 		bool light = ((int)Scen->MissionTimer < TICKS_PER_MINUTE * Rule->TimerWarning) || Map.FlasherTimer > 0;
 		// The timer's tab sits at the bar's right end, or on the split bar short of what
 		// else is there.
-		Surface & bar = TabSurface != NULL ? *TabSurface : *CompositeSurface;
-		int barwidth = TabSurface != NULL ? Bar_Timer_Right() : TacticalRect.Width;
+		Surface & bar = TabSurface != nullptr ? *TabSurface : *CompositeSurface;
+		int barwidth = TabSurface != nullptr ? Bar_Timer_Right() : TacticalRect.Width;
 		Draw_Shape(bar, *SidebarDrawer, TabShape, /*light ? 4 :*/ 2, Point2D(barwidth - TabShape->Get_Width(), 0), bar.Get_Rect());
 
 		int time = Scen->MissionTimer;
@@ -259,7 +259,7 @@ void TabClass::Draw_Credits_Tab(void)
 				Point2D(barwidth - TabShape->Get_Width() / 2, 0), ColorSchemes[0], TBLACK,
 				TextPrintType(TPF_METAL12 | TPF_CENTER | TPF_USE_GRAD_PAL), minutes, seconds);
 		}
-		if (TabSurface != NULL) {
+		if (TabSurface != nullptr) {
 			Video_Mark_Dirty();
 		}
 	}
@@ -345,7 +345,7 @@ void TabClass::AI(KeyNumType &input, Point2D const & xy)
 					// Clicks on a split bar arrive in the frame's map columns, so the tab widths
 					// are scaled to match; a click on the Sidebar tab slides the panel in.
 					int tabwidth = EVA_WIDTH * 2/*RESFACTOR*/;
-					if (TabSurface != NULL && TabSurface->Get_Width() > 0) {
+					if (TabSurface != nullptr && TabSurface->Get_Width() > 0) {
 						VideoScaleInfo const & layout = Video_Get_Scale_Info();
 						tabwidth = layout.Bar_To_Frame_X(tabwidth) - layout.Tactical_X();
 						int sidebartab = layout.Bar_To_Frame_X(TabSurface->Get_Width() - TabShape->Get_Width());

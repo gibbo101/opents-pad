@@ -64,8 +64,8 @@ MSFont::MSFont(bool use_side_palette) :
 	Green(0),
 	Blue(0),
 	Color(0),
-	FontFile(NULL),
-	Drawer(NULL),
+	FontFile(nullptr),
+	Drawer(nullptr),
 	PaletteData(),
 	AllocLoaded(false)
 {
@@ -85,8 +85,8 @@ MSFont::MSFont(char const * file_name) :
 	Green(0),
 	Blue(0),
 	Color(0),
-	FontFile(NULL),
-	Drawer(NULL),
+	FontFile(nullptr),
+	Drawer(nullptr),
 	PaletteData(),
 	AllocLoaded(false)
 {
@@ -110,8 +110,8 @@ MSFont::MSFont(char const * file_name, char const * palette_name) :
 	Green(0),
 	Blue(0),
 	Color(0),
-	FontFile(NULL),
-	Drawer(NULL),
+	FontFile(nullptr),
+	Drawer(nullptr),
 	PaletteData(),
 	AllocLoaded(false)
 {
@@ -261,7 +261,7 @@ bool MSFont::Init(char const * file_name, char const * palette_name)
 /// </summary>
 void MSFont::Set_Color(RGBClass const & color)
 {
-	if (Drawer == NULL) {
+	if (Drawer == nullptr) {
 		return;
 	}
 	PaletteClass tinted;

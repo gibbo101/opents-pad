@@ -54,7 +54,7 @@ GamepadKindType Gamepad_Kind(void);
 GamepadStateType Gamepad_Read(void);
 bool Gamepad_Connected(void);
 
-// dialog is the topmost open dialog, or NULL when none is open.
+// dialog is the topmost open dialog, or nullptr when none is open.
 void Gamepad_Pump(void * dialog);
 
 // Call from the main loop between frames.

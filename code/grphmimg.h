@@ -62,7 +62,7 @@ class GraphicMenuImageItem : public GraphicMenuItem
 
 		/*
 		 * Darkens the artwork while the item is not selected under the controller scheme,
-		 * so the selected one stands out. NULL under keyboard and mouse and for small buttons.
+		 * so the selected one stands out. nullptr under keyboard and mouse and for small buttons.
 		 */
 		MSDimAnim * Dimmer;
 

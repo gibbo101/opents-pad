@@ -249,9 +249,9 @@ bool Change_Display_Mode(int width, int height, int sidebarheight, bool overlay)
 		sidebarheight = 0;
 	}
 
-	if (TabSurface != NULL) {
+	if (TabSurface != nullptr) {
 		delete TabSurface;
-		TabSurface = NULL;
+		TabSurface = nullptr;
 	}
 	VideoScaleInfo const & layout = Video_Get_Scale_Info();
 	if (sidebarheight > 0 && layout.Bar_Is_Split()) {
@@ -479,7 +479,7 @@ int Pad_Sidebar_Height(void)
 {
 	enum { ART_HEIGHT = 512 };
 	int height = ART_HEIGHT;
-	if (SidebarClass::SidebarShape != NULL && SidebarClass::SidebarMiddleShape != NULL && SidebarClass::SidebarBottomShape != NULL && SidebarClass::SidebarAddonShape != NULL) {
+	if (SidebarClass::SidebarShape != nullptr && SidebarClass::SidebarMiddleShape != nullptr && SidebarClass::SidebarBottomShape != nullptr && SidebarClass::SidebarAddonShape != nullptr) {
 		height = SidebarClass::SIDE_Y + SidebarClass::SidebarShape->Get_Height()
 			+ SidebarClass::PAD_SECTION_ROWS * SidebarClass::SidebarMiddleShape->Get_Height()
 			+ SidebarClass::SidebarBottomShape->Get_Height() + SidebarClass::SidebarAddonShape->Get_Height();
