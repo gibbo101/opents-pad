@@ -872,10 +872,8 @@ static void Draw_Emblem(Surface & surface, Surface const & backdrop, Rect const 
 }
 
 
-// The console-style campaign choice, in the manner of a side select: the two sides'
-// emblems, cut from the backdrop's own discs, stand large at left and right with their
-// names beneath. The focused side is lit and grown, the other faded. Difficulty sits along
-// the bottom. The difficulty option is written as the dialog writes it.
+// The console campaign choice is a side select: each side's emblem with its name beneath,
+// the focused one lit and grown, difficulty along the bottom, written as the dialog writes it.
 static CampaignType Console_Campaign_Screen(void)
 {
 	auto is_nod = [](CampaignClass const * campaign) {

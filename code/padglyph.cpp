@@ -23,6 +23,7 @@
 #include <algorithm>
 
 enum { SAMPLES = 4 };
+enum { CONTENT_ALPHA = 8 };		// The alpha above which a sample counts as drawn content.
 
 
 // Steam marks a game running on a Steam Deck with this variable, and Proton passes it through.
@@ -49,7 +50,7 @@ int Resolved_Prompt_Style(void)
 	if (Gamepad_Kind() == GAMEPAD_KIND_PLAYSTATION) {
 		return(PROMPT_STYLE_PLAYSTATION);
 	}
-	return(Gamepad_Read().Connected ? PROMPT_STYLE_XBOX : PROMPT_STYLE_TEXT);
+	return(Gamepad_Connected() ? PROMPT_STYLE_XBOX : PROMPT_STYLE_TEXT);
 }
 
 
@@ -87,7 +88,7 @@ int Draw_Pad_Glyph_Fitted(Surface & surface, PadButtonType button, int x, int y,
 	int left = PAD_GLYPH_SOURCE_SIZE, top = PAD_GLYPH_SOURCE_SIZE, right = -1, bottom = -1;
 	for (int py = 0; py < PAD_GLYPH_SOURCE_SIZE; py++) {
 		for (int px = 0; px < PAD_GLYPH_SOURCE_SIZE; px++) {
-			if (pixels[(py * PAD_GLYPH_SOURCE_SIZE + px) * 4 + 3] > 8) {
+			if (pixels[(py * PAD_GLYPH_SOURCE_SIZE + px) * 4 + 3] > CONTENT_ALPHA) {
 				left = std::min(left, px);
 				top = std::min(top, py);
 				right = std::max(right, px);

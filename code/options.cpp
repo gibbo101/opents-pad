@@ -309,12 +309,7 @@ void OptionsClass::Set_Voice_Volume(float volume, bool feedback)
 }
 
 
-/// <summary>
-/// Turns the name of a control scheme into the scheme itself.
-/// </summary>
-/// <param name="name">The name as it appears in the settings file.</param>
-/// <param name="fallback">What to return when the name is not one of them.</param>
-/// <returns>int; One of the ControlSchemeType values.</returns>
+// The control scheme a settings-file name stands for, or the fallback for an unknown name.
 static int Control_Scheme_From_Name(char const * name, int fallback)
 {
 	if (stricmp(name, "KeyboardMouse") == 0) return(CONTROL_KEYBOARD_MOUSE);
@@ -323,11 +318,6 @@ static int Control_Scheme_From_Name(char const * name, int fallback)
 }
 
 
-/// <summary>
-/// Names the control scheme setting for writing back.
-/// </summary>
-/// <param name="scheme">One of the ControlSchemeType values.</param>
-/// <returns>The name the settings file uses for that scheme.</returns>
 static char const * Control_Scheme_Name(int scheme)
 {
 	switch (scheme) {
@@ -340,13 +330,9 @@ static char const * Control_Scheme_Name(int scheme)
 
 
 static char const * const _prompt_style_names[] = {"Auto", "Text", "Xbox", "PlayStation", "Deck"};
+static_assert(sizeof(_prompt_style_names) / sizeof(_prompt_style_names[0]) == PROMPT_STYLE_DECK + 1, "one name per prompt style");
 
-/// <summary>
-/// Turns the name of a prompt style into the style itself.
-/// </summary>
-/// <param name="name">The name as it appears in the settings file.</param>
-/// <param name="fallback">What to return when the name is not one of them.</param>
-/// <returns>int; One of the PromptStyleType values.</returns>
+// The prompt style a settings-file name stands for, or the fallback for an unknown name.
 static int Prompt_Style_From_Name(char const * name, int fallback)
 {
 	for (int index = 0; index < int(sizeof(_prompt_style_names) / sizeof(_prompt_style_names[0])); index++) {
@@ -560,8 +546,8 @@ void OptionsClass::Save_Settings (void)
 	ConfigINI.Put_Bool("Options", "SidebarSorting", SidebarSorting);
 	ConfigINI.Put_Bool("Options", "UnitActionLines", ActionLines);
 	ConfigINI.Put_Bool("Options", "ToolTips", ToolTips);
-	ConfigINI.Put_String("Options", "ControlScheme", (char *)(ControlSchemeAuto ? "Auto" : Control_Scheme_Name(ControlScheme)));
-	ConfigINI.Put_String("Options", "PromptStyle", (char *)Prompt_Style_Name(PromptStyle));
+	ConfigINI.Put_String("Options", "ControlScheme", ControlSchemeAuto ? "Auto" : Control_Scheme_Name(ControlScheme));
+	ConfigINI.Put_String("Options", "PromptStyle", Prompt_Style_Name(PromptStyle));
 	ConfigINI.Put_Int("Options", "PadPointerSpeed", PadPointerSpeed);
 	ConfigINI.Put_Int("Options", "PadFastSpeed", PadFastSpeed);
 	ConfigINI.Put_Int("Options", "PadScrollSpeed", PadScrollSpeed);

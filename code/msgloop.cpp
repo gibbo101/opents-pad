@@ -111,16 +111,14 @@ void Windows_Message_Handler(void)
 			return;
 		}
 
-		if (ToolTips != NULL) {
-			ToolTips->Message_Handler(&msg);
+		// Keys and clicks aimed at the game window count as keyboard and mouse use unless the
+		// pad sent them; the note tells the two apart from the message's extra info.
+		if (msg.hwnd == MainWindow && (msg.message == WM_KEYDOWN || msg.message == WM_LBUTTONDOWN || msg.message == WM_RBUTTONDOWN)) {
+			Note_Keyboard_Mouse_Use();
 		}
 
-		// Keys and clicks aimed at the game window itself come from a real keyboard or
-		// mouse; the pad's stand-in keys are posted to dialogs, never here.
-		if (msg.hwnd == MainWindow && (msg.message == WM_KEYDOWN || msg.message == WM_LBUTTONDOWN || msg.message == WM_RBUTTONDOWN)) {
-			if (!Gamepad_Claim_Synthetic_Click()) {
-				Note_Keyboard_Mouse_Use();
-			}
+		if (ToolTips != NULL) {
+			ToolTips->Message_Handler(&msg);
 		}
 
 		/*

@@ -202,7 +202,6 @@ void Win_Cursor_Set(ShapeSet const * shape, int frame, int hotx, int hoty, bool 
 	if (scale != _CacheScale) {
 		Flush_Cursor_Cache();
 		_CacheScale = scale;
-		DebugString("Cursor scale %d\n", scale);
 	}
 
 	_CurrentShape = shape;

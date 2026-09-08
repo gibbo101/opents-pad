@@ -51,9 +51,7 @@ enum GamepadKindType {
 };
 
 /// <summary>
-/// Reports the make of the connected controller from the vendor of the game controllers the
-/// system lists, rechecked every few seconds. Under Proton the host kernel's list is read,
-/// which still names the real pad when Steam Input has replaced it with its virtual one.
+/// Reports the make of the connected controller, or unknown when none is listed.
 /// </summary>
 GamepadKindType Gamepad_Kind(void);
 
@@ -64,26 +62,32 @@ GamepadKindType Gamepad_Kind(void);
 GamepadStateType Gamepad_Read(void);
 
 /// <summary>
-/// Feeds the keys the controller stands in for: the menu button presses Escape into the
-/// keyboard buffer, and while a dialog is open the d-pad, accept, and back go to it as
-/// arrow, Enter, and Escape key messages. Call it from the message pump.
+/// Whether a controller is connected, from the latest read; rereads at most once a second.
+/// </summary>
+bool Gamepad_Connected(void);
+
+/// <summary>
+/// Samples the controller for the message pump: the menu button presses Escape into the
+/// keyboard buffer, an open dialog gets the d-pad, accept, and back as key messages, and
+/// play input is kept for Gamepad_Frame_Tick.
 /// </summary>
 /// <param name="dialog">The topmost open dialog, or NULL when none is open.</param>
 void Gamepad_Pump(void * dialog);
 
 /// <summary>
-/// Claims one button or key press message the pad posted to the game window, so the message
-/// loop does not count it as a real mouse or keyboard. Returns false for a real one.
+/// Applies the pad's play input since the last frame, then a zoom step it asked for and the
+/// sidebar panel's slide with the tab bar's redraw. Call from the main loop between frames.
 /// </summary>
-bool Gamepad_Claim_Synthetic_Click(void);
+void Gamepad_Frame_Tick(void);
+
+// Puts the pointer mid-map as a scenario starts under the controller scheme.
+void Gamepad_Centre_Pointer(void);
 
 /// <summary>
 /// Fixes an Auto control scheme before the first shell screen: a pad that has appeared since
-/// launch selects the controller scheme, and with none yet the call waits up to the given
-/// time for one. After this the scheme no longer follows the pad.
+/// launch selects the controller scheme. With none yet the call waits up to the given time
+/// only while the system lists a controller. After this the scheme no longer follows the pad.
 /// </summary>
-void Gamepad_Centre_Pointer(void);	// Puts the pointer mid-map as a scenario starts under the controller scheme.
-void Gamepad_Apply_Zoom(void);		// Runs a zoom step the pad asked for; call from the main loop between frames.
 void Gamepad_Settle_Auto_Scheme(unsigned wait_ms);
 
 /// <summary>
@@ -96,7 +100,7 @@ bool Gamepad_Menu_Starting(void);
 /// <summary>
 /// Has a real keyboard key or mouse button been pressed on the game window since launch?
 /// Steam presents a mouse and keyboard whether or not the player has one, so use is the
-/// only evidence.
+/// only evidence. Input the pad sent through the system is not counted.
 /// </summary>
 bool Keyboard_Mouse_Seen(void);
 void Note_Keyboard_Mouse_Use(void);

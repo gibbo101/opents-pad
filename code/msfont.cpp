@@ -48,7 +48,12 @@ static struct {
 MSFont::MSFont(bool use_side_palette) :
 	Red(0),
 	Green(0),
-	Blue(0)
+	Blue(0),
+	Color(0),
+	FontFile(NULL),
+	Drawer(NULL),
+	PaletteData(),
+	AllocLoaded(false)
 {
 	Init("FULLFNT3.SHP", use_side_palette ? "SIDEFNT3.PAL" : "FULLFNT3.PAL");
 	InstanceCount++;
@@ -64,7 +69,12 @@ MSFont::MSFont(bool use_side_palette) :
 MSFont::MSFont(char const * file_name) :
 	Red(0),
 	Green(0),
-	Blue(0)
+	Blue(0),
+	Color(0),
+	FontFile(NULL),
+	Drawer(NULL),
+	PaletteData(),
+	AllocLoaded(false)
 {
 	char palette_name[256];
 	strncpy(palette_name, file_name, 256);
@@ -84,7 +94,12 @@ MSFont::MSFont(char const * file_name) :
 MSFont::MSFont(char const * file_name, char const * palette_name) :
 	Red(0),
 	Green(0),
-	Blue(0)
+	Blue(0),
+	Color(0),
+	FontFile(NULL),
+	Drawer(NULL),
+	PaletteData(),
+	AllocLoaded(false)
 {
 	Init(file_name, palette_name);
 	InstanceCount++;
@@ -228,6 +243,9 @@ bool MSFont::Init(char const * file_name, char const * palette_name)
 
 void MSFont::Set_Color(RGBClass const & color)
 {
+	if (Drawer == NULL) {
+		return;
+	}
 	PaletteClass tinted;
 	for (int index = 0; index < PaletteClass::COLOR_COUNT; index++) {
 		int red = PaletteData[index*3]<<2;

@@ -44,6 +44,8 @@
 #include "passblty.hh"
 #include "speed.hh"
 #include "zone.hh"
+
+#include <cstddef>
 #include <vector>
 
 class AbstractClass;
@@ -63,6 +65,8 @@ class HashTableClass;
 // opened is marked here, indexed as the cell array is, so the shroud can return with them
 // open. Empty when no reveal is in force.
 extern std::vector<unsigned char> RevealSighted;
+
+inline std::size_t Cell_Index(Cell const & cell) { return cell.X + cell.Y * MAP_CELL_H; }
 
 class MapClass: public GScreenClass
 {

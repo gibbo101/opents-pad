@@ -41,9 +41,10 @@ enum ControlSchemeType {
 	CONTROL_CONTROLLER,
 };
 
-// How the console screens draw their button prompts.
+// How the console screens draw their button prompts. Auto is Deck on a Steam Deck,
+// PlayStation when a Sony pad is listed, Xbox while a pad is connected, else text.
 enum PromptStyleType {
-	PROMPT_STYLE_AUTO,			// Deck on a Steam Deck, Xbox while a controller is connected, otherwise text.
+	PROMPT_STYLE_AUTO,
 	PROMPT_STYLE_TEXT,
 	PROMPT_STYLE_XBOX,
 	PROMPT_STYLE_PLAYSTATION,
@@ -136,7 +137,11 @@ class OptionsClass {
 		 */
 		int PadSnap;
 		bool PadSidebarSticky;			// The controller's sidebar stays on screen once slid in.
-		enum { PAD_SNAP_MAX = 10, PAD_SNAP_DEFAULT = 4, PAD_SNAP_STEP = 6 };		// Map pixels per step.
+		enum {
+			PAD_SNAP_MAX = 10,
+			PAD_SNAP_DEFAULT = 4,
+			PAD_SNAP_STEP = 6,		// Map pixels per step.
+		};
 
 		/*
 		 * This is how much detail the renderer is allowed to draw (0 - 2). Animations, particle
