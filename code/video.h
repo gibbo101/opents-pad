@@ -28,7 +28,9 @@ enum VideoScaleMode {
 // destination covers the frame's other columns, and the sidebar surface, at its own size,
 // is drawn beside them at its own scale so it fills the drawable height. The top bar can
 // be split off with it: the frame's top rows are never shown either, and a bar surface
-// of the sidebar's scale is drawn above the frame's remaining rows.
+// of the sidebar's scale is drawn across the whole drawable above the frame's remaining
+// rows. As an overlay the sidebar is instead drawn over the frame and the bar, slid in
+// from its edge by a share of its width, and the frame's columns take the whole width.
 struct VideoScaleInfo
 {
 	int GameWidth;
@@ -58,7 +60,10 @@ struct VideoScaleInfo
 	int BarDestWidth;
 	int BarDestHeight;
 
+	bool SidebarOverlay;		// The sidebar slides over the frame rather than sitting beside it.
+
 	bool Is_Split(void) const { return(SidebarWidth > 0 && SidebarHeight > 0); }
+	bool Sidebar_Is_Beside(void) const { return(Is_Split() && !SidebarOverlay); }
 	bool Bar_Is_Split(void) const { return(Is_Split() && BarHeight > 0 && BarWidth > 0); }
 	int Sidebar_X(void) const { return(SidebarOnRight ? GameWidth - SidebarWidth : 0); }
 	int Tactical_X(void) const { return(SidebarOnRight ? 0 : SidebarWidth); }
@@ -71,7 +76,10 @@ bool Video_Init(NativeWindow const & window, int drawablewidth, int drawableheig
 void Video_Shutdown(void);
 
 bool Video_Set_Mode(int width, int height);
-bool Video_Set_Sidebar(int width, int height, bool onright, int barheight);
+bool Video_Set_Sidebar(int width, int height, bool onright, int barheight, bool overlay);
+void Video_Slide_Sidebar(bool in, int milliseconds);		// Starts the overlay sidebar sliding in or out.
+bool Video_Sidebar_Sliding(void);
+float Video_Sidebar_Slide(void);							// How far in the overlay sidebar is, 0 to 1.
 bool Video_Sidebar_Is_Split(void);
 void Video_On_Resize(int drawablewidth, int drawableheight);
 void Video_Set_Refresh_Rate(int refreshrate);

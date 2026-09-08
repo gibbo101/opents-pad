@@ -406,6 +406,11 @@ class SidebarClass : public PowerClass
 			PAD_ROW_RADAR = -2,
 		};
 		bool PadFocus = false;
+		// The panel slides in over the map when the pad takes it and out again when the pad
+		// leaves, unless it is pinned; beside the map only while fully in.
+		enum PadPanelType { PAD_PANEL_HIDDEN, PAD_PANEL_SLIDING_IN, PAD_PANEL_SHOWN, PAD_PANEL_SLIDING_OUT };
+		PadPanelType PadPanel = PAD_PANEL_HIDDEN;
+		bool PadPinned = false;
 		int PadRow = 0;					// PAD_ROW_MODES, or a row of the sections or of the open grid.
 		int PadCol = 0;					// A column, or the mode button when on that row.
 		int PadSection = -1;			// The open section as row * 2 + column, or -1 on the section grid.
@@ -428,6 +433,10 @@ class SidebarClass : public PowerClass
 		int Pad_Last_Item(int section, PadItemType & item) const;	// The section's last build, while it can still be built.
 		void Pad_Remember(int section, PadItemType const & item);
 		void Pad_Enter(void);
+		void Pad_Panel_Show(bool pin);	// Slides the panel in and takes the pad into it.
+		void Pad_Panel_Hide(void);		// Lets the pad go and slides the panel out.
+		void Pad_Panel_Tick(void);		// Settles a finished slide; call from the main loop between frames.
+		bool Pad_Sidebar_Wide(void) const { return(PadPanel != PAD_PANEL_SHOWN); }	// Does the map take the sidebar's width?
 		void Pad_Leave(void);
 		void Pad_Repeat(void);			// Builds, queues or places what the sidebar's cell holds without taking focus.
 		void Pad_Move(int dx, int dy);

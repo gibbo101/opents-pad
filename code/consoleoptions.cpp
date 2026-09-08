@@ -207,7 +207,7 @@ struct PadPageType
 };
 
 PadCalloutType const _FacePage[] = {
-	{PAD_PART_FOURTH, {NULL, NULL, NULL, NULL}, "Into the sidebar", "and back to the map"},
+	{PAD_PART_FOURTH, {NULL, NULL, NULL, NULL}, "Sidebar in and out", "With R1: keep it in"},
 	{PAD_PART_BACK, {NULL, NULL, NULL, NULL}, "Cancel, deselect", "Sidebar: hold, cancel, back"},
 	{PAD_PART_ACCEPT, {NULL, NULL, NULL, NULL}, "Select, order, place", "Hold still: all of a type"},
 	{PAD_PART_THIRD, {NULL, NULL, NULL, NULL}, "Cycle repair, sell,", "power and waypoint"},

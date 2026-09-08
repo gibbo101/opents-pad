@@ -739,11 +739,20 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 	static POINT _cross_at = {0, 0};
 	static bool _cross_sent = false;
 	static int _cross_stage = 0;		// 0 undecided, 1 type on screen, 3 combat on screen, 2 done.
-	if (pressed(pad.Fourth, previous.Fourth) && !pad.LeftTrigger && !pad.LeftShoulder && !pad.RightShoulder) {
-		if (Map.PadFocus) {
+	// Triangle slides the panel in with the pad on it and out again; with R1 it slides in
+	// and stays, and a second R1 with triangle lets it go.
+	if (pressed(pad.Fourth, previous.Fourth) && !pad.LeftTrigger && !pad.LeftShoulder) {
+		if (pad.RightShoulder) {
+			if (Map.PadPinned) {
+				Map.PadPinned = false;
+				Map.Pad_Leave();
+			} else {
+				Map.Pad_Panel_Show(true);
+			}
+		} else if (Map.PadFocus) {
 			Map.Pad_Leave();
 		} else {
-			Map.Pad_Enter();
+			Map.Pad_Panel_Show(false);
 		}
 	}
 	if (Map.PadFocus) {
@@ -1022,12 +1031,16 @@ void Gamepad_Centre_Pointer(void)
 
 void Gamepad_Apply_Zoom(void)
 {
-	int steps = _ZoomStep;
-	_ZoomStep = 0;
-	if (steps == 0 || !ScenarioActive || Options.ControlScheme != CONTROL_CONTROLLER) {
+	if (!ScenarioActive || Options.ControlScheme != CONTROL_CONTROLLER) {
+		_ZoomStep = 0;
 		return;
 	}
-	Pad_Zoom_Step(steps);
+	Map.Pad_Panel_Tick();
+	int steps = _ZoomStep;
+	_ZoomStep = 0;
+	if (steps != 0) {
+		Pad_Zoom_Step(steps);
+	}
 }
 
 

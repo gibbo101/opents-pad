@@ -11,6 +11,9 @@
 
 bool Change_Display_Mode(int width, int height);
 bool Change_Display_Mode(int width, int height, int sidebarheight);	// A sidebar height splits the sidebar off the frame.
+bool Change_Display_Mode(int width, int height, int sidebarheight, bool overlay);	// Overlay slides the split sidebar over the frame.
+void Pad_Sidebar_Frame(bool wide);					// Refits play to the sidebar away (wide) or beside the map, keeping the view's corner.
+int Pad_Frame_Width(int height, bool wide);			// The frame width for a ladder height with the sidebar away or beside.
 bool Shell_Display_Mode(void);
 bool Shell_Display_Mode_Active(void);
 bool Play_Display_Mode(void);

@@ -211,7 +211,16 @@ BOOL CALLBACK Main_Options_Dialog_Proc(HWND window, UINT message, WPARAM wparam,
 /// </summary>
 bool Change_Display_Mode(int width, int height)
 {
-	return(Change_Display_Mode(width, height, 0));
+	return(Change_Display_Mode(width, height, 0, false));
+}
+
+
+/// <summary>
+/// Switches the game over to a new render resolution with a split sidebar beside the map.
+/// </summary>
+bool Change_Display_Mode(int width, int height, int sidebarheight)
+{
+	return(Change_Display_Mode(width, height, sidebarheight, false));
 }
 
 
@@ -224,8 +233,10 @@ bool Change_Display_Mode(int width, int height)
 /// <param name="height">The height to render at.</param>
 /// <param name="sidebarheight">A height for the sidebar's own surface, which the presenter
 /// then shows beside the frame at its own scale; zero keeps the sidebar in the frame.</param>
+/// <param name="overlay">Should the split sidebar slide over the frame rather than sit
+/// beside it, the frame's map columns then spanning the whole width?</param>
 /// <returns>bool; Was the mode changed? If not, nothing has been disturbed.</returns>
-bool Change_Display_Mode(int width, int height, int sidebarheight)
+bool Change_Display_Mode(int width, int height, int sidebarheight, bool overlay)
 {
 	DebugString("About to set video mode\n");
 
@@ -239,7 +250,7 @@ bool Change_Display_Mode(int width, int height, int sidebarheight)
 
 	// The bar goes with the sidebar: both are drawn at the sidebar's scale, so neither
 	// changes size with the zoom.
-	if (sidebarheight > 0 && !Video_Set_Sidebar(SidebarClass::SIDE_WIDTH, sidebarheight, Options.IsSidebarOnRight, TAB_BAR_HEIGHT)) {
+	if (sidebarheight > 0 && !Video_Set_Sidebar(SidebarClass::SIDE_WIDTH, sidebarheight, Options.IsSidebarOnRight, TAB_BAR_HEIGHT, overlay)) {
 		DebugString("Video_Set_Sidebar failed; sidebar stays in the frame.\n");
 		sidebarheight = 0;
 	}
@@ -372,12 +383,13 @@ enum {
 };
 
 
-static bool Set_Display_Mode_If_Needed(int width, int height, int sidebarheight)
+static bool Set_Display_Mode_If_Needed(int width, int height, int sidebarheight, bool overlay)
 {
-	if (VideoModeWidth == width && VideoModeHeight == height && Video_Get_Scale_Info().SidebarHeight == sidebarheight) {
+	VideoScaleInfo const & layout = Video_Get_Scale_Info();
+	if (VideoModeWidth == width && VideoModeHeight == height && layout.SidebarHeight == sidebarheight && (sidebarheight == 0 || layout.SidebarOverlay == overlay)) {
 		return(true);
 	}
-	return(Change_Display_Mode(width, height, sidebarheight));
+	return(Change_Display_Mode(width, height, sidebarheight, overlay));
 }
 
 
@@ -392,7 +404,7 @@ bool Shell_Display_Mode(void)
 	if (Options.ControlScheme != CONTROL_CONTROLLER) {
 		return(Play_Display_Mode());
 	}
-	return(Set_Display_Mode_If_Needed(SHELL_WIDTH, SHELL_HEIGHT, 0));
+	return(Set_Display_Mode_If_Needed(SHELL_WIDTH, SHELL_HEIGHT, 0, false));
 }
 
 
@@ -413,12 +425,13 @@ bool Shell_Display_Mode_Active(void)
 bool Play_Display_Mode(void)
 {
 	if (Options.ControlScheme != CONTROL_CONTROLLER) {
-		return(Set_Display_Mode_If_Needed(Options.ScreenWidth, Options.ScreenHeight, 0));
+		return(Set_Display_Mode_If_Needed(Options.ScreenWidth, Options.ScreenHeight, 0, false));
 	}
 	int width;
 	int height;
 	Pad_Zoom_Size(width, height);
-	return(Set_Display_Mode_If_Needed(width, height, Pad_Sidebar_Height()));
+	bool wide = Map.Pad_Sidebar_Wide();
+	return(Set_Display_Mode_If_Needed(Pad_Frame_Width(height, wide), height, Pad_Sidebar_Height(), wide));
 }
 
 
@@ -496,20 +509,46 @@ int Pad_Sidebar_Height(void)
 
 
 // The frame width for a ladder height: the map's columns follow the shape of the panel
-// left beside the sidebar and under the bar, both scaled to fill the panel's height with
-// the sidebar's panel, and the sidebar's own columns are added, so the frame carries
-// everything at the sizes it is presented at.
-int Pad_Zoom_Width(int height)
+// under the bar and, with the sidebar beside the map, left beside it, both scaled to fill
+// the panel's height with the sidebar's panel; the sidebar's own columns are added, so the
+// frame carries everything at the sizes it is presented at.
+int Pad_Frame_Width(int height, bool wide)
 {
 	int panel_width;
 	int panel_height;
 	Panel_Size(panel_width, panel_height);
 	double scale = double(panel_height) / double(Pad_Sidebar_Height());
-	int map_panel_width = std::max(panel_width - int(SidebarClass::SIDE_WIDTH * scale), 1);
+	int map_panel_width = std::max(panel_width - (wide ? 0 : int(SidebarClass::SIDE_WIDTH * scale)), 1);
 	int map_panel_height = std::max(panel_height - int(TAB_BAR_HEIGHT * scale), 1);
 	int map_height = std::max(height - TAB_BAR_HEIGHT, 1);
 	int width = int(((long long)map_height * map_panel_width * 2 + map_panel_height) / (map_panel_height * 2));
 	return((width & ~1) + SidebarClass::SIDE_WIDTH);
+}
+
+
+// The saved zoom width is the one with the sidebar beside the map.
+int Pad_Zoom_Width(int height)
+{
+	return(Pad_Frame_Width(height, false));
+}
+
+
+/// <summary>
+/// Refits play to the sidebar away from the map or beside it, keeping the map's top left
+/// corner where it is so the picture only grows or shrinks at the sidebar's edge.
+/// </summary>
+void Pad_Sidebar_Frame(bool wide)
+{
+	if (Options.ControlScheme != CONTROL_CONTROLLER || !ScenarioActive || TacticalMap == NULL) {
+		return;
+	}
+	int width;
+	int height;
+	Pad_Zoom_Size(width, height);
+	Point2D corner = TacticalMap->Get_Tactical_Position();
+	if (Set_Display_Mode_If_Needed(Pad_Frame_Width(height, wide), height, Pad_Sidebar_Height(), wide)) {
+		TacticalMap->Set_Tactical_Position(corner);
+	}
 }
 
 
@@ -576,7 +615,8 @@ bool Pad_Zoom_Step(int steps)
 
 	Point2D centre = TacticalMap->Get_Tactical_Position() + Point2D(TacticalRect.Width / 2, TacticalRect.Height / 2);
 	unsigned long started = timeGetTime();
-	if (!Change_Display_Mode(next_width, next_height, Pad_Sidebar_Height())) {
+	bool wide = Map.Pad_Sidebar_Wide();
+	if (!Change_Display_Mode(Pad_Frame_Width(next_height, wide), next_height, Pad_Sidebar_Height(), wide)) {
 		return(false);
 	}
 	DebugString("Pad zoom %dx%d took %lu ms\n", next_width, next_height, timeGetTime() - started);

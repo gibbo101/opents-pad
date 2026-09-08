@@ -114,6 +114,7 @@
 #include "savestream.h"
 #include "scheme.h"
 #include "session.h"
+#include "mainopt.h"
 #include "video.h"
 #include "shapeset.h"
 #include "super.h"
@@ -410,6 +411,9 @@ void SidebarClass::Init_Clear(void)
 	Column[0].Init_Clear();
 	Column[1].Init_Clear();
 	for (PadLastType & last : PadLast) last = PadLastType();
+	PadPanel = PAD_PANEL_HIDDEN;
+	PadPinned = false;
+	Video_Slide_Sidebar(false, 0);
 	Pad_Clear_Sprite_Cache();
 
 	Activate(false);
@@ -1150,6 +1154,61 @@ void SidebarClass::Pad_Leave(void)
 		Pad_Toggle_Grid(true);
 	}
 	Pad_Focus_Changed();
+	if (!PadPinned) {
+		Pad_Panel_Hide();
+	}
+}
+
+
+void SidebarClass::Pad_Panel_Show(bool pin)
+{
+	enum { SLIDE_MS = 200 };
+	if (pin) {
+		PadPinned = true;
+	}
+	if (PadPanel == PAD_PANEL_HIDDEN || PadPanel == PAD_PANEL_SLIDING_OUT) {
+		PadPanel = PAD_PANEL_SLIDING_IN;
+		Video_Slide_Sidebar(true, SLIDE_MS);
+	}
+	Pad_Enter();
+}
+
+
+void SidebarClass::Pad_Panel_Hide(void)
+{
+	enum { SLIDE_MS = 200 };
+	if (PadPanel == PAD_PANEL_HIDDEN || PadPanel == PAD_PANEL_SLIDING_OUT) {
+		return;
+	}
+	if (PadFocus) {
+		PadFocus = false;
+		if (PadSection >= 0) {
+			Pad_Toggle_Grid(true);
+		}
+		Pad_Focus_Changed();
+	}
+	// The map takes the panel's width back before the panel starts to move, which shows
+	// nothing new since the panel still covers that strip.
+	if (PadPanel == PAD_PANEL_SHOWN) {
+		Pad_Sidebar_Frame(true);
+	}
+	PadPanel = PAD_PANEL_SLIDING_OUT;
+	Video_Slide_Sidebar(false, SLIDE_MS);
+}
+
+
+void SidebarClass::Pad_Panel_Tick(void)
+{
+	if (Video_Sidebar_Sliding()) {
+		return;
+	}
+	if (PadPanel == PAD_PANEL_SLIDING_IN) {
+		// The panel now covers the strip the map gives up, so the refit shows nothing new.
+		PadPanel = PAD_PANEL_SHOWN;
+		Pad_Sidebar_Frame(false);
+	} else if (PadPanel == PAD_PANEL_SLIDING_OUT) {
+		PadPanel = PAD_PANEL_HIDDEN;
+	}
 }
 
 

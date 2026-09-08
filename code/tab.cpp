@@ -189,15 +189,35 @@ void TabClass::Draw_It(bool complete)
 /// over, and prints the mission timer alongside it whenever a timer is running. The
 /// credit display calls this before it prints the new money value.
 /// </summary>
+// Where the split bar's right end is, in its own pixels: the bar runs under the sidebar,
+// so the end that shows is short of the sidebar's width while the sidebar is beside the map.
+static int Bar_Visible_Width(void)
+{
+	int width = TabSurface->Get_Width();
+	if (!Map.Pad_Sidebar_Wide()) {
+		width -= SidebarClass::SIDE_WIDTH;
+	}
+	return(width);
+}
+
+
 void TabClass::Draw_Credits_Tab(void)
 {
 	Draw_Shape(*SidebarSurface, *SidebarDrawer, TabShape, 2, Point2D(0, 0), SidebarSurface->Get_Rect());
 
+	// With the sidebar away the credits move to the bar's right end.
+	bool on_bar = TabSurface != NULL && Map.Pad_Sidebar_Wide();
+	if (on_bar) {
+		Draw_Shape(*TabSurface, *SidebarDrawer, TabShape, 2, Point2D(Bar_Visible_Width() - TabShape->Get_Width(), 0), TabSurface->Get_Rect());
+		Video_Mark_Dirty();
+	}
+
 	if (Scen->MissionTimer.Is_Active()) {
 		bool light = ((int)Scen->MissionTimer < TICKS_PER_MINUTE * Rule->TimerWarning) || Map.FlasherTimer > 0;
-		// The timer's tab sits at the bar's right end, on the split bar when there is one.
+		// The timer's tab sits at the bar's right end, on the split bar when there is one,
+		// short of the credits when those are on the bar too.
 		Surface & bar = TabSurface != NULL ? *TabSurface : *CompositeSurface;
-		int barwidth = TabSurface != NULL ? TabSurface->Get_Width() : TacticalRect.Width;
+		int barwidth = TabSurface != NULL ? Bar_Visible_Width() - (on_bar ? TabShape->Get_Width() : 0) : TacticalRect.Width;
 		Draw_Shape(bar, *SidebarDrawer, TabShape, /*light ? 4 :*/ 2, Point2D(barwidth - TabShape->Get_Width(), 0), bar.Get_Rect());
 
 		int time = Scen->MissionTimer;
@@ -223,6 +243,21 @@ void TabClass::Draw_Credits_Tab(void)
 		}
 	}
 	BASECLASS::IsToBlitSidebar = true;
+}
+
+
+/// <summary>
+/// Prints the credits readout over its tab: on the sidebar, and at the bar's right end
+/// too while the sidebar is away from the map.
+/// </summary>
+void TabClass::Print_Credits(char const * text)
+{
+	TextPrintType style = TextPrintType(TPF_USE_GRAD_PAL | TPF_CENTER | TPF_METAL12);
+	Fancy_Text_Print(text, *SidebarSurface, SidebarSurface->Get_Rect(), Point2D(SidebarSurface->Get_Width() / 2, 0), ColorSchemes[0], TBLACK, style);
+	if (TabSurface != NULL && Map.Pad_Sidebar_Wide()) {
+		Fancy_Text_Print(text, *TabSurface, TabSurface->Get_Rect(), Point2D(Bar_Visible_Width() - TabShape->Get_Width() / 2, 0), ColorSchemes[0], TBLACK, style);
+		Video_Mark_Dirty();
+	}
 }
 
 

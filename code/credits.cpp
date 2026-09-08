@@ -46,6 +46,7 @@
 #include "dsurface.h"
 #include "globals.h"
 #include "house.h"
+#include "data.h"
 #include "language/language.h"
 #include "rules.h"
 #include "scenario.h"
@@ -108,8 +109,6 @@ void CreditClass::Graphic_Logic(bool forced)
 	if (forced || IsToRedraw) {
 		BStart(BENCH_TABS);
 
-		int xx = SidebarSurface->Get_Width() / 2;
-
 		/*
 		**	Play a sound effect when the money display changes, but only if a sound
 		**	effect was requested.
@@ -127,18 +126,20 @@ void CreditClass::Graphic_Logic(bool forced)
 		*/
 		TabClass::Draw_Credits_Tab();
 
+		char text[32];
 		if (PlayerPtr->IsObserver) {
 			int hours = Current / 3600;
 			int minutes = (Current / 60) % 60;
 			int seconds = Current % 60;
 			if (hours != 0) {
-				Fancy_Text_Print(TXT_TIME_FORMAT_HOURS, *SidebarSurface, SidebarSurface->Get_Rect(), Point2D(xx, 0), ColorSchemes[0], TBLACK, TextPrintType(TPF_USE_GRAD_PAL|TPF_CENTER|TPF_METAL12), hours, minutes, seconds);
+				snprintf(text, sizeof(text), Fetch_String(TXT_TIME_FORMAT_HOURS), hours, minutes, seconds);
 			} else {
-				Fancy_Text_Print(TXT_TIME_FORMAT_NO_HOURS, *SidebarSurface, SidebarSurface->Get_Rect(), Point2D(xx, 0), ColorSchemes[0], TBLACK, TextPrintType(TPF_USE_GRAD_PAL|TPF_CENTER|TPF_METAL12), minutes, seconds);
+				snprintf(text, sizeof(text), Fetch_String(TXT_TIME_FORMAT_NO_HOURS), minutes, seconds);
 			}
 		} else {
-			Fancy_Text_Print("%ld", *SidebarSurface, SidebarSurface->Get_Rect(), Point2D(xx, 0), ColorSchemes[0], TBLACK, TextPrintType(TPF_USE_GRAD_PAL|TPF_CENTER|TPF_METAL12), Current);
+			snprintf(text, sizeof(text), "%ld", (long)Current);
 		}
+		TabClass::Print_Credits(text);
 
 		if (Scen->MissionTimer.Is_Active()) {
 			int secs = Scen->MissionTimer / TICKS_PER_SECOND;

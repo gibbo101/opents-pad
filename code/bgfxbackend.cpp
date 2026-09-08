@@ -612,12 +612,13 @@ void Backend_Present(BackendQuad const & frame, BackendQuad const * sidebar, Bac
 	bgfx::setViewClear(VIEW_PRESENT, BGFX_CLEAR_COLOR, 0x000000FF);
 	Set_View_Transform(VIEW_PRESENT, _DrawableWidth, _DrawableHeight);
 
+	// The sidebar goes last so that, sliding over the frame and the bar, it covers them.
 	Present_Layer(_Frame, frame, mode);
-	if (sidebar != NULL) {
-		Present_Layer(_Sidebar, *sidebar, mode);
-	}
 	if (bar != NULL) {
 		Present_Layer(_Bar, *bar, mode);
+	}
+	if (sidebar != NULL) {
+		Present_Layer(_Sidebar, *sidebar, mode);
 	}
 
 	bgfx::frame();

@@ -50,6 +50,13 @@ static int _SidebarWidth = 0;
 static int _SidebarHeight = 0;
 static bool _SidebarOnRight = true;
 static int _BarHeight = 0;
+static bool _SidebarOverlay = false;
+
+// The overlay sidebar's slide: where it is going, where it set out from, and when.
+static float _SlideTo = 0.0f;
+static float _SlideFrom = 0.0f;
+static unsigned long _SlideStart = 0;
+static unsigned long _SlideMs = 0;
 
 // Set whenever the visible surface is written to, and cleared once that frame has been
 // presented. A frame that is skipped for pacing stays marked, so the next present shows
@@ -119,6 +126,7 @@ static void Update_Scale_Info(void)
 	_ScaleInfo.BarDestY = 0;
 	_ScaleInfo.BarDestWidth = 0;
 	_ScaleInfo.BarDestHeight = 0;
+	_ScaleInfo.SidebarOverlay = false;
 
 	if (_ScaleInfo.GameWidth <= 0 || _ScaleInfo.GameHeight <= 0 || _ScaleInfo.DrawableWidth <= 0 || _ScaleInfo.DrawableHeight <= 0) {
 		_ScaleInfo.DestX = 0;
@@ -145,22 +153,28 @@ static void Update_Scale_Info(void)
 		_ScaleInfo.SidebarDestHeight = (int)((double)_SidebarHeight * scale);
 		_ScaleInfo.SidebarDestY = (_ScaleInfo.DrawableHeight - _ScaleInfo.SidebarDestHeight) / 2;
 		_ScaleInfo.SidebarScale = (float)scale;
+		_ScaleInfo.SidebarOverlay = _SidebarOverlay;
 
-		intowidth = std::max(_ScaleInfo.DrawableWidth - _ScaleInfo.SidebarDestWidth, 1);
 		framewidth = _ScaleInfo.Tactical_Width();
 		if (_SidebarOnRight) {
 			_ScaleInfo.SidebarDestX = _ScaleInfo.DrawableWidth - _ScaleInfo.SidebarDestWidth;
 		} else {
 			_ScaleInfo.SidebarDestX = 0;
-			intox = _ScaleInfo.SidebarDestWidth;
+		}
+		// Beside the frame the sidebar takes its share of the width; over it, none.
+		if (!_SidebarOverlay) {
+			intowidth = std::max(_ScaleInfo.DrawableWidth - _ScaleInfo.SidebarDestWidth, 1);
+			if (!_SidebarOnRight) {
+				intox = _ScaleInfo.SidebarDestWidth;
+			}
 		}
 
 		// The bar takes its rows off the top of the frame and is drawn at the sidebar's
-		// scale across the frame's part of the drawable; its own width follows from that.
+		// scale across the whole drawable; its own width follows from that.
 		if (_BarHeight > 0 && _BarHeight < _ScaleInfo.GameHeight) {
 			_ScaleInfo.BarHeight = _BarHeight;
-			_ScaleInfo.BarWidth = std::max((int)((double)intowidth / scale), 1);
-			_ScaleInfo.BarDestX = intox;
+			_ScaleInfo.BarWidth = std::max((int)((double)_ScaleInfo.DrawableWidth / scale), 1);
+			_ScaleInfo.BarDestX = 0;
 			_ScaleInfo.BarDestY = 0;
 			_ScaleInfo.BarDestWidth = (int)((double)_ScaleInfo.BarWidth * scale);
 			_ScaleInfo.BarDestHeight = (int)((double)_BarHeight * scale);
@@ -302,6 +316,7 @@ bool Video_Set_Mode(int width, int height)
 	_SidebarWidth = 0;
 	_SidebarHeight = 0;
 	_BarHeight = 0;
+	_SidebarOverlay = false;
 
 	Update_Scale_Info();
 	Win_Cursor_Refresh();
@@ -317,10 +332,12 @@ bool Video_Set_Mode(int width, int height)
 /// splits the top bar off too: that many of the frame's top rows are no longer shown, and
 /// a bar surface at the sidebar's scale is presented above the rest; its width is reported
 /// as BarWidth in the scale info once this returns.
+/// As an overlay the sidebar is drawn over the frame and the bar instead, slid in as far
+/// as Video_Slide_Sidebar has taken it, and the frame's columns take the whole width.
 /// The sidebar and bar surfaces the caller allocates must match the sizes given here.
 /// </summary>
 /// <returns>bool; Is the layout in place? On failure the previous layout stands.</returns>
-bool Video_Set_Sidebar(int width, int height, bool onright, int barheight)
+bool Video_Set_Sidebar(int width, int height, bool onright, int barheight, bool overlay)
 {
 	if (!_Initialized) {
 		return(false);
@@ -330,21 +347,67 @@ bool Video_Set_Sidebar(int width, int height, bool onright, int barheight)
 	int oldheight = _SidebarHeight;
 	bool oldright = _SidebarOnRight;
 	int oldbar = _BarHeight;
+	bool oldoverlay = _SidebarOverlay;
 
 	_SidebarWidth = std::max(width, 0);
 	_SidebarHeight = std::max(height, 0);
 	_SidebarOnRight = onright;
 	_BarHeight = std::max(barheight, 0);
+	_SidebarOverlay = overlay;
 
 	if (!Apply_Layout()) {
 		_SidebarWidth = oldwidth;
 		_SidebarHeight = oldheight;
 		_SidebarOnRight = oldright;
 		_BarHeight = oldbar;
+		_SidebarOverlay = oldoverlay;
 		Apply_Layout();
 		return(false);
 	}
 	return(true);
+}
+
+
+/// <summary>
+/// Starts the overlay sidebar sliding fully in or fully out from wherever it is, over the
+/// given time; zero puts it there at once.
+/// </summary>
+void Video_Slide_Sidebar(bool in, int milliseconds)
+{
+	_SlideFrom = Video_Sidebar_Slide();
+	_SlideTo = in ? 1.0f : 0.0f;
+	_SlideStart = timeGetTime();
+	_SlideMs = (unsigned long)std::max(milliseconds, 0);
+	_FrameIsDirty = true;
+}
+
+
+/// <summary>
+/// How far in the overlay sidebar is right now, 0 fully out to 1 fully in. Beside the
+/// frame the sidebar is always fully in.
+/// </summary>
+float Video_Sidebar_Slide(void)
+{
+	if (!_SidebarOverlay) {
+		return(1.0f);
+	}
+	if (_SlideMs == 0) {
+		return(_SlideTo);
+	}
+	unsigned long elapsed = timeGetTime() - _SlideStart;
+	if (elapsed >= _SlideMs) {
+		return(_SlideTo);
+	}
+	return(_SlideFrom + (_SlideTo - _SlideFrom) * (float)elapsed / (float)_SlideMs);
+}
+
+
+/// <summary>
+/// Is the overlay sidebar still on its way in or out?
+/// </summary>
+bool Video_Sidebar_Sliding(void)
+{
+	return(_SidebarOverlay && Video_Sidebar_Slide() != _SlideTo);
 }
 
 
@@ -424,12 +487,15 @@ void Video_Present(void)
 
 	BackendQuad sidebar;
 	BackendQuad const * sidebarquad = NULL;
-	if (_ScaleInfo.Is_Split() && SidebarSurface != NULL) {
+	float slide = Video_Sidebar_Slide();
+	if (_ScaleInfo.Is_Split() && SidebarSurface != NULL && slide > 0.0f) {
 		DSurface * side = (DSurface *)SidebarSurface;
 		if (side->Get_Buffer() != NULL && side->Get_Width() == _ScaleInfo.SidebarWidth && side->Get_Height() == _ScaleInfo.SidebarHeight) {
 			sidebar.Pixels = side->Get_Buffer();
 			sidebar.Pitch = side->Stride();
-			sidebar.DestX = _ScaleInfo.SidebarDestX;
+			// An overlay on its way in is drawn short of its place by the share still to come.
+			int away = (int)((double)_ScaleInfo.SidebarDestWidth * (1.0 - slide));
+			sidebar.DestX = _ScaleInfo.SidebarDestX + (_SidebarOnRight ? away : -away);
 			sidebar.DestY = _ScaleInfo.SidebarDestY;
 			sidebar.DestWidth = _ScaleInfo.SidebarDestWidth;
 			sidebar.DestHeight = _ScaleInfo.SidebarDestHeight;
@@ -456,7 +522,8 @@ void Video_Present(void)
 	Backend_Present(frame, sidebarquad, barquad, Backend_Scale_Mode());
 	_Presenting = false;
 
-	_FrameIsDirty = false;
+	// A sliding sidebar wants the next frame too, however still the game is.
+	_FrameIsDirty = Video_Sidebar_Sliding();
 	_LastPresentTime = timeGetTime();
 }
 

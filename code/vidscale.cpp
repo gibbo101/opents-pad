@@ -34,7 +34,8 @@ bool Video_Scaling_Active(void)
 // sidebar's far edge still maps onto the sidebar rather than the map.
 static bool Window_Point_On_Sidebar(VideoScaleInfo const & scale, POINT const & point)
 {
-	if (!scale.Is_Split()) {
+	// An overlay sidebar is on its way somewhere or away, so nothing lands on it.
+	if (!scale.Sidebar_Is_Beside()) {
 		return(false);
 	}
 	return(scale.SidebarOnRight ? point.x >= scale.SidebarDestX : point.x < scale.SidebarDestX + scale.SidebarDestWidth);
@@ -45,7 +46,7 @@ static bool Window_Point_On_Sidebar(VideoScaleInfo const & scale, POINT const & 
 // edge on the sidebar's side counts too.
 static bool Game_Point_On_Sidebar(VideoScaleInfo const & scale, POINT const & point)
 {
-	if (!scale.Is_Split()) {
+	if (!scale.Sidebar_Is_Beside()) {
 		return(false);
 	}
 	return(scale.SidebarOnRight ? point.x >= scale.Sidebar_X() : point.x < scale.SidebarWidth);

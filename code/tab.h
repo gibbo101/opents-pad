@@ -47,6 +47,7 @@ class TabClass: public SidebarClass
 		virtual void AI(KeyNumType &input, Point2D const & xy) override;
 		virtual void Draw_It(bool complete=false) override;
 		static void Draw_Credits_Tab(void);
+		static void Print_Credits(char const * text);	// The readout, on the sidebar and on the bar when the sidebar is away.
 		static void Hilite_Tab(int tab);
 		void Flash_Money(void);
 
