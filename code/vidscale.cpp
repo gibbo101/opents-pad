@@ -25,7 +25,30 @@ bool Video_Scaling_Active(void)
 {
 	VideoScaleInfo const & scale = Video_Get_Scale_Info();
 
-	return(scale.DestX != 0 || scale.DestY != 0 || scale.DestWidth != scale.GameWidth || scale.DestHeight != scale.GameHeight);
+	return(scale.Is_Split() || scale.DestX != 0 || scale.DestY != 0 || scale.DestWidth != scale.GameWidth || scale.DestHeight != scale.GameHeight);
+}
+
+
+// Does a window position fall on the split sidebar's side of the seam between it and the
+// frame's other columns? Everything past the seam counts, so a position beyond the
+// sidebar's far edge still maps onto the sidebar rather than the map.
+static bool Window_Point_On_Sidebar(VideoScaleInfo const & scale, POINT const & point)
+{
+	if (!scale.Is_Split()) {
+		return(false);
+	}
+	return(scale.SidebarOnRight ? point.x >= scale.SidebarDestX : point.x < scale.SidebarDestX + scale.SidebarDestWidth);
+}
+
+
+// Does a frame position lie in the split sidebar's columns? A position beyond the frame's
+// edge on the sidebar's side counts too.
+static bool Game_Point_On_Sidebar(VideoScaleInfo const & scale, POINT const & point)
+{
+	if (!scale.Is_Split()) {
+		return(false);
+	}
+	return(scale.SidebarOnRight ? point.x >= scale.Sidebar_X() : point.x < scale.SidebarWidth);
 }
 
 
@@ -39,8 +62,14 @@ void Window_Point_To_Game(POINT & point)
 {
 	VideoScaleInfo const & scale = Video_Get_Scale_Info();
 
+	if (Window_Point_On_Sidebar(scale, point) && scale.SidebarScale > 0.0f) {
+		point.x = scale.Sidebar_X() + (LONG)floor((point.x - scale.SidebarDestX) / (double)scale.SidebarScale);
+		point.y = (LONG)floor((point.y - scale.SidebarDestY) / (double)scale.SidebarScale);
+		return;
+	}
+
 	if (scale.DestWidth > 0 && scale.DestHeight > 0) {
-		point.x = (LONG)floor((point.x - scale.DestX) * (double)scale.GameWidth / (double)scale.DestWidth);
+		point.x = scale.Tactical_X() + (LONG)floor((point.x - scale.DestX) * (double)scale.Tactical_Width() / (double)scale.DestWidth);
 		point.y = (LONG)floor((point.y - scale.DestY) * (double)scale.GameHeight / (double)scale.DestHeight);
 	}
 }
@@ -55,8 +84,14 @@ void Game_Point_To_Window(POINT & point)
 {
 	VideoScaleInfo const & scale = Video_Get_Scale_Info();
 
+	if (Game_Point_On_Sidebar(scale, point)) {
+		point.x = scale.SidebarDestX + (LONG)floor((point.x - scale.Sidebar_X()) * (double)scale.SidebarScale);
+		point.y = scale.SidebarDestY + (LONG)floor(point.y * (double)scale.SidebarScale);
+		return;
+	}
+
 	if (scale.GameWidth > 0 && scale.GameHeight > 0) {
-		point.x = scale.DestX + (LONG)floor(point.x * (double)scale.DestWidth / (double)scale.GameWidth);
+		point.x = scale.DestX + (LONG)floor((point.x - scale.Tactical_X()) * (double)scale.DestWidth / (double)scale.Tactical_Width());
 		point.y = scale.DestY + (LONG)floor(point.y * (double)scale.DestHeight / (double)scale.GameHeight);
 	}
 }
@@ -86,6 +121,8 @@ void Game_Point_To_Screen(POINT & point)
 
 /// <summary>
 /// Pulls a position onto the frame if it lies outside it.
+/// A split sidebar's columns run to the sidebar's own height rather than the frame's, so
+/// a position in them is held to that.
 /// </summary>
 /// <param name="point">The position to clamp in place.</param>
 void Clamp_To_Game(POINT & point)
@@ -95,7 +132,9 @@ void Clamp_To_Game(POINT & point)
 	if (point.x < 0) point.x = 0;
 	if (point.y < 0) point.y = 0;
 	if (scale.GameWidth > 0 && point.x >= scale.GameWidth) point.x = scale.GameWidth - 1;
-	if (scale.GameHeight > 0 && point.y >= scale.GameHeight) point.y = scale.GameHeight - 1;
+
+	int height = Game_Point_On_Sidebar(scale, point) ? scale.SidebarHeight : scale.GameHeight;
+	if (height > 0 && point.y >= height) point.y = height - 1;
 }
 
 

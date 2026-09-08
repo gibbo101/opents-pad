@@ -47,7 +47,6 @@
 
 BOOL CALLBACK Main_Options_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
 BOOL CALLBACK Display_Options_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
-bool Change_Display_Mode(int width, int height);
 bool Test_Display_Mode_Dialog(int width, int height);
 BOOL CALLBACK Test_Display_Mode_Dialog_Proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
 
@@ -205,14 +204,25 @@ BOOL CALLBACK Main_Options_Dialog_Proc(HWND window, UINT message, WPARAM wparam,
 
 
 /// <summary>
+/// Switches the game over to a new render resolution with the sidebar in the frame.
+/// </summary>
+bool Change_Display_Mode(int width, int height)
+{
+	return(Change_Display_Mode(width, height, 0));
+}
+
+
+/// <summary>
 /// Switches the game over to a new render resolution.
 /// Every drawing surface is destroyed and recreated at the new size, so any pointer held
 /// across this call is stale.
 /// </summary>
-/// <param name="width">The width to render at.</param>
+/// <param name="width">The width to render at, the sidebar's columns included.</param>
 /// <param name="height">The height to render at.</param>
+/// <param name="sidebarheight">A height for the sidebar's own surface, which the presenter
+/// then shows beside the frame at its own scale; zero keeps the sidebar in the frame.</param>
 /// <returns>bool; Was the mode changed? If not, nothing has been disturbed.</returns>
-bool Change_Display_Mode(int width, int height)
+bool Change_Display_Mode(int width, int height, int sidebarheight)
 {
 	DebugString("About to set video mode\n");
 
@@ -224,8 +234,13 @@ bool Change_Display_Mode(int width, int height)
 		return(false);
 		}
 
+	if (sidebarheight > 0 && !Video_Set_Sidebar(SidebarClass::SIDE_WIDTH, sidebarheight, Options.IsSidebarOnRight)) {
+		DebugString("Video_Set_Sidebar failed; sidebar stays in the frame.\n");
+		sidebarheight = 0;
+	}
+
 	VisibleRect = Rect(0, 0, width, height);
-	DebugString("VisibleRect: %dx%d\n", width, height);
+	DebugString("VisibleRect: %dx%d, sidebar %s\n", width, height, sidebarheight > 0 ? "split" : "in frame");
 
 	if (VisibleSurface != NULL) {
 		delete VisibleSurface;
@@ -308,7 +323,7 @@ bool Change_Display_Mode(int width, int height)
 	temp.Width -= SidebarClass::SIDE_WIDTH;
 	temp.Height -= 16;
 
-	Allocate_Surfaces(VisibleRect, Rect(0, 0, temp.Width, VisibleRect.Height), Rect(0, 0, temp.Width, VisibleRect.Height), Rect(0, 0, SidebarClass::SIDE_WIDTH, VisibleRect.Height));
+	Allocate_Surfaces(VisibleRect, Rect(0, 0, temp.Width, VisibleRect.Height), Rect(0, 0, temp.Width, VisibleRect.Height), Rect(0, 0, SidebarClass::SIDE_WIDTH, sidebarheight > 0 ? sidebarheight : VisibleRect.Height));
 	LogicalSurface = HiddenSurface;
 
 	if (MouseCursor != NULL) {
@@ -341,12 +356,12 @@ enum {
 };
 
 
-static bool Set_Display_Mode_If_Needed(int width, int height)
+static bool Set_Display_Mode_If_Needed(int width, int height, int sidebarheight)
 {
-	if (VideoModeWidth == width && VideoModeHeight == height) {
+	if (VideoModeWidth == width && VideoModeHeight == height && Video_Get_Scale_Info().SidebarHeight == sidebarheight) {
 		return(true);
 	}
-	return(Change_Display_Mode(width, height));
+	return(Change_Display_Mode(width, height, sidebarheight));
 }
 
 
@@ -361,7 +376,16 @@ bool Shell_Display_Mode(void)
 	if (Options.ControlScheme != CONTROL_CONTROLLER) {
 		return(Play_Display_Mode());
 	}
-	return(Set_Display_Mode_If_Needed(SHELL_WIDTH, SHELL_HEIGHT));
+	return(Set_Display_Mode_If_Needed(SHELL_WIDTH, SHELL_HEIGHT, 0));
+}
+
+
+/// <summary>
+/// Is the controller scheme's shell size the current render size?
+/// </summary>
+bool Shell_Display_Mode_Active(void)
+{
+	return(Options.ControlScheme == CONTROL_CONTROLLER && VideoModeWidth == SHELL_WIDTH && VideoModeHeight == SHELL_HEIGHT);
 }
 
 
@@ -373,12 +397,12 @@ bool Shell_Display_Mode(void)
 bool Play_Display_Mode(void)
 {
 	if (Options.ControlScheme != CONTROL_CONTROLLER) {
-		return(Set_Display_Mode_If_Needed(Options.ScreenWidth, Options.ScreenHeight));
+		return(Set_Display_Mode_If_Needed(Options.ScreenWidth, Options.ScreenHeight, 0));
 	}
 	int width;
 	int height;
 	Pad_Zoom_Size(width, height);
-	return(Set_Display_Mode_If_Needed(width, height));
+	return(Set_Display_Mode_If_Needed(width, height, Pad_Sidebar_Height()));
 }
 
 
@@ -430,13 +454,43 @@ static int Zoom_Nearest_Rung(int height)
 }
 
 
+/// <summary>
+/// The height the split sidebar is drawn at under the controller scheme: the zoom's
+/// baseline, so the sidebar keeps the size it has at the baseline zoom whatever the map
+/// is zoomed to, and never less than a scale of one.
+/// </summary>
+int Pad_Sidebar_Height(void)
+{
+	int panel_width;
+	int panel_height;
+	Panel_Size(panel_width, panel_height);
+	int baseline = On_Steam_Deck() ? ZOOM_BASELINE_DECK : ZOOM_BASELINE;
+	return(std::max(std::min(baseline, panel_height), 1));
+}
+
+
+// The panel width the split sidebar takes when it is scaled to fill the panel's height.
+static int Pad_Sidebar_Panel_Width(void)
+{
+	int panel_width;
+	int panel_height;
+	Panel_Size(panel_width, panel_height);
+	int sidebar_height = Pad_Sidebar_Height();
+	return(int(((long long)SidebarClass::SIDE_WIDTH * panel_height * 2 + sidebar_height) / (sidebar_height * 2)));
+}
+
+
+// The frame width for a ladder height: the map's columns follow the shape of the panel
+// left beside the sidebar, and the sidebar's own columns are added, so the frame carries
+// both at the sizes they are presented at.
 int Pad_Zoom_Width(int height)
 {
 	int panel_width;
 	int panel_height;
 	Panel_Size(panel_width, panel_height);
-	int width = int(((long long)height * panel_width * 2 + panel_height) / (panel_height * 2));
-	return(width & ~1);
+	int map_panel_width = std::max(panel_width - Pad_Sidebar_Panel_Width(), 1);
+	int width = int(((long long)height * map_panel_width * 2 + panel_height) / (panel_height * 2));
+	return((width & ~1) + SidebarClass::SIDE_WIDTH);
 }
 
 
@@ -460,18 +514,15 @@ int Pad_Zoom_Neighbour(int height, int steps)
 }
 
 
-// A saved size counts as the panel's when its shape is within a percent of the panel's.
+// A saved size counts as the panel's when its width is within a percent of the one the
+// panel gives its height.
 static bool Zoom_Fits_Panel(int width, int height)
 {
 	if (width <= 0 || height <= 0) {
 		return(false);
 	}
-	int panel_width;
-	int panel_height;
-	Panel_Size(panel_width, panel_height);
-	long long shape = (long long)width * panel_height - (long long)height * panel_width;
-	long long tolerance = (long long)panel_width * panel_height / 100;
-	return(shape <= tolerance && shape >= -tolerance);
+	int difference = abs(width - Pad_Zoom_Width(height));
+	return(difference <= std::max(width / 100, 1));
 }
 
 
@@ -506,7 +557,7 @@ bool Pad_Zoom_Step(int steps)
 
 	Point2D centre = TacticalMap->Get_Tactical_Position() + Point2D(TacticalRect.Width / 2, TacticalRect.Height / 2);
 	unsigned long started = timeGetTime();
-	if (!Change_Display_Mode(next_width, next_height)) {
+	if (!Change_Display_Mode(next_width, next_height, Pad_Sidebar_Height())) {
 		return(false);
 	}
 	DebugString("Pad zoom %dx%d took %lu ms\n", next_width, next_height, timeGetTime() - started);

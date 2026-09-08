@@ -117,14 +117,12 @@ void Multi_Score_Presentation(void)
 	// Under the controller scheme the screen fills the display at the shell's size like
 	// the other console screens; the size it was opened at returns afterwards.
 	bool padded = Options.ControlScheme == CONTROL_CONTROLLER;
-	int width = VideoModeWidth;
-	int height = VideoModeHeight;
 	if (padded) {
 		Shell_Display_Mode();
 	}
 	MultiScore().Multi_Presentation();
-	if (padded && (VideoModeWidth != width || VideoModeHeight != height)) {
-		Change_Display_Mode(width, height);
+	if (padded) {
+		Play_Display_Mode();
 	}
 	Keyboard->Clear();
 }

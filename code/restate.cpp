@@ -272,8 +272,7 @@ void Restate_Mission(ScenarioClass * scen)
 	// Under the controller scheme the page is shown at the shell's size like the other
 	// console screens; the size it was opened at returns afterwards.
 	bool padded = Options.ControlScheme == CONTROL_CONTROLLER;
-	int width = VideoModeWidth;
-	int height = VideoModeHeight;
+	bool from_shell = padded && Shell_Display_Mode_Active();
 	if (padded) {
 		Shell_Display_Mode();
 	}
@@ -285,8 +284,8 @@ void Restate_Mission(ScenarioClass * scen)
 		Theme.Play_Song(theme);
 	}
 
-	if (padded && (VideoModeWidth != width || VideoModeHeight != height)) {
-		Change_Display_Mode(width, height);
+	if (padded && !from_shell) {
+		Play_Display_Mode();
 	}
 	ScenarioActive = save_started;
 	Keyboard->Clear();

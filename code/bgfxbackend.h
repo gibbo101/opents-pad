@@ -32,15 +32,29 @@ enum BackendScaleMode {
 };
 
 
+// One picture to draw and where it lands in the window. The pixels are 16 bit 565 rows
+// of the size the layer was given, read at the pitch, and stay owned by the caller.
+struct BackendQuad
+{
+	void const * Pixels;
+	int Pitch;
+	int DestX;
+	int DestY;
+	int DestWidth;
+	int DestHeight;
+};
+
+
 // Drawable sizes are physical pixel dimensions supplied by the application shell.
 bool Backend_Init(NativeWindow const & window, int drawablewidth, int drawableheight, BackendRenderer renderer, bool vsync);
 void Backend_Shutdown(void);
 
 bool Backend_Set_Frame_Size(int width, int height);
+bool Backend_Set_Sidebar_Size(int width, int height);		// Zero drops the sidebar layer.
 void Backend_On_Resize(int drawablewidth, int drawableheight);
 
-// Uploads the frame and presents it. The pixels are 16 bit 565 and stay owned by the
-// caller; they are consumed before this returns.
-void Backend_Present(void const * pixels, int pitch, int destx, int desty, int destwidth, int destheight, BackendScaleMode mode);
+// Uploads the frame, and the sidebar when one is given, and presents them. The pixels
+// are consumed before this returns.
+void Backend_Present(BackendQuad const & frame, BackendQuad const * sidebar, BackendScaleMode mode);
 
 char const * Backend_Renderer_Name(void);

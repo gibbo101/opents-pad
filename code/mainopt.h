@@ -10,8 +10,11 @@
 #pragma once
 
 bool Change_Display_Mode(int width, int height);
+bool Change_Display_Mode(int width, int height, int sidebarheight);	// A sidebar height splits the sidebar off the frame.
 bool Shell_Display_Mode(void);
+bool Shell_Display_Mode_Active(void);
 bool Play_Display_Mode(void);
+int Pad_Sidebar_Height(void);						// The split sidebar's own height under the controller scheme.
 void Pad_Zoom_Size(int & width, int & height);		// The controller's play size, settled to the panel.
 int Pad_Zoom_Neighbour(int height, int steps);		// The ladder height the given number of steps in from one.
 int Pad_Zoom_Width(int height);						// The width the panel's shape gives a ladder height.

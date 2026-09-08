@@ -124,6 +124,7 @@ class SidebarClass : public PowerClass
 		bool Factory_Link(FactoryClass * factory, RTTIType type, int id);
 		bool Is_On_Sidebar(RTTIType type, int id) const;
 
+		int Sidebar_Height(void);
 		int Max_Visible(void);
 
 		void Set_Cameo_Text(bool state);

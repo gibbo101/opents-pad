@@ -25,6 +25,7 @@
 #include "surface.h"
 #include "wincursor.h"
 
+#include <algorithm>
 #include <cstdlib>
 
 
@@ -43,6 +44,11 @@ bool WindowedMode = false;
 
 static bool _Initialized = false;
 static VideoScaleInfo _ScaleInfo;
+
+// The sidebar the presenter draws beside the frame, or nothing while it is in the frame.
+static int _SidebarWidth = 0;
+static int _SidebarHeight = 0;
+static bool _SidebarOnRight = true;
 
 // Set whenever the visible surface is written to, and cleared once that frame has been
 // presented. A frame that is skipped for pacing stays marked, so the next present shows
@@ -75,15 +81,37 @@ static void Update_Present_Interval(int refreshrate)
 }
 
 
+static double Fit_Scale(int width, int height, int intowidth, int intoheight)
+{
+	double scalex = (double)intowidth / (double)width;
+	double scaley = (double)intoheight / (double)height;
+	double scale = (scalex < scaley) ? scalex : scaley;
+
+	if (Options.IntegerScaling && scale >= 1.0) {
+		scale = (double)(int)scale;
+	}
+	return(scale);
+}
+
+
 /// <summary>
 /// Works out where the game's frame sits inside the window.
 /// The frame keeps its shape, so it is grown by whichever of the two axes runs out first
-/// and centered in what is left over.
+/// and centered in what is left over. A split sidebar is fitted to the drawable height
+/// first and the frame's other columns are fitted beside it.
 /// </summary>
 static void Update_Scale_Info(void)
 {
 	_ScaleInfo.GameWidth = VideoModeWidth;
 	_ScaleInfo.GameHeight = VideoModeHeight;
+	_ScaleInfo.SidebarWidth = 0;
+	_ScaleInfo.SidebarHeight = 0;
+	_ScaleInfo.SidebarOnRight = _SidebarOnRight;
+	_ScaleInfo.SidebarDestX = 0;
+	_ScaleInfo.SidebarDestY = 0;
+	_ScaleInfo.SidebarDestWidth = 0;
+	_ScaleInfo.SidebarDestHeight = 0;
+	_ScaleInfo.SidebarScale = 1.0f;
 
 	if (_ScaleInfo.GameWidth <= 0 || _ScaleInfo.GameHeight <= 0 || _ScaleInfo.DrawableWidth <= 0 || _ScaleInfo.DrawableHeight <= 0) {
 		_ScaleInfo.DestX = 0;
@@ -95,20 +123,57 @@ static void Update_Scale_Info(void)
 		return;
 	}
 
-	double scalex = (double)_ScaleInfo.DrawableWidth / (double)_ScaleInfo.GameWidth;
-	double scaley = (double)_ScaleInfo.DrawableHeight / (double)_ScaleInfo.GameHeight;
-	double scale = (scalex < scaley) ? scalex : scaley;
+	int intox = 0;
+	int intowidth = _ScaleInfo.DrawableWidth;
+	int framewidth = _ScaleInfo.GameWidth;
 
-	if (Options.IntegerScaling && scale >= 1.0) {
-		scale = (double)(int)scale;
+	if (_SidebarWidth > 0 && _SidebarHeight > 0 && _SidebarWidth < _ScaleInfo.GameWidth) {
+		double scale = Fit_Scale(_SidebarWidth, _SidebarHeight, _ScaleInfo.DrawableWidth, _ScaleInfo.DrawableHeight);
+		_ScaleInfo.SidebarWidth = _SidebarWidth;
+		_ScaleInfo.SidebarHeight = _SidebarHeight;
+		_ScaleInfo.SidebarDestWidth = (int)((double)_SidebarWidth * scale);
+		_ScaleInfo.SidebarDestHeight = (int)((double)_SidebarHeight * scale);
+		_ScaleInfo.SidebarDestY = (_ScaleInfo.DrawableHeight - _ScaleInfo.SidebarDestHeight) / 2;
+		_ScaleInfo.SidebarScale = (float)scale;
+
+		intowidth = std::max(_ScaleInfo.DrawableWidth - _ScaleInfo.SidebarDestWidth, 1);
+		framewidth = _ScaleInfo.Tactical_Width();
+		if (_SidebarOnRight) {
+			_ScaleInfo.SidebarDestX = _ScaleInfo.DrawableWidth - _ScaleInfo.SidebarDestWidth;
+		} else {
+			_ScaleInfo.SidebarDestX = 0;
+			intox = _ScaleInfo.SidebarDestWidth;
+		}
 	}
 
-	_ScaleInfo.DestWidth = (int)((double)_ScaleInfo.GameWidth * scale);
+	double scale = Fit_Scale(framewidth, _ScaleInfo.GameHeight, intowidth, _ScaleInfo.DrawableHeight);
+
+	_ScaleInfo.DestWidth = (int)((double)framewidth * scale);
 	_ScaleInfo.DestHeight = (int)((double)_ScaleInfo.GameHeight * scale);
-	_ScaleInfo.DestX = (_ScaleInfo.DrawableWidth - _ScaleInfo.DestWidth) / 2;
+	_ScaleInfo.DestX = intox + (intowidth - _ScaleInfo.DestWidth) / 2;
 	_ScaleInfo.DestY = (_ScaleInfo.DrawableHeight - _ScaleInfo.DestHeight) / 2;
-	_ScaleInfo.ScaleX = (float)((double)_ScaleInfo.DestWidth / (double)_ScaleInfo.GameWidth);
+	_ScaleInfo.ScaleX = (float)((double)_ScaleInfo.DestWidth / (double)framewidth);
 	_ScaleInfo.ScaleY = (float)((double)_ScaleInfo.DestHeight / (double)_ScaleInfo.GameHeight);
+}
+
+
+// Sizes the renderer's textures to the frame columns that are shown and to the split
+// sidebar, if there is one, then lays both out in the window.
+static bool Apply_Layout(void)
+{
+	bool split = _SidebarWidth > 0 && _SidebarHeight > 0 && _SidebarWidth < VideoModeWidth;
+
+	if (!Backend_Set_Frame_Size(VideoModeWidth - (split ? _SidebarWidth : 0), VideoModeHeight)) {
+		return(false);
+	}
+	if (!Backend_Set_Sidebar_Size(split ? _SidebarWidth : 0, split ? _SidebarHeight : 0)) {
+		return(false);
+	}
+
+	Update_Scale_Info();
+	Win_Cursor_Refresh();
+	_FrameIsDirty = true;
+	return(true);
 }
 
 
@@ -189,7 +254,7 @@ void Video_Shutdown(void)
 
 
 /// <summary>
-/// Moves the game to a different render resolution.
+/// Moves the game to a different render resolution, with the sidebar back in the frame.
 /// The caller replaces the surfaces afterwards; this only resizes what the frame is
 /// presented from and leaves the previous mode untouched when it fails.
 /// </summary>
@@ -208,11 +273,54 @@ bool Video_Set_Mode(int width, int height)
 
 	VideoModeWidth = width;
 	VideoModeHeight = height;
+	_SidebarWidth = 0;
+	_SidebarHeight = 0;
 
 	Update_Scale_Info();
 	Win_Cursor_Refresh();
 	_FrameIsDirty = true;
 	return(true);
+}
+
+
+/// <summary>
+/// Splits the sidebar off the frame: the frame's sidebar columns are no longer shown and
+/// the sidebar surface, at the given size, is presented beside the rest at whatever scale
+/// fills the drawable height. A zero size puts the sidebar back in the frame.
+/// The sidebar surface the caller allocates must match the size given here.
+/// </summary>
+/// <returns>bool; Is the layout in place? On failure the previous layout stands.</returns>
+bool Video_Set_Sidebar(int width, int height, bool onright)
+{
+	if (!_Initialized) {
+		return(false);
+	}
+
+	int oldwidth = _SidebarWidth;
+	int oldheight = _SidebarHeight;
+	bool oldright = _SidebarOnRight;
+
+	_SidebarWidth = std::max(width, 0);
+	_SidebarHeight = std::max(height, 0);
+	_SidebarOnRight = onright;
+
+	if (!Apply_Layout()) {
+		_SidebarWidth = oldwidth;
+		_SidebarHeight = oldheight;
+		_SidebarOnRight = oldright;
+		Apply_Layout();
+		return(false);
+	}
+	return(true);
+}
+
+
+/// <summary>
+/// Is the sidebar presented from its own surface rather than as part of the frame?
+/// </summary>
+bool Video_Sidebar_Is_Split(void)
+{
+	return(_ScaleInfo.Is_Split());
 }
 
 
@@ -273,8 +381,31 @@ void Video_Present(void)
 		return;
 	}
 
+	BackendQuad frame;
+	frame.Pixels = (char const *)pixels + _ScaleInfo.Tactical_X() * surface->Bytes_Per_Pixel();
+	frame.Pitch = surface->Stride();
+	frame.DestX = _ScaleInfo.DestX;
+	frame.DestY = _ScaleInfo.DestY;
+	frame.DestWidth = _ScaleInfo.DestWidth;
+	frame.DestHeight = _ScaleInfo.DestHeight;
+
+	BackendQuad sidebar;
+	BackendQuad const * sidebarquad = NULL;
+	if (_ScaleInfo.Is_Split() && SidebarSurface != NULL) {
+		DSurface * side = (DSurface *)SidebarSurface;
+		if (side->Get_Buffer() != NULL && side->Get_Width() == _ScaleInfo.SidebarWidth && side->Get_Height() == _ScaleInfo.SidebarHeight) {
+			sidebar.Pixels = side->Get_Buffer();
+			sidebar.Pitch = side->Stride();
+			sidebar.DestX = _ScaleInfo.SidebarDestX;
+			sidebar.DestY = _ScaleInfo.SidebarDestY;
+			sidebar.DestWidth = _ScaleInfo.SidebarDestWidth;
+			sidebar.DestHeight = _ScaleInfo.SidebarDestHeight;
+			sidebarquad = &sidebar;
+		}
+	}
+
 	_Presenting = true;
-	Backend_Present(pixels, surface->Stride(), _ScaleInfo.DestX, _ScaleInfo.DestY, _ScaleInfo.DestWidth, _ScaleInfo.DestHeight, Backend_Scale_Mode());
+	Backend_Present(frame, sidebarquad, Backend_Scale_Mode());
 	_Presenting = false;
 
 	_FrameIsDirty = false;

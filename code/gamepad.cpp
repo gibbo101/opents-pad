@@ -697,8 +697,8 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 	if (refused_x != 0.0f || refused_y != 0.0f) {
 		// What the pointer could not travel past the screen's edge scrolls the map instead, so
 		// the view moves at the pointer's own pace and the shoulder speeds both alike.
-		float scale_x = float(VideoModeWidth) / float(corner.x - origin.x);
-		float scale_y = float(VideoModeHeight) / float(corner.y - origin.y);
+		float scale_x = float(TacticalRect.Width) / float(corner.x - origin.x);
+		float scale_y = float(TacticalRect.Height) / float(corner.y - origin.y);
 		static float _edge_x = 0.0f;
 		static float _edge_y = 0.0f;
 		_edge_x += refused_x * scale_x;

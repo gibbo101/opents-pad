@@ -114,6 +114,7 @@
 #include "savestream.h"
 #include "scheme.h"
 #include "session.h"
+#include "video.h"
 #include "shapeset.h"
 #include "super.h"
 #include "suprtype.h"
@@ -434,7 +435,7 @@ void SidebarClass::Init_IO(void)
 	SidebarRect.X = TacticalRect.X + TacticalRect.Width;
 	SidebarRect.Y = SIDE_Y;
 	SidebarRect.Width = 641 - SidebarRect.X;
-	SidebarRect.Height = (TacticalRect.Y - SidebarRect.Y) + TacticalRect.Height;
+	SidebarRect.Height = Sidebar_Height() - SidebarRect.Y;
 
 	/*
 	**	Add the sidebar's buttons only if we're not in editor mode.
@@ -1799,6 +1800,17 @@ void SidebarClass::Draw_Pad_View(void)
 void SidebarClass::Blit_Sidebar(bool complete)
 {
 	if (IsSidebarActive && GameActive && ScenarioActive) {
+
+		// A split sidebar is presented from its own surface, so nothing is copied; the
+		// presenter only has to know that a frame with a changed sidebar is due.
+		if (Video_Sidebar_Is_Split()) {
+			if (complete || IsToBlitSidebar || IsToRedrawCredits || Map.LastDrawRect != RECT_NONE) {
+				Video_Mark_Dirty();
+			}
+			IsToRedrawCredits = false;
+			IsToBlitSidebar = false;
+			return;
+		}
 
 		if (!IsToBlitSidebar && !complete) {
 			IsToBlitSidebar = false;
@@ -3514,7 +3526,7 @@ void SidebarClass::Reposition_Sidebar(void)
 	SidebarRect.X = Options.IsSidebarOnRight ? TacticalRect.X + TacticalRect.Width : 0;
 	SidebarRect.Y = SIDE_Y;
 	SidebarRect.Width = SIDE_WIDTH;
-	SidebarRect.Height = TacticalRect.Height + TacticalRect.Y - SIDE_Y;
+	SidebarRect.Height = Sidebar_Height() - SIDE_Y;
 
 	BASECLASS::Reposition_Sidebar();
 
@@ -3636,6 +3648,19 @@ const char * SidebarClass::Help_Text(int id)
 		}
 	}
 	return(text);
+}
+
+
+/// <summary>
+/// The height of the sidebar's own surface, which is the frame's height unless the sidebar
+/// is presented apart from the frame.
+/// </summary>
+int SidebarClass::Sidebar_Height(void)
+{
+	if (SidebarSurface != NULL) {
+		return(SidebarSurface->Get_Height());
+	}
+	return(TacticalRect.Y + TacticalRect.Height);
 }
 
 

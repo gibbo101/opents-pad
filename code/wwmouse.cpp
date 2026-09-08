@@ -365,14 +365,10 @@ void WWMouseClass::Convert_Coordinate(int & x, int & y) const
 	point.x = x - ConfiningRect.X;
 	point.y = y - ConfiningRect.Y;
 	Window_Point_To_Game(point);
+	Clamp_To_Game(point);
 
-	VideoScaleInfo const & scale = Video_Get_Scale_Info();
 	x = point.x;
 	y = point.y;
-	if (x < 0) x = 0;
-	if (y < 0) y = 0;
-	if (x >= scale.GameWidth) x = scale.GameWidth-1;
-	if (y >= scale.GameHeight) y = scale.GameHeight-1;
 }
 
 
