@@ -411,6 +411,8 @@ class SidebarClass : public PowerClass
 		enum PadPanelType { PAD_PANEL_HIDDEN, PAD_PANEL_SLIDING_IN, PAD_PANEL_SHOWN, PAD_PANEL_SLIDING_OUT };
 		PadPanelType PadPanel = PAD_PANEL_HIDDEN;
 		bool PadPinned = false;
+		bool PadBaseSeen = false;		// Has the first tick of the scenario judged whether the player starts with a base?
+		bool PadHadYard = false;		// Did the player own a construction yard at the last tick?
 		int PadRow = 0;					// PAD_ROW_MODES, or a row of the sections or of the open grid.
 		int PadCol = 0;					// A column, or the mode button when on that row.
 		int PadSection = -1;			// The open section as row * 2 + column, or -1 on the section grid.
@@ -433,7 +435,7 @@ class SidebarClass : public PowerClass
 		int Pad_Last_Item(int section, PadItemType & item) const;	// The section's last build, while it can still be built.
 		void Pad_Remember(int section, PadItemType const & item);
 		void Pad_Enter(void);
-		void Pad_Panel_Show(bool pin);	// Slides the panel in and takes the pad into it.
+		void Pad_Panel_Show(bool pin, bool focus);	// Slides the panel in, pinned or not, with the pad on it or not.
 		void Pad_Panel_Hide(void);		// Lets the pad go and slides the panel out.
 		void Pad_Panel_Tick(void);		// Settles a finished slide; call from the main loop between frames.
 		bool Pad_Sidebar_Wide(void) const { return(PadPanel != PAD_PANEL_SHOWN); }	// Does the map take the sidebar's width?

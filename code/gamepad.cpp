@@ -747,12 +747,12 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 				Map.PadPinned = false;
 				Map.Pad_Leave();
 			} else {
-				Map.Pad_Panel_Show(true);
+				Map.Pad_Panel_Show(true, true);
 			}
 		} else if (Map.PadFocus) {
 			Map.Pad_Leave();
 		} else {
-			Map.Pad_Panel_Show(false);
+			Map.Pad_Panel_Show(false, true);
 		}
 	}
 	if (Map.PadFocus) {

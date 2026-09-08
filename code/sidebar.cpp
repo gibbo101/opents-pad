@@ -413,6 +413,8 @@ void SidebarClass::Init_Clear(void)
 	for (PadLastType & last : PadLast) last = PadLastType();
 	PadPanel = PAD_PANEL_HIDDEN;
 	PadPinned = false;
+	PadBaseSeen = false;
+	PadHadYard = false;
 	Video_Slide_Sidebar(false, 0);
 	Pad_Clear_Sprite_Cache();
 
@@ -1160,7 +1162,7 @@ void SidebarClass::Pad_Leave(void)
 }
 
 
-void SidebarClass::Pad_Panel_Show(bool pin)
+void SidebarClass::Pad_Panel_Show(bool pin, bool focus)
 {
 	enum { SLIDE_MS = 200 };
 	if (pin) {
@@ -1170,7 +1172,11 @@ void SidebarClass::Pad_Panel_Show(bool pin)
 		PadPanel = PAD_PANEL_SLIDING_IN;
 		Video_Slide_Sidebar(true, SLIDE_MS);
 	}
-	Pad_Enter();
+	if (focus) {
+		Pad_Enter();
+	} else {
+		Pad_Focus_Changed();
+	}
 }
 
 
@@ -1199,6 +1205,21 @@ void SidebarClass::Pad_Panel_Hide(void)
 
 void SidebarClass::Pad_Panel_Tick(void)
 {
+	// A base opens the panel of its own accord and keeps it: one the map starts the
+	// player with, or the construction yard an MCV becomes. The pad stays on the map.
+	if (PlayerPtr != NULL) {
+		bool yard = PlayerPtr->ConYards.Count() > 0;
+		if (!PadBaseSeen) {
+			PadBaseSeen = true;
+			if (PlayerPtr->CurBuildings > 0) {
+				Pad_Panel_Show(true, false);
+			}
+		} else if (yard && !PadHadYard) {
+			Pad_Panel_Show(true, false);
+		}
+		PadHadYard = yard;
+	}
+
 	if (Video_Sidebar_Sliding()) {
 		return;
 	}

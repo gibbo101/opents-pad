@@ -166,7 +166,8 @@ holding the current superweapon and a cell that cycles to the next. The
 four mode buttons and the radar sit above the grid. The panel starts away
 from the map and slides in over it when the pad takes it, sliding out again
 when the pad leaves unless it is pinned; while it is away the credits sit
-at the right end of the bar. The bar across the top of the map keeps its
+at the right end of the bar. A base opens it pinned by itself, at the
+start of a map that gives you buildings and when an MCV deploys. The bar across the top of the map keeps its
 size with the sidebar whatever the zoom, Options with the menu button's
 glyph at its left and the mission timer at its right.
 
