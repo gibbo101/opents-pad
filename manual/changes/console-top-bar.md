@@ -1,5 +1,5 @@
 ---
-title: Move the Options tab onto the sidebar under the controller scheme
+title: Drop the top bar under the controller scheme
 category: feature
 release: 0.2.0
 targets:
@@ -9,4 +9,4 @@ targets:
 credit: [gibbo101]
 ---
 
-Under the `Controller` control scheme the bar across the top of the map is gone: the map takes the full height, the mission timer is drawn in the map's top right corner, and the Options tab sits across the top of the sidebar above the credits, as wide as the sidebar. The tab is part of the pad's sidebar: moving up past the radar reaches it and accept opens the options, and a mouse click on it does the same. The keyboard scheme keeps the bar.
+Under the `Controller` control scheme the bar across the top of the map is gone: the map takes the full height, an Options tab with the menu button's glyph is drawn over the map's top left corner and opens the options when clicked, and the mission timer is drawn over the top right corner while one runs. The keyboard scheme keeps the bar.

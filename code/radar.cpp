@@ -86,7 +86,6 @@
 #include "dsaudio.h"
 #include "dsurface.h"
 #include "goptions.h"
-#include "sidebar.h"
 #include "house.h"
 #include "houstype.h"
 #include "incdec.h"
@@ -208,7 +207,7 @@ void RadarClass::One_Time(void)
 {
 	DebugString("RadarClass::One_Time()\n");
 	RadX				 = 0;
-	RadY				 = 8 * 2/*RESFACTOR*/ + SidebarClass::Pad_Header();
+	RadY				 = 8 * 2/*RESFACTOR*/;
 	RadWidth			 = SidebarSurface->Get_Width();
 	RadHeight			 = 70 * 2/*RESFACTOR*/;
 	RadOffX				 = 15;
@@ -845,11 +844,6 @@ void RadarClass::Draw_Names(void)
 void RadarClass::Reposition_Sidebar(void)
 {
 	BASECLASS::Reposition_Sidebar();
-	int y = 8 * 2/*RESFACTOR*/ + SidebarClass::Pad_Header();
-	if (y != RadY) {
-		RadarRect.Y += y - RadY;
-		RadY = y;
-	}
 	RadarButton.Set_Position(RadX + (Options.IsSidebarOnRight ? TacticalRect.Width : 0), RadY);
 	RadarButton.Flag_To_Redraw();
 	FullRedraw = true;

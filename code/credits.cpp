@@ -132,12 +132,12 @@ void CreditClass::Graphic_Logic(bool forced)
 			int minutes = (Current / 60) % 60;
 			int seconds = Current % 60;
 			if (hours != 0) {
-				Fancy_Text_Print(TXT_TIME_FORMAT_HOURS, *SidebarSurface, SidebarSurface->Get_Rect(), Point2D(xx, SidebarClass::Pad_Header()), ColorSchemes[0], TBLACK, TextPrintType(TPF_USE_GRAD_PAL|TPF_CENTER|TPF_METAL12), hours, minutes, seconds);
+				Fancy_Text_Print(TXT_TIME_FORMAT_HOURS, *SidebarSurface, SidebarSurface->Get_Rect(), Point2D(xx, 0), ColorSchemes[0], TBLACK, TextPrintType(TPF_USE_GRAD_PAL|TPF_CENTER|TPF_METAL12), hours, minutes, seconds);
 			} else {
-				Fancy_Text_Print(TXT_TIME_FORMAT_NO_HOURS, *SidebarSurface, SidebarSurface->Get_Rect(), Point2D(xx, SidebarClass::Pad_Header()), ColorSchemes[0], TBLACK, TextPrintType(TPF_USE_GRAD_PAL|TPF_CENTER|TPF_METAL12), minutes, seconds);
+				Fancy_Text_Print(TXT_TIME_FORMAT_NO_HOURS, *SidebarSurface, SidebarSurface->Get_Rect(), Point2D(xx, 0), ColorSchemes[0], TBLACK, TextPrintType(TPF_USE_GRAD_PAL|TPF_CENTER|TPF_METAL12), minutes, seconds);
 			}
 		} else {
-			Fancy_Text_Print("%ld", *SidebarSurface, SidebarSurface->Get_Rect(), Point2D(xx, SidebarClass::Pad_Header()), ColorSchemes[0], TBLACK, TextPrintType(TPF_USE_GRAD_PAL|TPF_CENTER|TPF_METAL12), Current);
+			Fancy_Text_Print("%ld", *SidebarSurface, SidebarSurface->Get_Rect(), Point2D(xx, 0), ColorSchemes[0], TBLACK, TextPrintType(TPF_USE_GRAD_PAL|TPF_CENTER|TPF_METAL12), Current);
 		}
 
 		if (Scen->MissionTimer.Is_Active()) {

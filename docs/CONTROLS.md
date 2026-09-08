@@ -163,14 +163,14 @@ Under the controller scheme the sidebar is a fixed grid in the manner of
 Retaliation: two columns, your side on the left and the other on the right,
 with rows for structures, infantry, vehicles and aircraft, and a bottom row
 holding the current superweapon and a cell that cycles to the next. The
-four mode buttons, the radar and the Options tab sit above the grid, and
-there is no bar across the top of the map.
+four mode buttons and the radar sit above the grid. There is no bar across
+the top of the map: an Options tab with the pad's menu glyph sits over the
+map's top left corner, and the mission timer over the top right.
 
 | Action | Button |
 | --- | --- |
 | Take the pad into the sidebar, and back to the map | Triangle |
-| Move between cells, the mode buttons, the radar and the Options tab | D-pad or left stick |
-| Open the options from the sidebar | Cross on the Options tab |
+| Move between cells, the mode buttons and the radar | D-pad or left stick |
 | Build or place the section's current or last item; open a section that has none | Cross |
 | In a grid, build the marked item | Cross |
 | Hold, then cancel, what a section is building; open an idle section | Circle |
