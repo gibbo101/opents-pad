@@ -45,11 +45,13 @@ keep working under the controller scheme.
 | Change a value by five | L1 or R1 with Left or Right |
 | Accept, open, select | Cross |
 | Back | Circle |
-| Start the game from a setup screen | Options |
+| Start the game from a setup screen | Cross, on any row |
+| Open the on-screen keyboard on a setup screen | Options |
 | Open the pause menu in play | Options |
 
-The skirmish and LAN screens start the game on Options from any row. The
-Name row opens the on-screen keyboard on Cross. The campaign select picks a
+The skirmish and LAN host screens start the game on Cross from any row.
+Options opens the on-screen keyboard from any row: the name on the skirmish
+and LAN games screens, the chat in a lobby. The campaign select picks a
 side with Left and Right and starts on Cross. The load list, the options,
 audio, and controls screens, and the LAN lobbies are lists of the same
 shape. The mission briefing continues or turns the page on Cross and plays

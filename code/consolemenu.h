@@ -94,7 +94,7 @@ class ConsoleMenuClass
 		void Set_Row_Prompt(int row, char const * prompt) { if (row >= 0 && row < int(Rows.size())) Rows[row].Prompt = prompt; }
 		std::string const & Row_Label(int row) const { static std::string const _none; return(row >= 0 && row < int(Rows.size()) ? Rows[row].Label : _none); }
 		void Set_Prompts(char const * accept, char const * back);
-		void Set_Start_Button(bool on) { StartButton = on; IsDirty = true; }	// The pad's start button accepts from any row, with its own prompt.
+		void Set_Menu_Button(char const * prompt, std::function<void()> action) { MenuPrompt = prompt; MenuAction = action; IsDirty = true; }	// The pad's menu button runs the action from any row, with its own prompt.
 		void Set_Side_Panel(std::function<void(Surface &, Rect const &)> draw);
 		void Set_Backdrop_Panel(std::function<void(ConsoleCanvas &)> draw);
 		void Refresh(void) { IsDirty = true; }
@@ -141,7 +141,8 @@ class ConsoleMenuClass
 		std::vector<Rect> RowRects;			// Where each row was last drawn, in frame coordinates; invalid when not drawn.
 		Rect Panel;
 		int PanelOpacity;
-		bool StartButton;
+		std::string MenuPrompt;
+		std::function<void()> MenuAction;
 		MSFont * IdleFont;				// Replaces Font for row text when a screen sets its own colours.
 		MSFont * FocusOverride;
 		Rect BackRect;

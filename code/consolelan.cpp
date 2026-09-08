@@ -451,7 +451,6 @@ static bool Console_Host_Screen(std::string & notice)
 		std::string signature;
 		ConsoleMenuClass menu("Host Game");
 		menu.Set_Prompts("Start", "Back");
-		menu.Set_Start_Button(true);
 		menu.Set_Side_Panel(Console_Draw_Map_Preview);
 		menu.Set_Backdrop_Panel(Draw_Players);
 
@@ -488,11 +487,13 @@ static bool Console_Host_Screen(std::string & notice)
 				}
 			}, nullptr});
 		Add_Option_Rows(menu, true, changed, max_ai);
-		int chat_row = menu.Add_Row({"Chat", [&]{ return(Latest_Message()); }, nullptr, [&]{
+		auto open_chat = [&]{
 			Console_Chat_Screen([]{ return(true); });
 			menu.Refresh();
-		}});
+		};
+		int chat_row = menu.Add_Row({"Chat", [&]{ return(Latest_Message()); }, nullptr, open_chat});
 		menu.Set_Row_Prompt(chat_row, "Open");
+		menu.Set_Menu_Button("Chat", open_chat);
 		if (!notice.empty()) {
 			menu.Add_Row({notice, nullptr, nullptr, nullptr});
 			menu.Set_Row_Quiet(int(menu.Row_Count()) - 1);
@@ -607,11 +608,13 @@ static bool Console_Guest_Screen(std::string & notice)
 			}, nullptr, nullptr, Console_Player_Swatches, [&]{ return(wanted_color >= 0 ? wanted_color : own_color()); }});
 		menu.Add_Row({"Map", [&]{ return(Console_Tidy_Description(Session.Options.ScenarioDescription)); }, nullptr, nullptr});
 		Add_Option_Rows(menu, false, nullptr, nullptr);
-		int chat_row = menu.Add_Row({"Chat", [&]{ return(Latest_Message()); }, nullptr, [&]{
+		auto open_chat = [&]{
 			Console_Chat_Screen([]{ return(_netresponse == 0 && JoinState == JOIN_CONFIRMED); });
 			menu.Refresh();
-		}});
+		};
+		int chat_row = menu.Add_Row({"Chat", [&]{ return(Latest_Message()); }, nullptr, open_chat});
 		menu.Set_Row_Prompt(chat_row, "Open");
+		menu.Set_Menu_Button("Chat", open_chat);
 		menu.Add_Row({"Status", [&]{
 			if (Session.Players.Count() > 0 && Session.Players[0]->Player.Status != 0) return(std::string("Ready, waiting for the host"));
 			return(std::string("Press Ready when set"));
@@ -703,7 +706,7 @@ bool Net2Console_Remote_Connect(void)
 
 		ConsoleMenuClass menu("LAN Games");
 		menu.Set_Prompts("Select", "Back");
-		int name_row = menu.Add_Row({"Name", [&]{ return(std::string(Session.Handle)); }, nullptr, [&]{
+		auto edit_name = [&]{
 			if (joining) return;
 			std::string handle = Session.Handle;
 			if (Console_Keyboard("Name", handle, MPLAYER_NAME_MAX - 1) && !handle.empty() && handle != Session.Handle) {
@@ -714,8 +717,10 @@ bool Net2Console_Remote_Connect(void)
 			}
 			rebuild = true;
 			menu.Finish(CONSOLE_MENU_BACK);
-		}});
+		};
+		int name_row = menu.Add_Row({"Name", [&]{ return(std::string(Session.Handle)); }, nullptr, edit_name});
 		menu.Set_Row_Prompt(name_row, "Edit");
+		menu.Set_Menu_Button("Name", edit_name);
 		menu.Add_Row({"Host New Game", nullptr, nullptr, [&]{ if (!joining) { action = ACTION_HOST; menu.Finish(CONSOLE_MENU_ACCEPT); } }});
 		for (int index = 1; index < Session.Games.Count(); index++) {
 			menu.Add_Row({std::string(Session.Games[index]->Name) + (Session.Games[index]->Game.IsOpen ? "" : " (closed)"), nullptr, nullptr,

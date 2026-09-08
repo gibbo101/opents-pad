@@ -93,7 +93,6 @@ ConsoleMenuClass::ConsoleMenuClass(char const * title) :
 	FocusFont(NULL),
 	Click(NULL),
 	PanelOpacity(PANEL_OPACITY),
-	StartButton(false),
 	IdleFont(NULL),
 	FocusOverride(NULL),
 	Backdrop(NULL),
@@ -279,8 +278,6 @@ bool ConsoleMenuClass::Poll_Input(ConsoleMenuResult & result)
 			IsDirty = true;
 			return(false);
 		}
-		// On a screen with a start button, accepting is that button's job alone.
-		if (StartButton) return(false);
 		result = CONSOLE_MENU_ACCEPT;
 		return(true);
 	};
@@ -365,12 +362,15 @@ bool ConsoleMenuClass::Poll_Input(ConsoleMenuResult & result)
 	if (pad.Right && !PreviousPad.Right) navigate(NAV_RIGHT);
 	bool accept_pressed = pad.Accept && !PreviousPad.Accept;
 	bool back_pressed = pad.Back && !PreviousPad.Back;
-	// On a screen whose accept is Start, the pad's start button starts from any row.
-	bool start_pressed = pad.Menu && !PreviousPad.Menu && StartButton;
+	// A screen may give the pad's menu button a job of its own, done from any row.
+	bool menu_pressed = pad.Menu && !PreviousPad.Menu && MenuAction;
 	PreviousPad = pad;
-	if (start_pressed) {
-		result = CONSOLE_MENU_ACCEPT;
-		return(true);
+	if (menu_pressed) {
+		MenuAction();
+		// A button still held from a screen the action opened must not count as a press here.
+		PreviousPad = Gamepad_Read();
+		IsDirty = true;
+		return(false);
 	}
 	if (accept_pressed && accept()) return(true);
 	if (back_pressed) {
@@ -551,21 +551,21 @@ void ConsoleMenuClass::Draw(void)
 		return(Rect(x - 8, top + PROMPT_Y - 4, total + 16, height + 8));
 	};
 	// A row with an action of its own takes the accept button, so the prompt says what it does.
-	std::string accept_text = StartButton ? std::string() : AcceptPrompt;
+	std::string accept_text = AcceptPrompt;
 	if (Focus >= 0 && Focus < count && Rows[Focus].Activate && !AcceptPrompt.empty()) {
 		accept_text = Rows[Focus].Prompt.empty() ? "Select" : Rows[Focus].Prompt;
 	}
 	BackRect = prompt(BackPrompt, PAD_BUTTON_BACK, false);
 	AcceptRect = prompt(accept_text, PAD_BUTTON_ACCEPT, true);
-	// The start button's prompt sits in the middle on a screen that starts from it.
-	if (StartButton) {
+	// The menu button's prompt sits in the middle on a screen that gives it a job.
+	if (MenuAction) {
 		int used = Resolved_Prompt_Style() == PROMPT_STYLE_TEXT ? 0 : glyph + GLYPH_GAP;
-		int total = used + width(AcceptPrompt);
-		int x = accept_text.empty() ? left + MENU_WIDTH - PROMPT_INSET - total : left + (MENU_WIDTH - total) / 2;
+		int total = used + width(MenuPrompt);
+		int x = left + (MENU_WIDTH - total) / 2;
 		if (used > 0) {
 			Draw_Pad_Glyph(surface, PAD_BUTTON_MENU, x, top + PROMPT_Y - GLYPH_INSET, glyph);
 		}
-		print(AcceptPrompt, x + used, top + PROMPT_Y);
+		print(MenuPrompt, x + used, top + PROMPT_Y);
 	}
 
 	Update_Visible_Surface(&surface);
@@ -578,7 +578,7 @@ ConsoleMenuResult ConsoleMenuClass::Process(void)
 	ConsoleMenuResult result = CONSOLE_MENU_BACK;
 
 	Keyboard->Clear();
-	Gamepad_Menu_Starts(StartButton);
+	Gamepad_Menu_Starts(bool(MenuAction));
 	// A button still held from the screen before must not count as a press here.
 	PreviousPad = Gamepad_Read();
 	LastMouse = Point2D(Get_Mouse_X(), Get_Mouse_Y());

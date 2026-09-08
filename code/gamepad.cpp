@@ -441,8 +441,8 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 	enum { STEP_CAP_MS = 50 };
 	const float PAD_RAMP_MS = 500.0f;		// How long a d-pad hold takes to reach its rate.
 	// The paces at the default setting, each scaled by the player's setting over the default.
-	const float POINTER_RATE = 0.9f * Options.PadPointerSpeed / OptionsClass::PAD_SPEED_DEFAULT;		// Screen heights per second at full stick.
-	const float PAD_RATE = 0.6f * Options.PadPointerSpeed / OptionsClass::PAD_SPEED_DEFAULT;			// The d-pad's rate once a hold has ramped up.
+	const float POINTER_RATE = 1.8f * Options.PadPointerSpeed / OptionsClass::PAD_SPEED_DEFAULT;		// Screen heights per second at full stick.
+	const float PAD_RATE = 1.2f * Options.PadPointerSpeed / OptionsClass::PAD_SPEED_DEFAULT;			// The d-pad's rate once a hold has ramped up.
 	const float PAD_START = 0.2f;		// The share of that rate a press starts at, so a tap nudges.
 	const float FAST_FACTOR = 1.0f + 1.2f * Options.PadFastSpeed / OptionsClass::PAD_SPEED_DEFAULT;
 	static unsigned long _last = 0;
