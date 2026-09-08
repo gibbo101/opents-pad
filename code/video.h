@@ -23,14 +23,8 @@ enum VideoScaleMode {
 // Where the game's frame lands inside the window. The frame keeps its aspect ratio, so
 // the destination is centered and the window may show bars on two of its sides.
 // Drawable dimensions and the destination rectangle are measured in physical pixels.
-//
-// When the sidebar is split off, the frame's sidebar columns are never shown: the
-// destination covers the frame's other columns, and the sidebar surface, at its own size,
-// is drawn beside them at its own scale so it fills the drawable height. The top bar can
-// be split off with it: the frame's top rows are never shown either, and a bar surface
-// of the sidebar's scale is drawn across the whole drawable above the frame's remaining
-// rows. As an overlay the sidebar is instead drawn over the frame and the bar, slid in
-// from its edge by a share of its width, and the frame's columns take the whole width.
+// Split layout: the sidebar and bar present from their own textures at SidebarScale;
+// Dest* covers only the frame's tactical region.
 struct VideoScaleInfo
 {
 	int GameWidth;
@@ -53,8 +47,8 @@ struct VideoScaleInfo
 	int SidebarDestHeight;
 	float SidebarScale;
 
-	int BarHeight;				// Frame rows given to the split bar; zero while the bar is in the frame.
-	int BarWidth;				// The bar surface's own width, at the sidebar's scale.
+	int BarHeight;				// Frame rows given to the split bar; zero while it is in the frame.
+	int BarWidth;				// The bar surface's own width, fixed when the bar is split off.
 	int BarDestX;
 	int BarDestY;
 	int BarDestWidth;
@@ -69,6 +63,11 @@ struct VideoScaleInfo
 	int Tactical_X(void) const { return(SidebarOnRight ? 0 : SidebarWidth); }
 	int Tactical_Width(void) const { return(GameWidth - SidebarWidth); }
 	int Tactical_Height(void) const { return(GameHeight - BarHeight); }
+
+	// The frame column a split bar's column stands over, and back. Both are identity
+	// while the bar is in the frame.
+	int Bar_To_Frame_X(int x) const { return(Bar_Is_Split() ? Tactical_X() + x * Tactical_Width() / BarWidth : x); }
+	int Frame_To_Bar_X(int x) const { return(Bar_Is_Split() && Tactical_Width() > 0 ? (x - Tactical_X()) * BarWidth / Tactical_Width() : x); }
 };
 
 
@@ -77,9 +76,9 @@ void Video_Shutdown(void);
 
 bool Video_Set_Mode(int width, int height);
 bool Video_Set_Sidebar(int width, int height, bool onright, int barheight, bool overlay);
-void Video_Slide_Sidebar(bool in, int milliseconds);		// Starts the overlay sidebar sliding in or out.
+void Video_Slide_Sidebar(bool in, int milliseconds);
 bool Video_Sidebar_Sliding(void);
-float Video_Sidebar_Slide(void);							// How far in the overlay sidebar is, 0 to 1.
+float Video_Sidebar_Slide(void);
 bool Video_Sidebar_Is_Split(void);
 void Video_On_Resize(int drawablewidth, int drawableheight);
 void Video_Set_Refresh_Rate(int refreshrate);

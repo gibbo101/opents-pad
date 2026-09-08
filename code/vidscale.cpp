@@ -29,17 +29,14 @@ bool Video_Scaling_Active(void)
 }
 
 
-// Does a window position fall on the split sidebar's side of the seam between it and the
-// frame's other columns? Everything past the seam counts, so a position beyond the
-// sidebar's far edge still maps onto the sidebar rather than the map.
-// A split sidebar takes positions beside the frame, or as an overlay once it is fully in;
-// on its way somewhere, or away, nothing lands on it.
+// An overlay sidebar only takes positions once fully in.
 static bool Sidebar_Takes_Points(VideoScaleInfo const & scale)
 {
 	return(scale.Is_Split() && (!scale.SidebarOverlay || Video_Sidebar_Slide() >= 1.0f));
 }
 
 
+// Everything past the seam counts as sidebar.
 static bool Window_Point_On_Sidebar(VideoScaleInfo const & scale, POINT const & point)
 {
 	if (!Sidebar_Takes_Points(scale)) {
@@ -49,8 +46,7 @@ static bool Window_Point_On_Sidebar(VideoScaleInfo const & scale, POINT const & 
 }
 
 
-// Does a frame position lie in the split sidebar's columns? A position beyond the frame's
-// edge on the sidebar's side counts too.
+// A frame position beyond the frame's edge on the sidebar's side counts as sidebar too.
 static bool Game_Point_On_Sidebar(VideoScaleInfo const & scale, POINT const & point)
 {
 	if (!Sidebar_Takes_Points(scale)) {
@@ -60,9 +56,6 @@ static bool Game_Point_On_Sidebar(VideoScaleInfo const & scale, POINT const & po
 }
 
 
-// Does a window position fall on the split bar, or above the frame's rows in the bar's
-// columns? The bar's rows are the frame's top rows, so a bar position is reported in
-// them with its x brought onto the frame's columns.
 static bool Window_Point_On_Bar(VideoScaleInfo const & scale, POINT const & point)
 {
 	if (!scale.Bar_Is_Split()) {
@@ -95,7 +88,8 @@ void Window_Point_To_Game(POINT & point)
 	}
 
 	if (Window_Point_On_Bar(scale, point) && scale.BarDestWidth > 0 && scale.SidebarScale > 0.0f) {
-		point.x = scale.Tactical_X() + (LONG)floor((point.x - scale.BarDestX) * (double)scale.Tactical_Width() / (double)scale.BarDestWidth);
+		int barx = (int)floor((point.x - scale.BarDestX) * (double)scale.BarWidth / (double)scale.BarDestWidth);
+		point.x = scale.Bar_To_Frame_X(barx);
 		point.y = (LONG)floor((point.y - scale.BarDestY) / (double)scale.SidebarScale);
 		if (point.y >= scale.BarHeight) point.y = scale.BarHeight - 1;
 		return;
@@ -124,12 +118,13 @@ void Game_Point_To_Window(POINT & point)
 	}
 
 	if (Game_Point_On_Bar(scale, point) && scale.Tactical_Width() > 0) {
-		point.x = scale.BarDestX + (LONG)floor((point.x - scale.Tactical_X()) * (double)scale.BarDestWidth / (double)scale.Tactical_Width());
+		int barx = scale.Frame_To_Bar_X(point.x);
+		point.x = scale.BarDestX + (LONG)floor(barx * (double)scale.BarDestWidth / (double)scale.BarWidth);
 		point.y = scale.BarDestY + (LONG)floor(point.y * (double)scale.SidebarScale);
 		return;
 	}
 
-	if (scale.GameWidth > 0 && scale.Tactical_Height() > 0) {
+	if (scale.Tactical_Width() > 0 && scale.Tactical_Height() > 0) {
 		point.x = scale.DestX + (LONG)floor((point.x - scale.Tactical_X()) * (double)scale.DestWidth / (double)scale.Tactical_Width());
 		point.y = scale.DestY + (LONG)floor((point.y - scale.BarHeight) * (double)scale.DestHeight / (double)scale.Tactical_Height());
 	}

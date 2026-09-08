@@ -56,7 +56,7 @@ struct BackendLayer
 	bgfx::FrameBufferHandle Prescale = BGFX_INVALID_HANDLE;
 	int PrescaleWidth = 0;
 	int PrescaleHeight = 0;
-	unsigned int * ConvertBuffer = NULL;
+	unsigned int * ConvertBuffer = nullptr;
 	bgfx::ViewId PrescaleView = 0;
 };
 
@@ -75,7 +75,7 @@ static int _DrawableHeight = 0;
 static unsigned int _ResetFlags = BGFX_RESET_FLIP_AFTER_RENDER;
 
 // True while the textures hold the game's own 565 layout. When the hardware cannot
-// sample that format each upload is widened to 32 bits on the way in instead.
+// sample that format each upload is widened to 32 bits on the way in.
 static bool _FrameIs565 = false;
 static unsigned int _ConvertTable[65536];
 
@@ -325,21 +325,12 @@ static bool Set_Layer_Size(BackendLayer & layer, int width, int height)
 
 	Destroy_Layer(layer);
 
-	// bgfx names packed formats from their low bits up, so its B5G6R5 is the layout the
-	// game already draws in. Emulated support would convert every upload on the way
-	// through, which is what the fallback below does more cheaply.
-	const bgfx::Caps * caps = bgfx::getCaps();
-	_FrameIs565 = (caps->formats[bgfx::TextureFormat::B5G6R5] & BGFX_CAPS_FORMAT_TEXTURE_2D) != 0;
-
 	layer.Texture = bgfx::createTexture2D((uint16_t)width, (uint16_t)height, false, 1, _FrameIs565 ? bgfx::TextureFormat::B5G6R5 : bgfx::TextureFormat::BGRA8);
 	if (!bgfx::isValid(layer.Texture)) {
 		return(false);
 	}
 
 	if (!_FrameIs565) {
-		if (_ConvertTable[0xFFFF] == 0) {
-			Build_Convert_Table();
-		}
 		layer.ConvertBuffer = new unsigned int[width * height];
 	}
 
@@ -382,10 +373,9 @@ static void Present_Layer(BackendLayer & layer, BackendQuad const & quad, Backen
 		samplerflags |= BGFX_SAMPLER_POINT;
 	}
 
-	// The pixel art filter keeps whole pixels whole. An exact multiple needs nothing but
-	// point sampling; anything else is magnified to the next whole multiple with point
-	// sampling and then shrunk to the window smoothly, which keeps edges sharp without
-	// the uneven pixel sizes that point sampling alone would give.
+	// The pixel art filter keeps every source pixel the same size: an exact multiple is
+	// point sampled, anything else is magnified to the next whole multiple with point
+	// sampling and shrunk to the window smoothly.
 	if (mode == BACKEND_SCALE_PIXELART && quad.DestWidth > layer.Width && quad.DestHeight > layer.Height) {
 		if ((quad.DestWidth % layer.Width) == 0 && (quad.DestHeight % layer.Height) == 0) {
 			samplerflags |= BGFX_SAMPLER_POINT;
@@ -500,6 +490,18 @@ bool Backend_Init(NativeWindow const & window, int drawablewidth, int drawablehe
 	_Frame.PrescaleView = VIEW_PRESCALE_FRAME;
 	_Sidebar.PrescaleView = VIEW_PRESCALE_SIDEBAR;
 	_Bar.PrescaleView = VIEW_PRESCALE_BAR;
+
+	// The sidebar slides over the frame and the bar, so the present view must draw its
+	// layers in submission order rather than by sort key.
+	bgfx::setViewMode(VIEW_PRESENT, bgfx::ViewMode::Sequential);
+
+	// bgfx names packed formats from their low bits up, so its B5G6R5 is the layout the
+	// game already draws in.
+	const bgfx::Caps * caps = bgfx::getCaps();
+	_FrameIs565 = (caps->formats[bgfx::TextureFormat::B5G6R5] & BGFX_CAPS_FORMAT_TEXTURE_2D) != 0;
+	if (!_FrameIs565) {
+		Build_Convert_Table();
+	}
 
 	_Initialized = true;
 	return(true);

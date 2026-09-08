@@ -29,7 +29,7 @@ class GraphicMenuItem
 
 		int Get_ID(void) const { return(ID); }
 		bool Is_Enabled(void) const { return(Enabled); }
-		virtual Rect Get_Active_Rect(void) const { return(Rect()); }		// Invalid when the item occupies no screen area.
+		virtual Rect Get_Active_Rect(void) const { return(Rect()); }		// Invalid when the item has no screen area.
 		void Set_Select_Sound(MSSfxEntry * sound) { SelectSound = sound; }
 
 	protected:

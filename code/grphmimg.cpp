@@ -68,44 +68,16 @@ GraphicMenuItem * GM_Read_Image_Item(const char * name, INIClass const & ini, MS
 }
 
 
-/// <summary>
-/// Constructs an image based menu item.
-/// This routine loads the normal, highlighted and disabled artwork as animations and
-/// hands them to the menu engine to display. Only the normal image starts out visible;
-/// the others are activated as the item gains the selection or is disabled. The
-/// highlighted and disabled artwork may be omitted: an item with no highlight simply does
-/// not light up, and one with no disabled artwork keeps its normal image while it is
-/// unavailable rather than vanishing from the menu.
-/// </summary>
-/// <param name="origin">The screen position to display the artwork at.</param>
-/// <param name="rect">The screen area the mouse must be within to select this item.</param>
-/// <param name="image">Filename of the artwork shown normally.</param>
-/// <param name="highlight_image">Filename of the artwork shown while selected.</param>
-/// <param name="disabled_image">Filename of the artwork shown while disabled.</param>
-/// <param name="highlight_sound">Filename of the sound to play as this item is selected.</param>
-/// <param name="select_vq">Filename of the movie to play when this item is chosen.</param>
 enum {
 	DIM_MIN_SIZE = 100,			// Smaller buttons carry their own highlight in their artwork.
 	DIM_PERCENT = 70,
 	DIM_DARK = 24,
-	DIM_FILL_NEIGHBOURS = 5,		// A straight edge has three masked neighbours, a hole in lettering more.
+	DIM_FILL_NEIGHBOURS = 5,		// Straight edges have three masked neighbours; lettering holes more.
 };
 
 
-static void Split_Pixel(int pixel, int & red, int & green, int & blue)
-{
-	red = ((pixel >> DSurface::RedRight) & (255 >> DSurface::RedLeft)) << DSurface::RedLeft;
-	green = ((pixel >> DSurface::GreenRight) & (255 >> DSurface::GreenLeft)) << DSurface::GreenLeft;
-	blue = ((pixel >> DSurface::BlueRight) & (255 >> DSurface::BlueLeft)) << DSurface::BlueLeft;
-}
-
-
-/*
- * Darkens the artwork of a menu image while it is not selected. The unlit artwork is part
- * of the backdrop, which may be a movie that repaints every frame, so the darkening is
- * applied to the frame on every advance. The artwork's shape is taken from the lit image:
- * the pixels that are not dark and differ from the backdrop beneath them.
- */
+// Darkens a menu image while it is not selected. The backdrop may be a movie, so the
+// darkening is reapplied every advance.
 class MSDimAnim : public MSAnim
 {
 	public:
@@ -115,14 +87,15 @@ class MSDimAnim : public MSAnim
 		virtual Rect Get_Rect(void) const override { return(Area); }
 
 	private:
-		void Build_Mask(void);
+		void Build_Mask(Surface const & backdrop);
 		void Fill_Holes(std::vector<unsigned char> const & bright);
 		void Darken(Surface * surface, Rect const & rect);
 
 		Surface const & Lit;
 		Rect Area;
 		std::vector<unsigned char> Mask;
-		std::vector<int> Written;		// What the dimmer last wrote per pixel, so it never darkens its own output again.
+		// What the dimmer last wrote per pixel, so its own output is never darkened again.
+		std::vector<int> Written;
 };
 
 
@@ -135,7 +108,7 @@ MSDimAnim::MSDimAnim(Surface const & lit, Rect const & area) :
 
 
 // The backdrop is only painted once the page is up, so the shape is traced on first use.
-void MSDimAnim::Build_Mask(void)
+void MSDimAnim::Build_Mask(Surface const & backdrop)
 {
 	Mask.assign(Area.Width * Area.Height, 0);
 	Written.assign(Area.Width * Area.Height, -1);
@@ -143,12 +116,11 @@ void MSDimAnim::Build_Mask(void)
 	for (int y = 0; y < Area.Height; y++) {
 		for (int x = 0; x < Area.Width; x++) {
 			int pixel = Lit.Get_Pixel(Point2D(x, y));
-			int red, green, blue;
-			Split_Pixel(pixel, red, green, blue);
-			bool dark = red < DIM_DARK && green < DIM_DARK && blue < DIM_DARK;
+			RGBClass rgb = DSurface::Deconstruct_Hicolor_Pixel((unsigned short)pixel);
+			bool dark = rgb.Get_Red() < DIM_DARK && rgb.Get_Green() < DIM_DARK && rgb.Get_Blue() < DIM_DARK;
 			if (dark) continue;
 			bright[y * Area.Width + x] = 1;
-			if (pixel != AlternateSurface->Get_Pixel(Point2D(Area.X + x, Area.Y + y))) {
+			if (pixel != backdrop.Get_Pixel(Point2D(Area.X + x, Area.Y + y))) {
 				Mask[y * Area.Width + x] = 1;
 			}
 		}
@@ -190,20 +162,23 @@ void MSDimAnim::Fill_Holes(std::vector<unsigned char> const & bright)
 void MSDimAnim::Darken(Surface * surface, Rect const & rect)
 {
 	Rect draw = Intersect(rect, Area);
-	if (!draw.Is_Valid() || Mask.empty()) return;
-	for (int y = draw.Y; y < draw.Y + draw.Height; y++) {
-		for (int x = draw.X; x < draw.X + draw.Width; x++) {
-			int index = (y - Area.Y) * Area.Width + (x - Area.X);
+	if (!draw.Is_Valid() || Mask.empty() || surface->Bytes_Per_Pixel() != sizeof(unsigned short)) return;
+	char * buffer = (char *)surface->Lock(draw.TopLeft);
+	if (buffer == NULL) return;
+	for (int y = 0; y < draw.Height; y++) {
+		unsigned short * row = (unsigned short *)(buffer + y * surface->Stride());
+		for (int x = 0; x < draw.Width; x++) {
+			int index = (draw.Y + y - Area.Y) * Area.Width + (draw.X + x - Area.X);
 			if (!Mask[index]) continue;
-			int pixel = surface->Get_Pixel(Point2D(x, y));
+			int pixel = row[x];
 			if (pixel == Written[index]) continue;
-			int red, green, blue;
-			Split_Pixel(pixel, red, green, blue);
-			int dimmed = DSurface::Build_Hicolor_Pixel(red * (100 - DIM_PERCENT) / 100, green * (100 - DIM_PERCENT) / 100, blue * (100 - DIM_PERCENT) / 100);
-			surface->Put_Pixel(Point2D(x, y), dimmed);
+			RGBClass rgb = DSurface::Deconstruct_Hicolor_Pixel((unsigned short)pixel);
+			int dimmed = DSurface::Build_Hicolor_Pixel(rgb.Get_Red() * (100 - DIM_PERCENT) / 100, rgb.Get_Green() * (100 - DIM_PERCENT) / 100, rgb.Get_Blue() * (100 - DIM_PERCENT) / 100);
+			row[x] = (unsigned short)dimmed;
 			Written[index] = dimmed;
 		}
 	}
+	surface->Unlock();
 }
 
 
@@ -212,7 +187,7 @@ bool MSDimAnim::Advance(Surface * surface, Rect & rect)
 	rect = Rect();
 	if (Active) {
 		if (Mask.empty()) {
-			Build_Mask();
+			Build_Mask(*surface);
 		}
 		Darken(surface, Area);
 		rect = Area;
@@ -229,6 +204,22 @@ void MSDimAnim::Redraw(Surface * surface, Rect const * rect)
 }
 
 
+/// <summary>
+/// Constructs an image based menu item.
+/// This routine loads the normal, highlighted and disabled artwork as animations and
+/// hands them to the menu engine to display. Only the normal image starts out visible;
+/// the others are activated as the item gains the selection or is disabled. The
+/// highlighted and disabled artwork may be omitted: an item with no highlight simply does
+/// not light up, and one with no disabled artwork keeps its normal image while it is
+/// unavailable rather than vanishing from the menu.
+/// </summary>
+/// <param name="origin">The screen position to display the artwork at.</param>
+/// <param name="rect">The screen area the mouse must be within to select this item.</param>
+/// <param name="image">Filename of the artwork shown normally.</param>
+/// <param name="highlight_image">Filename of the artwork shown while selected.</param>
+/// <param name="disabled_image">Filename of the artwork shown while disabled.</param>
+/// <param name="highlight_sound">Filename of the sound to play as this item is selected.</param>
+/// <param name="select_vq">Filename of the movie to play when this item is chosen.</param>
 GraphicMenuImageItem::GraphicMenuImageItem(int id, MSEngine & engine, Point2D const & origin, Rect const & rect, const char * image, const char * highlight_image, const char * disabled_image, char * highlight_sound, const char * select_vq) :
 	GraphicMenuItem(id),
 	Engine(&engine),
@@ -272,7 +263,7 @@ GraphicMenuImageItem::GraphicMenuImageItem(int id, MSEngine & engine, Point2D co
 			engine.Add_Animation(DisabledImage);
 		}
 	}
-	MSPCXAnim * lit = (MSPCXAnim *)HighlightImage;
+	MSPCXAnim * lit = dynamic_cast<MSPCXAnim *>(HighlightImage);
 	if (Options.ControlScheme == CONTROL_CONTROLLER && lit != NULL && lit->Image != NULL
 		&& std::min(lit->Get_Rect().Width, lit->Get_Rect().Height) >= DIM_MIN_SIZE) {
 		Dimmer = new MSDimAnim(*lit->Image, lit->Get_Rect());

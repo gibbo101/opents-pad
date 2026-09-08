@@ -26,6 +26,7 @@
 #include "wincursor.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 
 
@@ -50,6 +51,7 @@ static int _SidebarWidth = 0;
 static int _SidebarHeight = 0;
 static bool _SidebarOnRight = true;
 static int _BarHeight = 0;
+static int _BarWidth = 0;
 static bool _SidebarOverlay = false;
 
 // The overlay sidebar's slide: where it is going, where it set out from, and when.
@@ -102,6 +104,12 @@ static double Fit_Scale(int width, int height, int intowidth, int intoheight)
 }
 
 
+static double Sidebar_Fit_Scale(void)
+{
+	return(Fit_Scale(_SidebarWidth, _SidebarHeight, _ScaleInfo.DrawableWidth, _ScaleInfo.DrawableHeight));
+}
+
+
 /// <summary>
 /// Works out where the game's frame sits inside the window.
 /// The frame keeps its shape, so it is grown by whichever of the two axes runs out first
@@ -146,7 +154,7 @@ static void Update_Scale_Info(void)
 	int frameheight = _ScaleInfo.GameHeight;
 
 	if (_SidebarWidth > 0 && _SidebarHeight > 0 && _SidebarWidth < _ScaleInfo.GameWidth) {
-		double scale = Fit_Scale(_SidebarWidth, _SidebarHeight, _ScaleInfo.DrawableWidth, _ScaleInfo.DrawableHeight);
+		double scale = Sidebar_Fit_Scale();
 		_ScaleInfo.SidebarWidth = _SidebarWidth;
 		_ScaleInfo.SidebarHeight = _SidebarHeight;
 		_ScaleInfo.SidebarDestWidth = (int)((double)_SidebarWidth * scale);
@@ -169,14 +177,13 @@ static void Update_Scale_Info(void)
 			}
 		}
 
-		// The bar takes its rows off the top of the frame and is drawn at the sidebar's
-		// scale across the whole drawable; its own width follows from that.
-		if (_BarHeight > 0 && _BarHeight < _ScaleInfo.GameHeight) {
+		// The bar surface keeps the width it was allocated with; a resized drawable stretches it.
+		if (_BarHeight > 0 && _BarHeight < _ScaleInfo.GameHeight && _BarWidth > 0) {
 			_ScaleInfo.BarHeight = _BarHeight;
-			_ScaleInfo.BarWidth = std::max((int)((double)_ScaleInfo.DrawableWidth / scale), 1);
+			_ScaleInfo.BarWidth = _BarWidth;
 			_ScaleInfo.BarDestX = 0;
 			_ScaleInfo.BarDestY = 0;
-			_ScaleInfo.BarDestWidth = (int)((double)_ScaleInfo.BarWidth * scale);
+			_ScaleInfo.BarDestWidth = _ScaleInfo.DrawableWidth;
 			_ScaleInfo.BarDestHeight = (int)((double)_BarHeight * scale);
 			intoy = _ScaleInfo.BarDestHeight;
 			intoheight = std::max(_ScaleInfo.DrawableHeight - _ScaleInfo.BarDestHeight, 1);
@@ -195,8 +202,8 @@ static void Update_Scale_Info(void)
 }
 
 
-// Sizes the renderer's textures to the frame columns that are shown and to the split
-// sidebar, if there is one, then lays both out in the window.
+// Sizes the renderer's textures to the frame region that is shown and to the split
+// sidebar and bar, if there are any, then lays them out in the window.
 static bool Apply_Layout(void)
 {
 	Update_Scale_Info();
@@ -316,7 +323,10 @@ bool Video_Set_Mode(int width, int height)
 	_SidebarWidth = 0;
 	_SidebarHeight = 0;
 	_BarHeight = 0;
+	_BarWidth = 0;
 	_SidebarOverlay = false;
+	Backend_Set_Sidebar_Size(0, 0);
+	Backend_Set_Bar_Size(0, 0);
 
 	Update_Scale_Info();
 	Win_Cursor_Refresh();
@@ -326,15 +336,9 @@ bool Video_Set_Mode(int width, int height)
 
 
 /// <summary>
-/// Splits the sidebar off the frame: the frame's sidebar columns are no longer shown and
-/// the sidebar surface, at the given size, is presented beside the rest at whatever scale
-/// fills the drawable height. A zero size puts the sidebar back in the frame. A bar height
-/// splits the top bar off too: that many of the frame's top rows are no longer shown, and
-/// a bar surface at the sidebar's scale is presented above the rest; its width is reported
-/// as BarWidth in the scale info once this returns.
-/// As an overlay the sidebar is drawn over the frame and the bar instead, slid in as far
-/// as Video_Slide_Sidebar has taken it, and the frame's columns take the whole width.
-/// The sidebar and bar surfaces the caller allocates must match the sizes given here.
+/// Presents the sidebar, and the bar when barheight is nonzero, from their own surfaces
+/// beside or over the frame; a zero size puts them back in the frame. The surfaces the
+/// caller allocates must match the Sidebar and Bar sizes the scale info then reports.
 /// </summary>
 /// <returns>bool; Is the layout in place? On failure the previous layout stands.</returns>
 bool Video_Set_Sidebar(int width, int height, bool onright, int barheight, bool overlay)
@@ -347,6 +351,7 @@ bool Video_Set_Sidebar(int width, int height, bool onright, int barheight, bool 
 	int oldheight = _SidebarHeight;
 	bool oldright = _SidebarOnRight;
 	int oldbar = _BarHeight;
+	int oldbarwidth = _BarWidth;
 	bool oldoverlay = _SidebarOverlay;
 
 	_SidebarWidth = std::max(width, 0);
@@ -354,14 +359,21 @@ bool Video_Set_Sidebar(int width, int height, bool onright, int barheight, bool 
 	_SidebarOnRight = onright;
 	_BarHeight = std::max(barheight, 0);
 	_SidebarOverlay = overlay;
+	_BarWidth = 0;
+	if (_SidebarWidth > 0 && _SidebarHeight > 0 && _BarHeight > 0) {
+		_BarWidth = std::max((int)ceil((double)_ScaleInfo.DrawableWidth / Sidebar_Fit_Scale()), 1);
+	}
 
 	if (!Apply_Layout()) {
 		_SidebarWidth = oldwidth;
 		_SidebarHeight = oldheight;
 		_SidebarOnRight = oldright;
 		_BarHeight = oldbar;
+		_BarWidth = oldbarwidth;
 		_SidebarOverlay = oldoverlay;
-		Apply_Layout();
+		if (!Apply_Layout()) {
+			DebugString("Video: the previous layout could not be restored either.\n");
+		}
 		return(false);
 	}
 	return(true);

@@ -2,7 +2,7 @@
 
 The controller button glyphs the console-style screens draw beside their
 prompts. They are the face buttons from Kenney's Input Prompts pack, version
-1.5 (https://kenney.nl/assets/input-prompts), released under Creative
+1.5A (https://kenney.nl/assets/input-prompts), released under Creative
 Commons Zero; `LICENSE.txt` is the pack's licence text. Each file is the
 pack's 64x64 "Default" PNG under a name that says which button it stands for:
 

@@ -31,6 +31,15 @@ GraphicMenu * _Graphic_Menu(INIClass const & ini, const char * name);
 GraphicMenuItem * GM_Create_Item_From_INI(const char * name, INIClass const & ini, MSEngine & engine, Point2D & image_size);
 
 
+// A pad step lands on the nearest enabled item inside a cone ahead of the current one;
+// sideways distance counts double so the straighter item beats the nearer diagonal one.
+enum {
+	STEP_CONE_SIDEWAYS = 5,
+	STEP_CONE_FORWARD = 2,
+	STEP_SIDEWAYS_WEIGHT = 2,
+};
+
+
 /// <summary>
 /// Creates a graphic menu described by an INI file.
 /// Use this routine to build one of the shell menu pages. The file is fetched through
@@ -149,6 +158,16 @@ GraphicMenu::~GraphicMenu(void)
 /// </summary>
 /// <param name="id">The identifier of the items to change.</param>
 /// <param name="enabled">Should the items be enabled?</param>
+void GraphicMenu::Set_Item_Enabled(int id, bool enabled)
+{
+	for (GraphicMenuItem * item : Items) {
+		if (item->Get_ID() == id) {
+			item->Set_Enabled(enabled);
+		}
+	}
+}
+
+
 GraphicMenuItem * GraphicMenu::Find_Item(int id) const
 {
 	for (GraphicMenuItem * item : Items) {
@@ -158,13 +177,36 @@ GraphicMenuItem * GraphicMenu::Find_Item(int id) const
 }
 
 
-void GraphicMenu::Set_Item_Enabled(int id, bool enabled)
+/// <summary>
+/// Finds the enabled item with artwork nearest to a rectangle in the given direction, or
+/// the first such item when the rectangle is invalid. NULL when none lies that way.
+/// </summary>
+GraphicMenuItem * GraphicMenu::Nearest_Item(Rect const & from, int dx, int dy) const
 {
-	for (GraphicMenuItem * item : Items) {
-		if (item->Get_ID() == id) {
-			item->Set_Enabled(enabled);
+	GraphicMenuItem * best = NULL;
+	int best_score = 0;
+	for (GraphicMenuItem * candidate : Items) {
+		Rect rect = candidate->Get_Active_Rect();
+		if (!candidate->Is_Enabled() || !rect.Is_Valid()) {
+			continue;
+		}
+		if (!from.Is_Valid()) {
+			return(candidate);
+		}
+		int cx = (rect.X + rect.Width / 2) - (from.X + from.Width / 2);
+		int cy = (rect.Y + rect.Height / 2) - (from.Y + from.Height / 2);
+		int forward = cx * dx + cy * dy;
+		int sideways = std::abs(cx * dy) + std::abs(cy * dx);
+		if (forward <= 0 || sideways > forward * STEP_CONE_SIDEWAYS / STEP_CONE_FORWARD) {
+			continue;
+		}
+		int score = forward + sideways * STEP_SIDEWAYS_WEIGHT;
+		if (best == NULL || score < best_score) {
+			best = candidate;
+			best_score = score;
 		}
 	}
+	return(best);
 }
 
 
@@ -212,34 +254,8 @@ int GraphicMenu::Presentation(void)
 			}
 		}
 	};
-	// Steps the selection to the nearest item with artwork in the given direction.
 	auto step = [&](int dx, int dy, bool silent = false) {
-		Rect from = item != NULL ? item->Get_Active_Rect() : Rect();
-		GraphicMenuItem * best = NULL;
-		int best_score = 0;
-		for (int index = 0; index < Items.Count(); index++) {
-			GraphicMenuItem * candidate = Items[index];
-			Rect rect = candidate->Get_Active_Rect();
-			if (!candidate->Is_Enabled() || !rect.Is_Valid() || candidate == item) {
-				continue;
-			}
-			if (!from.Is_Valid()) {
-				best = candidate;
-				break;
-			}
-			int cx = (rect.X + rect.Width / 2) - (from.X + from.Width / 2);
-			int cy = (rect.Y + rect.Height / 2) - (from.Y + from.Height / 2);
-			int forward = cx * dx + cy * dy;
-			int sideways = std::abs(cx * dy) + std::abs(cy * dx);
-			if (forward <= 0 || sideways > forward * 5 / 2) {
-				continue;
-			}
-			int score = forward + sideways * 2;
-			if (best == NULL || score < best_score) {
-				best = candidate;
-				best_score = score;
-			}
-		}
+		GraphicMenuItem * best = Nearest_Item(item != NULL ? item->Get_Active_Rect() : Rect(), dx, dy);
 		if (best != NULL) {
 			select(best, silent);
 		}
@@ -259,7 +275,7 @@ int GraphicMenu::Presentation(void)
 
 	while (!done) {
 		padded = Options.ControlScheme == CONTROL_CONTROLLER;
-		// A pad press switched the scheme under this page, so it shows again as a console screen.
+		// A pad press switched the scheme under this page; it is rebuilt as a console screen.
 		if (padded && !started_padded) {
 			restart = true;
 			item = NULL;
@@ -272,18 +288,20 @@ int GraphicMenu::Presentation(void)
 		Point2D mouse(Get_Mouse_X(), Get_Mouse_Y());
 
 		if (Keyboard->Check() != KN_NONE) {
-			KeyNumType key = KeyNumType(Keyboard->Get() & ~(WWKEY_SHIFT_BIT|WWKEY_ALT_BIT|WWKEY_CTRL_BIT|WWKEY_VK_BIT));
-			if (padded && key == KN_UP) {
+			KeyNumType key = Keyboard->Get();
+			// Shortcut items match the key with its modifier bits; the pad's keys are read bare.
+			KeyNumType plain = KeyNumType(key & ~(WWKEY_SHIFT_BIT|WWKEY_ALT_BIT|WWKEY_CTRL_BIT|WWKEY_VK_BIT));
+			if (padded && plain == KN_UP) {
 				step(0, -1);
-			} else if (padded && key == KN_DOWN) {
+			} else if (padded && plain == KN_DOWN) {
 				step(0, 1);
-			} else if (padded && key == KN_LEFT) {
+			} else if (padded && plain == KN_LEFT) {
 				step(-1, 0);
-			} else if (padded && key == KN_RIGHT) {
+			} else if (padded && plain == KN_RIGHT) {
 				step(1, 0);
-			} else if (padded && (key == KN_RETURN || key == KN_SPACE) && item != NULL && mouse == last_mouse) {
+			} else if (padded && (plain == KN_RETURN || plain == KN_SPACE) && item != NULL) {
 				done = true;
-			} else if (padded && key == KN_ESC && BackID >= 0) {
+			} else if (padded && plain == KN_ESC && BackID >= 0) {
 				back();
 			} else {
 				GraphicMenuItem * temp = (key == KN_LMOUSE || key == KN_RETURN) ? Get_Item_Under_Mouse(mouse) : Get_Item_For_Key(key);

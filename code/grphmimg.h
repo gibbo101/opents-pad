@@ -11,6 +11,8 @@
 
 #include "grphmitm.h"
 
+class MSDimAnim;
+
 
 class GraphicMenuImageItem : public GraphicMenuItem
 {
@@ -62,7 +64,7 @@ class GraphicMenuImageItem : public GraphicMenuItem
 		 * Darkens the artwork while the item is not selected under the controller scheme,
 		 * so the selected one stands out. NULL under keyboard and mouse and for small buttons.
 		 */
-		MSAnim * Dimmer;
+		MSDimAnim * Dimmer;
 
 		/*
 		 * This is the name of the movie to play when this item is chosen. The movie runs

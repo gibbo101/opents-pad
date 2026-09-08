@@ -109,6 +109,9 @@ class GraphicMenu
 		GraphicMenuItem * Get_Item_Under_Mouse(Point2D const & mouse);
 		GraphicMenuItem * Get_Item_For_Key(KeyNumType key);
 
+	private:
+		GraphicMenuItem * Nearest_Item(Rect const & from, int dx, int dy) const;
+
 	public:
 		/*
 		 * This is the animation engine that drives the menu. It owns the backdrop and the
@@ -143,7 +146,7 @@ class GraphicMenu
 		 * them along with itself.
 		 */
 		ITEM_LIST Items;
-		int BackID;					// The item the pad's back button chooses, or -1 when the page has none.
+		int BackID;					// The pad's back button chooses this item; -1 when the page has none.
 };
 
 
