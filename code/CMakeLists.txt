@@ -1,9 +1,12 @@
 # Limit the generated solution to supported configurations.
 set(CMAKE_CONFIGURATION_TYPES Debug Release CACHE STRING "" FORCE)
 
-# OpenTS currently supports 32-bit (x86) builds only.
-if(NOT CMAKE_SIZEOF_VOID_P EQUAL 4)
-    message(FATAL_ERROR "OpenTS must be built as 32-bit x86. Reconfigure with -A Win32.")
+# OpenTS supports 32-bit (x86) builds. A 64-bit build is an unsupported experiment.
+if(NOT CMAKE_SIZEOF_VOID_P EQUAL 4 AND NOT OPENTS_EXPERIMENTAL_X64)
+    message(FATAL_ERROR
+        "OpenTS must be built as 32-bit x86. Reconfigure with -A Win32. "
+        "For the unsupported 64-bit experiment, configure with "
+        "-A x64 -DOPENTS_EXPERIMENTAL_X64=ON.")
 endif()
 
 #
@@ -80,8 +83,9 @@ set_target_properties(OpenTS PROPERTIES
 )
 
 set_target_properties(OpenTS PROPERTIES
-    VS_DEBUGGER_COMMAND "${TS_RUN_DIR}/$<TARGET_FILE_NAME:OpenTS>"
-    VS_DEBUGGER_WORKING_DIRECTORY "${TS_RUN_DIR}"
+    VS_DEBUGGER_COMMAND "$<TARGET_FILE:OpenTS>"
+    VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:OpenTS>"
+    VS_DEBUGGER_COMMAND_ARGUMENTS "-DATADIR=${OPENTS_GAME_DIR}"
 )
 
 #
@@ -173,11 +177,6 @@ target_compile_definitions(OpenTS PRIVATE
     WIN32
     _WINDOWS
     NOMINMAX
-
-    # Compiles Blowfish into the binary instead of reaching it through the COM object in
-    # blowfish.dll. It decides the layout of BlowfishEngine, so every translation unit has
-    # to agree on it and it belongs on the compile line rather than in a header.
-    NO_BLOWFISH_DLL
 )
 
 #
@@ -204,6 +203,7 @@ target_link_libraries(OpenTS PRIVATE
     bx
     bimg
     miniaudio
+    lzo
     comctl32
     dbghelp
     iphlpapi
@@ -212,7 +212,7 @@ target_link_libraries(OpenTS PRIVATE
     winmm
     ws2_32
     kernel32 user32 gdi32 winspool comdlg32 advapi32 shell32
-    ole32 oleaut32 uuid odbc32 odbccp32
+    odbc32 odbccp32
 )
 
 if(MSVC)
@@ -220,9 +220,10 @@ if(MSVC)
         /SUBSYSTEM:WINDOWS
         /DEBUG
         /MAP
-        # Raises the user address space from 2GB to 4GB under 64-bit Windows. Pointers may
-        # then have the high bit set, so anything holding one in a signed integer must only
-        # round-trip the bits and never compare or scale them.
+        # Raises the user address space of a 32-bit process from 2GB to 4GB under 64-bit
+        # Windows. Pointers may then have the high bit set, so anything holding one in a
+        # signed integer must only round-trip the bits and never compare or scale them. A
+        # 64-bit image carries the flag already.
         /LARGEADDRESSAWARE
         # Declares the process per-monitor DPI aware, so a scaled desktop does not blur
         # the frame by stretching the whole window.
@@ -266,71 +267,16 @@ foreach(f ${OPENTS_SRC})
     endif()
 endforeach()
 
-# List of all interface filenames (headers + C stubs)
-set(INTERFACE_FILES
-    iblockci.h       iblockci_i.c
-    iblowfish.h      iblowfish_i.c
-    iflyctrl.h       iflyctrl_i.c
-    ilinkstm.h
-    iloco.h          iloco_i.c
-    ilocos.h         ilocos_i.c
-    ipiggy.h         ipiggy_i.c
-    isun.h           isun_i.c
+# The interface headers the locomotors are written against.
+source_group("Interface Files" FILES
+    "${CMAKE_CURRENT_SOURCE_DIR}/iflyctrl.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/iloco.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/ipiggy.h"
 )
-
-# Convert to full paths relative to source dir
-set(FULL_INTERFACE_FILES "")
-foreach(f IN LISTS INTERFACE_FILES)
-    list(APPEND FULL_INTERFACE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/${f}")
-endforeach()
-
-# Add them to the "Interface Files" group and exclude *_i.c from build
-foreach(f IN LISTS FULL_INTERFACE_FILES)
-
-    # Put into VS filter
-    source_group("Interface Files" FILES "${f}")
-
-    # Exclude *_i.c from build, but DO NOT mark headers as header-only
-    if(f MATCHES "_i\\.c$")
-        set_source_files_properties("${f}" PROPERTIES HEADER_FILE_ONLY TRUE)
-    endif()
-
-endforeach()
 
 # General source files
 source_group("Source Files" REGULAR_EXPRESSION ".*\\.(c|cpp)$")
 source_group("Header Files" REGULAR_EXPRESSION ".*\\.(h|hpp)$")
-
-#
-# ---------------------------------------------------------
-# Populate the local run directory
-# ---------------------------------------------------------
-#
-message(STATUS "${PROJECT_NAME}: Creating post-build commands...")
-add_custom_command(TARGET OpenTS POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E make_directory
-        "${TS_RUN_DIR}"
-)
-
-add_custom_command(TARGET OpenTS POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "$<TARGET_FILE:OpenTS>"
-        "${TS_RUN_DIR}"
-)
-
-# Copy the linker-generated .pdb alongside the exe
-add_custom_command(TARGET OpenTS POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "$<TARGET_PDB_FILE:OpenTS>"
-        "${TS_RUN_DIR}"
-)
-
-# Copy the linker-generated .map (sits next to the exe, no GenEx for it)
-add_custom_command(TARGET OpenTS POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "$<TARGET_FILE_DIR:OpenTS>/$<TARGET_FILE_BASE_NAME:OpenTS>.map"
-        "${TS_RUN_DIR}"
-)
 
 #
 # ---------------------------------------------------------

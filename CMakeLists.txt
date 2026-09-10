@@ -12,6 +12,12 @@ set(OPENTS_VERSION_PRERELEASE "")
 option(OPENTS_OFFICIAL_BUILD "Build as an official release of the declared version" OFF)
 
 option(OPENTS_EXPERIMENTAL_CLANG_CL "Build with clang-cl using the MSVC ABI" OFF)
+option(OPENTS_EXPERIMENTAL_X64 "Configure an unsupported 64-bit Windows build" OFF)
+
+# Lets a target's FOLDER place it in a Visual Studio solution folder. The bgfx submodule sets
+# this as well, so declare it here rather than inherit it from a vendored build.
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang"
    AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
@@ -24,6 +30,15 @@ elseif(MSVC)
     if(MSVC_VERSION LESS 1930)
         message(FATAL_ERROR "OpenTS requires MSVC 19.30 or newer.")
     endif()
+    if(NOT CMAKE_SIZEOF_VOID_P EQUAL 4)
+        # A save records pointer identities at a fixed width, but the members and raw
+        # structures around them still travel at the build's own widths, and the packed
+        # version stamp that saves and network packets carry is the same either way.
+        message(WARNING
+            "OpenTS: this build has ${CMAKE_SIZEOF_VOID_P}-byte pointers. Saved games it "
+            "writes are not interchangeable with a supported 32-bit build's, and nothing in "
+            "the version stamp distinguishes them.")
+    endif()
 else()
     message(FATAL_ERROR
         "OpenTS requires the Visual Studio 2022 MSVC toolchain. "
@@ -31,12 +46,17 @@ else()
         "-DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/clang-cl-msvc.cmake.")
 endif()
 
+string(TOLOWER "${CMAKE_CXX_COMPILER_ARCHITECTURE_ID}" OPENTS_ARCH)
+if(NOT OPENTS_ARCH)
+    set(OPENTS_ARCH "unknown")
+endif()
+
 enable_language(RC)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(TS_RUN_DIR "${CMAKE_SOURCE_DIR}/Run" CACHE PATH "Tiberian Sun run directory")
+set(OPENTS_GAME_DIR "${CMAKE_SOURCE_DIR}/Run" CACHE PATH "Tiberian Sun game data directory")
 
 #
 # ---------------------------------------------------------
@@ -61,6 +81,7 @@ set(OPENTS_STAMP_ARGS
     "-DOPENTS_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
     "-DOPENTS_VERSION_HEADER=${OPENTS_VERSION_HEADER}"
     "-DOPENTS_STAMP_HEADER=${OPENTS_STAMP_HEADER}"
+    "-DOPENTS_ARCH=${OPENTS_ARCH}"
     -P "${CMAKE_SOURCE_DIR}/cmake/GitStamp.cmake"
 )
 
