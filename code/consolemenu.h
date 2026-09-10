@@ -145,6 +145,8 @@ class ConsoleMenuClass
 		void Set_Prompts(char const * accept, char const * back);
 		// The pad's menu button runs the action from any row, with its own prompt.
 		void Set_Menu_Button(char const * prompt, std::function<void()> action) { MenuPrompt = prompt; MenuAction = action; IsDirty = true; }
+		// The pad's third face button, the Delete key, or a click on its prompt runs the action.
+		void Set_Third_Button(char const * prompt, std::function<void()> action) { ThirdPrompt = prompt; ThirdAction = action; IsDirty = true; }
 		void Set_Side_Panel(std::function<void(Surface &, Rect const &)> draw);
 		void Set_Backdrop_Panel(std::function<void(ConsoleCanvas &)> draw);
 		void Refresh(void) { IsDirty = true; }
@@ -194,6 +196,9 @@ class ConsoleMenuClass
 		int PanelOpacity;
 		std::string MenuPrompt;
 		std::function<void()> MenuAction;
+		std::string ThirdPrompt;
+		std::function<void()> ThirdAction;
+		Rect ThirdRect;
 		MSFont * IdleFont;				// Replaces Font when a screen sets its own colours; owned by ColorFonts.
 		MSFont * FocusOverride;
 		Rect BackRect;

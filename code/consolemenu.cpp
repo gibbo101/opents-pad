@@ -364,6 +364,11 @@ bool ConsoleMenuClass::Poll_Input(ConsoleMenuResult & result)
 		result = CONSOLE_MENU_ACCEPT;
 		return(true);
 	};
+	auto third = [&](void) {
+		ThirdAction();
+		Absorb_Held_Buttons();
+		IsDirty = true;
+	};
 
 	Point2D mouse(Get_Mouse_X(), Get_Mouse_Y());
 	Rect frame = HiddenSurface->Get_Rect();
@@ -409,6 +414,10 @@ bool ConsoleMenuClass::Poll_Input(ConsoleMenuResult & result)
 				result = CONSOLE_MENU_ACCEPT;
 				return(true);
 			}
+			if (ThirdAction && ThirdRect.Is_Point_Within(mouse)) {
+				third();
+				return(false);
+			}
 			HitType const * hit = hit_at(mouse);
 			if (hit != nullptr && hit->Click) {
 				hit->Click();
@@ -434,6 +443,12 @@ bool ConsoleMenuClass::Poll_Input(ConsoleMenuResult & result)
 			case KN_ESC:
 				result = CONSOLE_MENU_BACK;
 				return(true);
+			case KN_DELETE:
+				if (ThirdAction) {
+					third();
+					return(false);
+				}
+				break;
 			default:
 				break;
 		}
@@ -447,11 +462,16 @@ bool ConsoleMenuClass::Poll_Input(ConsoleMenuResult & result)
 	bool back_pressed = pad.Back && !PreviousPad.Back;
 	// A screen may give the pad's menu button a job of its own, done from any row.
 	bool menu_pressed = pad.Menu && !PreviousPad.Menu && MenuAction;
+	bool third_pressed = pad.Third && !PreviousPad.Third && ThirdAction;
 	PreviousPad = pad;
 	if (menu_pressed) {
 		MenuAction();
 		Absorb_Held_Buttons();
 		IsDirty = true;
+		return(false);
+	}
+	if (third_pressed) {
+		third();
 		return(false);
 	}
 	if (accept_pressed && accept()) return(true);
@@ -494,6 +514,16 @@ void ConsoleMenuClass::Draw(void)
 	auto width = [&](std::string const & text) {
 		return(Font->Get_String_Width(text.c_str()));
 	};
+	// Text that would run past its room is cut short with a trailing "..".
+	auto clip = [&](std::string text, int limit) {
+		if (width(text) > limit) {
+			while (text.size() > 1 && width(text + "..") > limit) {
+				text.pop_back();
+			}
+			text += "..";
+		}
+		return(text);
+	};
 
 	if (BackdropPanel) {
 		ConsoleCanvas canvas = {
@@ -508,7 +538,8 @@ void ConsoleMenuClass::Draw(void)
 		BackdropPanel(canvas);
 	}
 
-	print(Title, left + (MENU_WIDTH - width(Title)) / 2, top + TITLE_Y);
+	std::string title = clip(Title, MENU_WIDTH - 2 * PROMPT_INSET);
+	print(title, left + (MENU_WIDTH - width(title)) / 2, top + TITLE_Y);
 
 	if (SidePanel) {
 		SidePanel(surface, Rect(left + SIDE_X, top + SIDE_Y, SIDE_WIDTH, SIDE_HEIGHT));
@@ -570,15 +601,7 @@ void ConsoleMenuClass::Draw(void)
 			print(row.Label, label_left, y, focused);
 		}
 		if (row.Value) {
-			std::string value = row.Value();
-			// A value that would run past the box is cut short with a trailing "..".
-			int limit = left + VALUE_RIGHT - value_left;
-			if (width(value) > limit) {
-				while (value.size() > 1 && width(value + "..") > limit) {
-					value.pop_back();
-				}
-				value += "..";
-			}
+			std::string value = clip(row.Value(), left + VALUE_RIGHT - value_left);
 			print(value, value_left, y, focused);
 			int x = value_left + (value.empty() ? 0 : width(value) + SWATCH_GAP);
 			if (row.Icon) {
@@ -618,10 +641,23 @@ void ConsoleMenuClass::Draw(void)
 	}
 	BackRect = prompt(BackPrompt, PAD_BUTTON_BACK, false);
 	AcceptRect = prompt(accept_text, PAD_BUTTON_ACCEPT, true);
-	// The menu button's prompt sits in the middle on a screen that gives it a job.
-	if (MenuAction) {
-		int total = used + width(MenuPrompt);
-		Draw_Pad_Prompt(surface, font_for(false), PAD_BUTTON_MENU, MenuPrompt.c_str(), left + (MENU_WIDTH - total) / 2, top + PROMPT_Y);
+	// The menu and third buttons' prompts sit together in the middle on a screen that gives them a job.
+	std::vector<std::pair<PadButtonType, std::string>> middle;
+	if (MenuAction) middle.emplace_back(PAD_BUTTON_MENU, MenuPrompt);
+	if (ThirdAction) middle.emplace_back(PAD_BUTTON_THIRD, ThirdPrompt);
+	int middle_width = 0;
+	for (auto const & [button, text] : middle) {
+		middle_width += (middle_width > 0 ? COLUMN_GAP : 0) + used + width(text);
+	}
+	int middle_x = left + (MENU_WIDTH - middle_width) / 2;
+	ThirdRect = Rect();
+	for (auto const & [button, text] : middle) {
+		int taken = used + width(text);
+		Draw_Pad_Prompt(surface, font_for(false), button, text.c_str(), middle_x, top + PROMPT_Y);
+		if (button == PAD_BUTTON_THIRD) {
+			ThirdRect = Rect(middle_x - 8, top + PROMPT_Y - 4, taken + 16, height + 8);
+		}
+		middle_x += taken + COLUMN_GAP;
 	}
 
 	Update_Visible_Surface(&surface);

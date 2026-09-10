@@ -141,44 +141,60 @@ bool LoadOptionsClass::Load(void)
 }
 
 
+// Asks as the pause menu's confirmations do: No until the player steps the row to Yes.
+static bool Console_Confirm_Delete(char const * description)
+{
+	bool yes = false;
+	ConsoleMenuClass menu(description);
+	menu.Set_Prompts("Accept", "Back");
+	menu.Add_Row({"Delete Save", [&]{ return(std::string(Fetch_String(yes ? TXT_YES : TXT_NO))); }, [&](int) { yes = !yes; }, nullptr});
+	int value_width = std::max(menu.Text_Width(Fetch_String(TXT_YES)), menu.Text_Width(Fetch_String(TXT_NO)));
+	Console_Box_Rows(menu, 0, 0, value_width);
+	return(menu.Process() == CONSOLE_MENU_ACCEPT && yes);
+}
+
+
 /// <summary>
 /// Runs the console-style load screen: one row per save game, newest first, the date at
-/// the left and the description at the right, and loads the one the player picks.
+/// the left and the description at the right, and loads the one the player picks. The
+/// third face button deletes the focused save once the player confirms it.
 /// </summary>
 /// <returns>bool; Was a game loaded?</returns>
 bool LoadOptionsClass::Console_Load(void)
 {
-	Scan_Files();
-	std::vector<int> valid;
-	for (int index = 0; index < Files.Count(); index++) {
-		if (Files[index]->Valid) {
-			valid.push_back(index);
-		}
-	}
-	if (valid.empty()) {
-		return(false);
-	}
-
-	std::vector<std::string> stamps;
-	for (int index : valid) {
-		FileEntryClass const * entry = Files[index];
-		char buffer[64] = "";
-		if (entry->DateTime.dwHighDateTime != -1 && entry->DateTime.dwLowDateTime != -1) {
-			FILETIME local;
-			SYSTEMTIME time;
-			FileTimeToLocalFileTime(&entry->DateTime, &local);
-			FileTimeToSystemTime(&local, &time);
-			char date[32];
-			char clock[32];
-			GetDateFormat(LANG_USER_DEFAULT, 0, &time, "dd MMM", date, sizeof(date));
-			GetTimeFormat(LANG_USER_DEFAULT, TIME_NOSECONDS, &time, nullptr, clock, sizeof(clock));
-			snprintf(buffer, sizeof(buffer), "%s %s", date, clock);
-		}
-		stamps.push_back(buffer);
-	}
-
-	int chosen = -1;
+	int focus = 0;
 	while (true) {
+		Scan_Files();
+		std::vector<int> valid;
+		for (int index = 0; index < Files.Count(); index++) {
+			if (Files[index]->Valid) {
+				valid.push_back(index);
+			}
+		}
+		if (valid.empty()) {
+			return(false);
+		}
+
+		std::vector<std::string> stamps;
+		for (int index : valid) {
+			FileEntryClass const * entry = Files[index];
+			char buffer[64] = "";
+			if (entry->DateTime.dwHighDateTime != -1 && entry->DateTime.dwLowDateTime != -1) {
+				FILETIME local;
+				SYSTEMTIME time;
+				FileTimeToLocalFileTime(&entry->DateTime, &local);
+				FileTimeToSystemTime(&local, &time);
+				char date[32];
+				char clock[32];
+				GetDateFormat(LANG_USER_DEFAULT, 0, &time, "dd MMM", date, sizeof(date));
+				GetTimeFormat(LANG_USER_DEFAULT, TIME_NOSECONDS, &time, nullptr, clock, sizeof(clock));
+				snprintf(buffer, sizeof(buffer), "%s %s", date, clock);
+			}
+			stamps.push_back(buffer);
+		}
+
+		int chosen = -1;
+		bool erase = false;
 		ConsoleMenuClass menu("Load Mission");
 		menu.Set_Prompts("Load", "Back");
 		for (int slot = 0; slot < int(valid.size()); slot++) {
@@ -188,11 +204,20 @@ bool LoadOptionsClass::Console_Load(void)
 			menu.Add_Row({label, [entry]{ return(std::string(entry->Descr)); }, nullptr,
 				[&, slot]{ chosen = slot; menu.Finish(CONSOLE_MENU_ACCEPT); }});
 		}
+		menu.Set_Third_Button("Delete", [&]{ erase = true; menu.Finish(CONSOLE_MENU_ACCEPT); });
+		menu.Set_Focus(focus);
 		if (menu.Process() != CONSOLE_MENU_ACCEPT) {
 			return(false);
 		}
-		if (chosen < 0) chosen = menu.Get_Focus();
+		focus = menu.Get_Focus();
+		if (chosen < 0) chosen = focus;
 		FileEntryClass const * entry = Files[valid[std::clamp(chosen, 0, int(valid.size()) - 1)]];
+		if (erase) {
+			if (Console_Confirm_Delete(entry->Descr)) {
+				Delete_File(entry->Filename);
+			}
+			continue;
+		}
 		if (entry->Num != -1) {
 			Init_Campaigns();
 		}
@@ -200,7 +225,6 @@ bool LoadOptionsClass::Console_Load(void)
 			return(true);
 		}
 		WWMessageBox().Process(TXT_ERROR_LOADING_GAME, TXT_OK, TXT_NONE, TXT_NONE);
-		chosen = -1;
 	}
 }
 

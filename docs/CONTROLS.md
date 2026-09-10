@@ -72,7 +72,8 @@ on-screen keyboard from any row: the name on the skirmish and LAN games
 screens, the chat in a lobby. The campaign select picks a side with Left
 and Right, the lit emblem naming its campaign, and starts on Cross. The
 load list, the options and audio screens, and the LAN lobbies are lists of
-the same shape. The mission briefing continues or turns the page on Cross
+the same shape. Square on the load list deletes the focused save once its
+No/Yes row is set to Yes. The mission briefing continues or turns the page on Cross
 and plays the mission video, when there is one, on Circle; before a mission
 its last page closes with OK, and from the pause menu with Resume Mission.
 The score screens continue on Cross, and a hall of fame place takes its

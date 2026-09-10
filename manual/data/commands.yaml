@@ -1978,6 +1978,20 @@ fixed_controls:
   _provenance:
     source: code/consolemenu.cpp
     guard: null
+- id: fixed:console-menu-delete
+  route_id: fixed-console-menu-delete
+  kind: fixed
+  title: Console menu delete
+  description: Deletes the focused entry on a console-style menu that offers it, such as the focused save
+    on the load list once the player confirms.
+  audience: player
+  availability: *id001
+  bindings:
+  - Delete
+  context: Console-style menus under the controller control scheme
+  _provenance:
+    source: code/consolemenu.cpp
+    guard: null
 - id: fixed:multiplayer-message
   route_id: fixed-multiplayer-message
   kind: fixed

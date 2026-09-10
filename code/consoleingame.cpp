@@ -239,6 +239,8 @@ ConsoleIngameResult Console_Ingame_Menu(void)
 					if (LoadOptionsClass().Console_Load()) {
 						result = INGAME_MENU_LOADED;
 						done = true;
+					} else {
+						loadable = can_load();
 					}
 				} else {
 					// The multiplayer list must run between frames, so the menu loop opens it.

@@ -131,6 +131,15 @@ fixed_controls:
     availability: *all
     sites:
       - { file: code/consolemenu.cpp, function: ConsoleMenuClass::Poll_Input, expression: KN_ESC }
+  - id: fixed:console-menu-delete
+    title: Console menu delete
+    description: Deletes the focused entry on a console-style menu that offers it, such as the focused save on the load list once the player confirms.
+    audience: player
+    bindings: [Delete]
+    context: Console-style menus under the controller control scheme
+    availability: *all
+    sites:
+      - { file: code/consolemenu.cpp, function: ConsoleMenuClass::Poll_Input, expression: KN_DELETE }
   - id: fixed:multiplayer-message
     title: Multiplayer message recipient
     description: Starts a private message to one connection, or a message to everyone.
