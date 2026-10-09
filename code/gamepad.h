@@ -73,6 +73,8 @@ void Gamepad_Settle_Auto_Scheme(unsigned wait_ms);
 void Gamepad_Menu_Starts(bool on);
 bool Gamepad_Menu_Starting(void);
 
+bool Gamepad_Held_Press_Point(POINT & point);
+
 bool Keyboard_Mouse_Seen(void);
 void Note_Keyboard_Mouse_Use(void);
 void Note_Keyboard_Mouse_Reset(void);

@@ -288,6 +288,11 @@ static int _ZoomStep = 0;
 static bool _ZoomHeld = false;
 
 
+// Where a held-back cross press belongs on the screen, until cross is released.
+static bool _PressPending = false;
+static POINT _PressAt = {0, 0};
+
+
 static bool Pressed(bool now_down, bool was_down)
 {
 	return(now_down && !was_down);
@@ -934,11 +939,14 @@ static void Play_Input(GamepadStateType const & pad, GamepadStateType const & pr
 		// twenty-fifth of the view's height, in the screen's pixels.
 		int drag_pixels = std::max(4, int(float(TacticalRect.Height) / 25.0f * float(corner.y - origin.y) / float(std::max(VideoModeHeight, 1))));
 		if (moved_x > drag_pixels || moved_y > drag_pixels) {
+			_PressAt = _cross_at;
+			_PressPending = true;
 			Send_Mouse(MOUSEEVENTF_LEFTDOWN);
 			_cross_sent = true;
 			_cross_taps = 0;
 		}
 	} else if (!pad.Accept && previous.Accept) {
+		_PressPending = false;
 		if (_cross_sent) {
 			Send_Mouse(MOUSEEVENTF_LEFTUP);
 		} else if (!_cross_claimed) {
@@ -1213,6 +1221,24 @@ bool Gamepad_Menu_Starting(void)
 bool Keyboard_Mouse_Seen(void)
 {
 	return(_KeyboardMouseSeen);
+}
+
+
+/// <summary>
+/// Where a held-back cross press was made, while the message being handled is the pad's
+/// own button press. The press is only sent once the pointer has moved far enough to make
+/// a band box, so every handler of it must place it where cross went down.
+/// </summary>
+/// <param name="point">Set to the press point in game coordinates.</param>
+/// <returns>bool; Is this the pad's held-back press?</returns>
+bool Gamepad_Held_Press_Point(POINT & point)
+{
+	if (!_PressPending || (ULONG_PTR)GetMessageExtraInfo() != PAD_INPUT_TAG) {
+		return(false);
+	}
+	point = _PressAt;
+	Screen_Point_To_Game(point);
+	return(true);
 }
 
 

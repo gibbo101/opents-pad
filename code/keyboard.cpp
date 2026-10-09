@@ -55,6 +55,7 @@
 #include "keyboard.h"
 
 #include "_xmouse.h"
+#include "gamepad.h"
 #include "msgloop.h"
 #include "vidscale.h"
 
@@ -659,6 +660,11 @@ int WWKeyboardClass::Message_Handler(HWND window, UINT message, WPARAM wParam, L
 		**	Press of the left mouse button.
 		*/
 		case WM_LBUTTONDOWN:
+			if (Gamepad_Held_Press_Point(point)) {
+				Clamp_To_Game(point);
+				x = point.x;
+				y = point.y;
+			}
 			Put_Mouse_Message(VK_LBUTTON, x, y);
 			processed = true;
 			break;

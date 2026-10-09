@@ -47,6 +47,7 @@
 #include "building.h"
 #include "cell.h"
 #include "dbgprint.h"
+#include "gamepad.h"
 #include "gametime.h"
 #include "goptions.h"
 #include "house.h"
@@ -656,6 +657,12 @@ void ScrollClass::Message_Handler(HWND hwnd, UINT message, WPARAM wParam, LPARAM
 			if (IsMouseDown == false) {
 
 				POINTS pts = MAKEPOINTS(lParam);
+				POINT held;
+				if (Gamepad_Held_Press_Point(held)) {
+					Clamp_To_Game(held);
+					pts.x = (SHORT)held.x;
+					pts.y = (SHORT)held.y;
+				}
 				point.X = pts.x - TacticalRect.X;
 				point.Y = pts.y - TacticalRect.Y;
 
